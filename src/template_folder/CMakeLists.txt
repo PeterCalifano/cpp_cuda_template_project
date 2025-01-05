@@ -9,3 +9,10 @@ string(REPLACE "src/" "" relative_path_without_src ${relative_path_from_root})
 
 # Install the header files to the relative path
 install(FILES ${installable_headers} DESTINATION include/${project_name}/${relative_path_from_root})
+
+# Add src files to library
+set(SRC_PATTERN "*.cpp; *.cu")
+file(GLOB srcLibFiles RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${SRC_PATTERN})
+
+# Export list of src files to parent scope
+set(srcLibFiles ${srcLibFiles} PARENT_SCOPE) 

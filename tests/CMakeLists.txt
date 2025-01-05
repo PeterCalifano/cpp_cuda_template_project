@@ -8,7 +8,7 @@
 #target_link_libraries(custom-main-tests PRIVATE Catch2::Catch2)
 
 # Add tests to build
-set(TESTS_PATTERN "test*.cpp")
+set(TESTS_PATTERN "test*.cpp; test*.cu")
 file(GLOB srcTestFiles RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${TESTS_PATTERN})
 message("Test files found: ${srcTestFiles}")
 

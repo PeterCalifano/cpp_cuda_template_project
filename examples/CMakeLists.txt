@@ -1,5 +1,5 @@
 # Add examples to build
-set(EXAMPLES_PATTERN "example_*.cpp")
+set(EXAMPLES_PATTERN "example_*.cpp; example_*.cu")
 file(GLOB srcExampleFiles RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${EXAMPLES_PATTERN})
 message("Examples files found: ${srcExampleFiles}")
 
