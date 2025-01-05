@@ -7,5 +7,7 @@
 			"path": "../cpp_template_project"
 		}
 	],
-	"settings": {}
+	"settings": {
+		"todo-tree.tree.scanMode": "workspace only"
+	}
 }
