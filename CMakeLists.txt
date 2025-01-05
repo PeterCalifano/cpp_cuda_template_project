@@ -3,17 +3,30 @@ cmake_minimum_required(VERSION 3.15 FATAL_ERROR)
 
 # PROJECT DEFINITION
 set(project_name "template_project")
-project( ${project_name} )
+
+option(ENABLE_OPTIX "Enable OptiX" OFF)
+set(languages C CXX) # ACHTUNG: PTX code requires C language!
+
+if (ENABLE_OPTIX)
+    list(APPEND languages C)
+endif()
 
 # Set version number
 set(PROJECT_VERSION_MAJOR 0)
 set(PROJECT_VERSION_MINOR 1)
 set(PROJECT_VERSION_PATCH 0)
 
+project( ${project_name} 
+        LANGUAGES ${languages}
+        VERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}") # ACHTUNG: PTX code requires C language!
+
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
+#set(CMAKE_C_COMPILER gcc-11)
+#set(CMAKE_CXX_COMPILER g++-11)
 
 # TIP: if different options need to be specified for different targets of the build, use INTERFACE targets
 
@@ -21,12 +34,31 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE relwithdebinfo)
 endif()
 
+# Guard against in-source builds
+if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
+  message(FATAL_ERROR "In-source builds not allowed. Please make a new directory (called a build directory) and run CMake from there. You may need to remove CMakeCache.txt. ")
+endif()
+
+# OPTIONS
+option(ENABLE_OMP "Enable OpenMP" OFF)
+if(NOT DEFINED NUM_OMP_THREADS)
+    set(NUM_OMP_THREADS 4 CACHE INTERNAL "Number of OpenMP threads to use")
+endif()
+
+option(USE_SYS_OPTIX_SDK "Use Optix system folder if specified" OFF)
+option(BUILD_PYTHON_WRAPPER "Build Python wrapper" OFF)
+option(BUILD_MATLAB_WRAPPER "Build MATLAB wrapper" OFF)
+option(ENABLE_SIMD "Enable SIMD instructions" ON)
+
 message(STATUS "==============================================================")
 message(STATUS "====================  Dependencies ===========================")
 
 # LIBRARY DEPENDENCIES DEFINITION
 find_package( Eigen3 3.3 REQUIRED )
 find_package( Doxygen )
+find_package( OpenGL REQUIRED )
+find_package( CUDAToolkit 12.0 REQUIRED) 
+
 #find_package( GTSAM 4.0 REQUIRED )
 #find_package( GTSAM_UNSTABLE REQUIRED)
 #find_package( sopengv )
@@ -37,7 +69,78 @@ find_package( Doxygen )
 #find_package( rapid_yaml) ??
 # torch
 # tensort
-# nvidia things
+
+# Handle CUDA and setup # TODO (PC) Move this code to a dedicated cmake file (HandleCUDA.cmake)
+if (CUDAToolkit_FOUND)
+    message(STATUS "CUDA found: ${CUDAToolkit_VERSION}")
+    message(STATUS "CUDA_INCLUDE_DIRS: ${CUDAToolkit_INCLUDE_DIRS}")
+
+    # TODO ensure this works correctly
+    # Detect the compute capability using nvidia-smi
+    if(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
+      execute_process(
+          COMMAND nvidia-smi --query-gpu=compute_cap --format=csv,noheader
+          OUTPUT_VARIABLE gpu_compute_cap
+          OUTPUT_STRIP_TRAILING_WHITESPACE
+      )
+
+      # Map the compute capability to the correct architecture
+      string(REPLACE "." "" sm_version "${gpu_compute_cap}")
+      set(cuda_arch "sm_${sm_version}")
+
+      message(STATUS "Detected CUDA compute capability: ${gpu_compute_cap}")
+      message(STATUS "Using CUDA architecture: ${cuda_arch}")
+    endif() 
+
+    # Define target to specify includes and compile defs
+    add_library(cuda_compile_settings INTERFACE)
+    
+    # Include directories
+    target_include_directories(cuda_compile_settings INTERFACE ${CUDAToolkit_INCLUDE_DIRS})
+
+    set_property(TARGET cuda_compile_settings 
+                 PROPERTY CUDA_ARCHITECTURES ${sm_version})
+
+    target_compile_definitions(cuda_compile_settings INTERFACE WITH_CUDA=1)
+
+    set_target_properties(cuda_compile_settings PROPERTIES CUDA_SEPARABLE_COMPILATION ON) # Enable separable compilation
+
+    target_link_libraries(cuda_compile_settings INTERFACE ${CUDAToolkit_LIBRARIES} ${CUDA_CUDA_LIBRARY} ${CUDA_LIBRARIES})  # CUDA
+endif()
+
+# OPTIX
+set(OPTIX_FOUND OFF) 
+
+if (ENABLE_OPTIX) # TODO (PC) Move this code to a dedicated cmake file (HandleOptix.cmake)
+
+  # Specify Optix installation directory
+  set(OptiX_INSTALL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/NVIDIA-OptiX-SDK-8.0.0-linux64-x86_64)
+
+  if(${USE_OPTIX_SDK})
+      if (DEFINED ENV{OPTIX_HOME})
+        set(OptiX_INSTALL_DIR $ENV{OPTIX_HOME})
+      else()
+      message(FATAL_ERROR "USE_SYS_OPTIX_SDK is enabled but OPTIX_HOME variable is not defined.")
+      endif()
+  endif()
+
+  set(OPTIX_FOUND ON)
+
+  # Define Optix includes
+  set(OPTIX_INCLUDE_DIR ${OptiX_INSTALL_DIR}/include)
+  list(APPEND OPTIX_INCLUDE_DIR ${OptiX_INSTALL_DIR}/SDK/) # Add headers in SDK/sutil
+  list(APPEND OPTIX_INCLUDE_DIR ${OptiX_INSTALL_DIR}/SDK/sutil) # Add headers in SDK/sutil
+  list(APPEND OPTIX_INCLUDE_DIR ${OptiX_INSTALL_DIR}/SDK/support)
+  list(APPEND OPTIX_INCLUDE_DIR ${OptiX_INSTALL_DIR}/SDK/optixConsole)
+
+  message(STATUS "OptiX enabled")
+  message(STATUS "OPTIX_INCLUDE_DIR: ${OPTIX_INCLUDE_DIR}")
+  list(APPEND INCLUDE_DIR_LIST ${OPTIX_INCLUDE_DIR})
+  
+  # Add Optix includes to interface target
+  target_include_directories(cuda_compile_settings INTERFACE ${OPTIX_INCLUDE_DIR})
+
+endif()
 
 # Add conveniency tools adapted from GTSAM
 # Include CMake modules from GTSAM
@@ -72,25 +175,22 @@ else()
   message(STATUS "Catch2 library fetched successfully.")
 endif()
 
-# OPTIONS
-option(ENABLE_OMP "Enable OpenMP" OFF)
-set(installable_targets "")
+# Create the installation target list 
+set(installable_targets)
 
 # COMPILER FLAGS
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
+
+if (ENABLE_OMP)
+    find_package(OpenMP REQUIRED)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
+endif()
 
 # TIP: To set target compilation options (or any other thing) that must be specific for a target or propagated, use the following cmake pattern (example). Requires cmake 3.15 or later. Here flag BUILD_INTERFACE regulates whether the compile flags are added to the target_compile_options. If true, they are added.
 #add_library(library_compile_flags INTERFACE)
 #target_compile_options(library_compile_flags INTERFACE 
 #"$<${gcc_like_cxx}: $<BUILD_INTERFACE: -Wall;-Wextra;-Wshadow;-Wformat=2;-Wunused>>")
 #target_link_libraries(library_target PUBLIC any_other_target library_compile_flags)
-
-if (ENABLE_OMP)
-    find_package(OpenMP REQUIRED)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
-else()
-    set(OpenMP_CXX_FOUND OFF)
-endif()
 
 # INCLUDE DIRECTORIES
 include_directories( ${OpenCV_INCLUDE_DIRS} ) 
@@ -102,6 +202,9 @@ include_directories( "src")
 # Include CTest and Catch2
 include(CTest)
 include(Catch)
+
+# Add other subdirectories if needed
+#add_subdirectory( other_folder )
 
 # Add library
 add_subdirectory( src )
