@@ -9,6 +9,11 @@ file(GLOB srcLibFiles RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${SRC_PATTERN})
 
 message("Library src files found: ${srcTestFiles}")
 
+if (ENABLE_CUDA AND ENABLE_OPTIX)
+  # Find all kernels source codes
+  file(GLOB srcCudaFilesToPTX RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "kernels/*.cu")
+endif()
+
 # Add subdirectories with src files
 add_subdirectory(template_folder)
 
@@ -24,6 +29,21 @@ add_library(lib_name SHARED
 
 # If need to add other files after add_library, use:
 #target_sources(lib_name SHARED ${srcLibFiles})
+
+if (ENABLE_CUDA AND ENABLE_OPTIX)
+  message("Library .cu kernels files to compile as PTX: ${srcCudaFilesToPTX}")
+
+  # TODO (PC) - Add CUDA to PTX code
+
+  # Build CUDA to PTX code (conveniency tool by Ingo Wald)
+  cuda_compile_and_embed(embedded_ptx_code ${srcCudaFilesToPTX}) 
+  # NOTE: Macro above sets up the build of CUDA kernels -> PTX code from which OptiX module is built.
+  # Build occurs before compilation and linking of the library (or executables).
+  # Variable embedded_ptx_code must be extern "C" const char withing the cpp source code.
+    
+  # Add the embedded PTX code to the library
+  target_sources(lib_name PUBLIC ${embedded_ptx_code})    
+endif()
 
 # Link targets
 target_include_directories(lib_name PUBLIC ${OpenCV_INCLUDE_DIRS} ${PROJECT_SOURCE_DIR} ${JSONCPP_INCLUDE_DIRS} )
