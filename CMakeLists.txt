@@ -297,3 +297,6 @@ set(CTEST_NIGHTLY_START_TIME "00:00:00 CET")
 #set(CPACK_GENERATOR "TGZ")
 #set(CPACK_SOURCE_GENERATOR "TGZ")
 #include(CPack)
+
+# TODO: add cmake configuration to export project, such that it can be found by other projects using find_package()
+# See https://cmake.org/cmake/help/latest/guide/tutorial/Adding%20Export%20Configuration.html
