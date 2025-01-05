@@ -52,4 +52,4 @@ install(FILES ${installable_headers}
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${project_name}
       ) # Install headers
 
-install(FILES "${PROJECT_BINARY_DIR}/config.h"  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${project_name}) # Install config.h 
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/config.h"  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${project_name}) # Install config.h 
