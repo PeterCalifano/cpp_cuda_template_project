@@ -1,5 +1,5 @@
 # VERSION CONTROL 
-cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.15 FATAL_ERROR)
 
 # PROJECT DEFINITION
 set(project_name "template_project")
@@ -14,6 +14,8 @@ set(PROJECT_VERSION_PATCH 0)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
+# TIP: if different options need to be specified for different targets of the build, use INTERFACE targets
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE relwithdebinfo)
@@ -72,9 +74,16 @@ endif()
 
 # OPTIONS
 option(ENABLE_OMP "Enable OpenMP" OFF)
+set(installable_targets "")
 
 # COMPILER FLAGS
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
+
+# TIP: To set target compilation options (or any other thing) that must be specific for a target or propagated, use the following cmake pattern (example). Requires cmake 3.15 or later. Here flag BUILD_INTERFACE regulates whether the compile flags are added to the target_compile_options. If true, they are added.
+#add_library(library_compile_flags INTERFACE)
+#target_compile_options(library_compile_flags INTERFACE 
+#"$<${gcc_like_cxx}: $<BUILD_INTERFACE: -Wall;-Wextra;-Wshadow;-Wformat=2;-Wunused>>")
+#target_link_libraries(library_target PUBLIC any_other_target library_compile_flags)
 
 if (ENABLE_OMP)
     find_package(OpenMP REQUIRED)
@@ -267,3 +276,15 @@ if(BUILD_PYTHON_WRAPPER OR BUILD_MATLAB_WRAPPER)
   endif()
   
 endif()
+
+
+# AUXILIARY 
+# Set dashboard properties (needed for CDash)
+set(CTEST_PROJECT_NAME ${project_name})
+set(CTEST_NIGHTLY_START_TIME "00:00:00 CET")
+
+# Set the dashboard drop method and location
+#set(CTEST_DROP_METHOD "http")
+#set(CTEST_DROP_SITE "my.cdash.org")
+#set(CTEST_DROP_LOCATION "/submit.php?project=CMakeTutorial")
+#set(CTEST_DROP_SITE_CDASH TRUE)
