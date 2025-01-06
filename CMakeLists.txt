@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.15 FATAL_ERROR)
 set(project_name "template_project")
 
 option(ENABLE_OPTIX "Enable OptiX" OFF)
-set(languages C CXX) # ACHTUNG: PTX code requires C language!
+set(languages CXX CUDA) # ACHTUNG: PTX code requires C language!
 
 if (ENABLE_OPTIX)
     list(APPEND languages C)
