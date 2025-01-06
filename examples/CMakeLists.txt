@@ -13,7 +13,7 @@ foreach(exampleFile ${srcExampleFiles})
     get_filename_component(exampleName ${exampleFile} NAME_WE)
     add_executable(${exampleName} ${exampleFile})
 
-    target_link_libraries(${exampleName} PUBLIC lib_name)
+    target_link_libraries(${exampleName} PUBLIC lib_name cuda_compile_settings)
     target_include_directories(${exampleName} PRIVATE ${lib_name_INCLUDE_DIRS})
 
 endforeach()

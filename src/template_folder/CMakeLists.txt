@@ -12,7 +12,9 @@ install(FILES ${installable_headers} DESTINATION include/${project_name}/${relat
 
 # Add src files to library
 set(SRC_PATTERN "*.cpp; *.cu")
-file(GLOB srcLibFiles RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${SRC_PATTERN})
+file(GLOB srcLibFiles_local ${CMAKE_CURRENT_SOURCE_DIR} ${SRC_PATTERN})
+message("Library src files found: ${srcTestFiles}")
 
-# Export list of src files to parent scope
-set(srcLibFiles ${srcLibFiles} PARENT_SCOPE) 
+# Set global # Export list of src files to parent scope
+set(srcLibFiles ${srcLibFiles} ${srcLibFiles_local} PARENT_SCOPE)
+set(${project_name}_INCLUDE_DIRS ${GTSAM_SPACENAV_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR} PARENT_SCOPE)

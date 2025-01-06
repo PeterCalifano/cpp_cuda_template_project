@@ -14,6 +14,9 @@ if (ENABLE_CUDA AND ENABLE_OPTIX)
   file(GLOB srcCudaFilesToPTX RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "kernels/*.cu")
 endif()
 
+# Define INCLUDE_DIRECTORIES (subdirectories append to this)
+set(lib_name_INCLUDE_DIRS ${lib_name_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
+
 # Add subdirectories with src files
 add_subdirectory(template_folder)
 
@@ -46,7 +49,7 @@ if (ENABLE_CUDA AND ENABLE_OPTIX)
 endif()
 
 # Link targets
-target_include_directories(lib_name PUBLIC ${OpenCV_INCLUDE_DIRS} ${PROJECT_SOURCE_DIR} ${JSONCPP_INCLUDE_DIRS} )
+target_include_directories(lib_name PUBLIC ${lib_name_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS} ${PROJECT_SOURCE_DIR} ${JSONCPP_INCLUDE_DIRS} )
 
 # Link interface target for CUDA
 target_link_libraries(lib_name PUBLIC cuda_compile_settings)
@@ -57,7 +60,7 @@ target_link_libraries(lib_name PUBLIC cuda_compile_settings)
 target_link_libraries(lib_name PUBLIC ${OpenCV_LIBS} Eigen3::Eigen jsoncpp)
 
 # Define INCLUDE_DIRECTORIES
-set(lib_name_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} PARENT_SCOPE)
+set(lib_name_INCLUDE_DIRS ${lib_name_INCLUDE_DIRS} PARENT_SCOPE)
 
 # Add target to installable list 
 set(installable_targets ${installable_targets} lib_name PARENT_SCOPE)
