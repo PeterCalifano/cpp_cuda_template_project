@@ -102,10 +102,19 @@ if (CUDAToolkit_FOUND)
                  PROPERTY CUDA_ARCHITECTURES ${sm_version})
 
     target_compile_definitions(cuda_compile_settings INTERFACE WITH_CUDA=1)
+    
+    # Select CUDA libraries to link
+    set(CUDA_LINK_LIBRARIES CUDA::cublas CUDA::cudart CUDA::curand CUDA::cuda_driver)
 
-    set_target_properties(cuda_compile_settings PROPERTIES CUDA_SEPARABLE_COMPILATION ON) # Enable separable compilation
+    # Check if empty
+    if (CUDA_LINK_LIBRARIES STREQUAL "")
+      message(FATAL_ERROR "CUDA libraries not found.")
+    else()
+      message(STATUS "CUDA interface target linked against CUDA libraries: ${CUDA_LINK_LIBRARIES}")
+    endif()
 
-    target_link_libraries(cuda_compile_settings INTERFACE ${CUDAToolkit_LIBRARIES} ${CUDA_CUDA_LIBRARY} ${CUDA_LIBRARIES})  # CUDA
+    target_link_libraries(cuda_compile_settings INTERFACE ${CUDA_LINK_LIBRARIES})  # CUDA
+
 endif()
 
 # OPTIX
