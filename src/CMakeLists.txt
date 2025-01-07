@@ -7,7 +7,7 @@ configure_file(config.h.in config.h)
 set(SRC_PATTERN "*.cpp; *.cu")
 file(GLOB srcLibFiles RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${SRC_PATTERN})
 
-message("Library src files found: ${srcTestFiles}")
+message("Library src files found: ${srcLibFiles_local}")
 
 if (ENABLE_CUDA AND ENABLE_OPTIX)
   # Find all kernels source codes
@@ -18,6 +18,7 @@ endif()
 set(lib_name_INCLUDE_DIRS ${lib_name_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
 
 # Add subdirectories with src files
+message(STATUS "Adding module: template_folder")
 add_subdirectory(template_folder)
 
 # Exclude EXCLUDED_LIST from the list of src files
@@ -49,7 +50,12 @@ if (ENABLE_CUDA AND ENABLE_OPTIX)
 endif()
 
 # Link targets
-target_include_directories(lib_name PUBLIC ${lib_name_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS} ${PROJECT_SOURCE_DIR} ${JSONCPP_INCLUDE_DIRS} )
+target_include_directories(lib_name PUBLIC 
+                          ${lib_name_INCLUDE_DIRS} 
+                          ${OpenCV_INCLUDE_DIRS} 
+                          ${PROJECT_SOURCE_DIR} 
+                          ${JSONCPP_INCLUDE_DIRS} 
+                          )
 
 # Link interface target for CUDA
 target_link_libraries(lib_name PUBLIC cuda_compile_settings)
@@ -57,7 +63,14 @@ target_link_libraries(lib_name PUBLIC cuda_compile_settings)
 #target_include_directories(lib_name INTERFACE ${interface_INCLUDE_DIRS} ) 
 # TIP: INTERFACE ensures that the consumer target does not need to include manually the include directories the library target depends on, because they are automagically propagated to the target, even if the target does not need thme. The same happens with PUBLIC, but this time the includes are used by the target library itself.
 
-target_link_libraries(lib_name PUBLIC ${OpenCV_LIBS} Eigen3::Eigen jsoncpp)
+target_link_libraries(lib_name PUBLIC 
+                      ${OpenCV_LIBS} 
+                      Eigen3::Eigen 
+                      jsoncpp
+                      gdt
+                      glfw 
+                      ${OPENGL_LIBRARIES}
+                      ${optix_LIBRARY})
 
 # Define INCLUDE_DIRECTORIES
 set(lib_name_INCLUDE_DIRS ${lib_name_INCLUDE_DIRS} PARENT_SCOPE)
