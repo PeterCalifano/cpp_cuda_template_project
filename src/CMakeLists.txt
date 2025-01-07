@@ -34,7 +34,7 @@ add_library(lib_name SHARED
 # If need to add other files after add_library, use:
 #target_sources(lib_name SHARED ${srcLibFiles})
 
-if (ENABLE_CUDA AND ENABLE_OPTIX)
+if ( ENABLE_OPTIX )
   message("Library .cu kernels files to compile as PTX: ${srcCudaFilesToPTX}")
 
   # TODO (PC) - Add CUDA to PTX code
