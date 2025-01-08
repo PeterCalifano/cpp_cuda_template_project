@@ -5,6 +5,9 @@ cmake_minimum_required(VERSION 3.15 FATAL_ERROR)
 #set(CMAKE_CXX_COMPILER g++-11)
 #set(CMAKE_CUDA_COMPILER nvcc)
 
+# Manully specify build type
+set(CMAKE_BUILD_TYPE Debug)
+
 # PROJECT DEFINITION
 set(project_name "template_project")
 
@@ -41,11 +44,10 @@ option(BUILD_MATLAB_WRAPPER "Build MATLAB wrapper" OFF)
 option(ENABLE_SIMD "Enable SIMD instructions" ON)
 
 # TIP: if different options need to be specified for different targets of the build, use INTERFACE targets
-set(CMAKE_BUILD_TYPE debug)
 
 # COMPILER FLAGS
-if (NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -O2")
+string(TOUPPER "${CMAKE_BUILD_TYPE}" BUILD_TYPE_UPPER)
+if (NOT BUILD_TYPE_UPPER STREQUAL "DEBUG")      set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -O2")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -O2")
 else()
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -O0 -g")
@@ -242,8 +244,8 @@ message(STATUS "CMAKE_CXX_COMPILER_VERSION                : ${CMAKE_CXX_COMPILER
 message(STATUS "Build flags                                               ")
 if(NOT MSVC AND NOT XCODE_VERSION)
   message(STATUS "  Build type                              : ${CMAKE_BUILD_TYPE}")
-  message(STATUS "  C compilation flags (Release)           : ${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_RELEASE}")
-  message(STATUS "  C++ compilation flags (Release)         : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE}")
+  message(STATUS "  C compilation flags                     : ${CMAKE_C_FLAGS}")
+  message(STATUS "  C++ compilation flags                   : ${CMAKE_CXX_FLAGS}")
 endif()
 
 # WRAPPERS CONFIGURATION
