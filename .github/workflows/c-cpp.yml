@@ -13,7 +13,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: configure_build
-      run: ./build.sh
+      run: ./build_lib.sh
     - name: make
       run: make
     - name: make check
