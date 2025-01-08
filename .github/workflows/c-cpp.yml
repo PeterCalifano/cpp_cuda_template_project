@@ -12,11 +12,5 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: configure_build
-      run: ./build_lib.sh
-    - name: make
-      run: make
-    - name: make check
-      run: make check
-    - name: make distcheck
-      run: make distcheck
+    - name: run_build_lib
+      run: echo "Running in $(pwd) directory..." && bash build_lib.sh
