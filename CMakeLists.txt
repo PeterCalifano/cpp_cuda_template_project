@@ -29,17 +29,6 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# TIP: if different options need to be specified for different targets of the build, use INTERFACE targets
-
-if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE relwithdebinfo)
-endif()
-
-# Guard against in-source builds
-if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
-  message(FATAL_ERROR "In-source builds not allowed. Please make a new directory (called a build directory) and run CMake from there. You may need to remove CMakeCache.txt. ")
-endif()
-
 # OPTIONS
 option(ENABLE_OMP "Enable OpenMP" OFF)
 if(NOT DEFINED NUM_OMP_THREADS)
@@ -50,6 +39,23 @@ option(USE_SYS_OPTIX_SDK "Use Optix system folder if specified" OFF)
 option(BUILD_PYTHON_WRAPPER "Build Python wrapper" OFF)
 option(BUILD_MATLAB_WRAPPER "Build MATLAB wrapper" OFF)
 option(ENABLE_SIMD "Enable SIMD instructions" ON)
+
+# TIP: if different options need to be specified for different targets of the build, use INTERFACE targets
+set(CMAKE_BUILD_TYPE debug)
+
+# COMPILER FLAGS
+if (NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -O2")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -O2")
+else()
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -O0 -g")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -O0 -g")
+endif()
+
+# Guard against in-source builds
+if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
+  message(FATAL_ERROR "In-source builds not allowed. Please make a new directory (called a build directory) and run CMake from there. You may need to remove CMakeCache.txt. ")
+endif()
 
 message(STATUS "==============================================================")
 message(STATUS "====================  Dependencies ===========================")
@@ -187,14 +193,6 @@ endif()
 
 # Create the installation target list 
 set(installable_targets)
-
-# COMPILER FLAGS
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
-
-if (ENABLE_OMP)
-    find_package(OpenMP REQUIRED)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
-endif()
 
 # TIP: To set target compilation options (or any other thing) that must be specific for a target or propagated, use the following cmake pattern (example). Requires cmake 3.15 or later. Here flag BUILD_INTERFACE regulates whether the compile flags are added to the target_compile_options. If true, they are added.
 #add_library(library_compile_flags INTERFACE)
