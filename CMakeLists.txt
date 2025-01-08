@@ -1,6 +1,10 @@
 # VERSION CONTROL 
 cmake_minimum_required(VERSION 3.15 FATAL_ERROR)
 
+#set(CMAKE_C_COMPILER gcc-11)
+#set(CMAKE_CXX_COMPILER g++-11)
+#set(CMAKE_CUDA_COMPILER nvcc)
+
 # PROJECT DEFINITION
 set(project_name "template_project")
 
@@ -24,9 +28,6 @@ project( ${project_name}
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-
-#set(CMAKE_C_COMPILER gcc-11)
-#set(CMAKE_CXX_COMPILER g++-11)
 
 # TIP: if different options need to be specified for different targets of the build, use INTERFACE targets
 
