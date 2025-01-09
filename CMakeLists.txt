@@ -165,14 +165,16 @@ endif()
 find_package(GTSAMCMakeTools REQUIRED)
 
 # Load build type flags and default to Debug mode
-include(GtsamBuildTypes)
+#include(GtsamBuildTypes)
 
 # Use macros for creating tests/timing scripts
-include(GtsamTesting)
-include(GtsamPrinting)
+#include(GtsamTesting)
+#include(GtsamPrinting)
 
 # Add CppUnitLite testing framework to build
-add_subdirectory(CppUnitLite)
+if ( NOT (BUILD_PYTHON_WRAPPER OR BUILD_MATLAB_WRAPPER) )
+  add_subdirectory(CppUnitLite) # ACHTUNG: when building with wrapper this MUST be excluded because GTSAM already includes it
+endif()
 
 # Add catch2 for unit testing
 find_package(Catch2)
@@ -261,7 +263,7 @@ if(BUILD_PYTHON_WRAPPER OR BUILD_MATLAB_WRAPPER)
     CACHE STRING "The Python version to use for wrapping")
 
   # Look for gtwrap
-  find_package(gtwrap QUIET)
+  find_package(gtwrap QUIET) 
 
   # Check if wrap subdirectory exists, else fetch it from github as submodule
   if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/wrap") 
@@ -290,13 +292,14 @@ if(BUILD_PYTHON_WRAPPER OR BUILD_MATLAB_WRAPPER)
   #message(STATUS "Searching for wrapper interface files in: ${SEARCH_DIR_WRAP}")
   #file(GLOB WRAPPER_INTERFACE_FILES "${SEARCH_DIR_WRAP}" "*.i") # Not working for now
 
-  set(WRAPPER_INTERFACE_FILES "${SEARCH_DIR_WRAP}/<name>.i") # Add the interface files here
+  # Template: set(WRAPPER_INTERFACE_FILES "${SEARCH_DIR_WRAP}/<name>.i") # Add the interface files here
   message(STATUS "Found wrapper interface files: ${WRAPPER_INTERFACE_FILES}")
 
   if (NOT WRAPPER_INTERFACE_FILES)
-    message(FATAL_ERROR "No interface files found for wrapping. Please check the search directory.")
+    message(FATAL_ERROR "WRAPPER_INTERFACE_FILES list not defined. Please check the cmake configuration.")
+  elseif (${WRAPPER_INTERFACE_FILES} STREQUAL "")
+    message(FATAL_ERROR "No interface files found for wrapping. Please check the search directory or provide files.")
   endif()
-
 
   # Set the include directory for matlab.h
   set(GTWRAP_INCLUDE_NAME "wrap")
@@ -385,11 +388,11 @@ if(BUILD_PYTHON_WRAPPER OR BUILD_MATLAB_WRAPPER)
     #set(WRAP_CUSTOM_MATLAB_PATH ${GTSAM_CUSTOM_MATLAB_PATH})
     set(WRAP_BUILD_TYPE_POSTFIXES OFF) # Determines if post build type postfixes are added to the mex files 
 
+    # Add the MATLAB wrapper
     wrap_and_install_library("${WRAPPER_INTERFACE_FILES}" "${project_name}" "" "" "" "" OFF)
   endif()
   
 endif()
-
 
 # AUXILIARY 
 # Set dashboard properties (needed for CDash)
