@@ -9,7 +9,7 @@
 
 # Add tests to build
 set(TESTS_PATTERN "test*.cpp; test*.cu")
-file(GLOB srcTestFiles RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${TESTS_PATTERN})
+file(GLOB srcTestFiles ${TESTS_PATTERN})
 message("Test files found: ${srcTestFiles}")
 
 # Exclude EXCLUDED_LIST from the list of tests

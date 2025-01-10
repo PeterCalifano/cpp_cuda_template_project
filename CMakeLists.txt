@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.15 FATAL_ERROR)
 #set(CMAKE_CXX_COMPILER g++-11)
 #set(CMAKE_CUDA_COMPILER nvcc)
 
-# Manully specify build type
+# Manually specify build type
 set(CMAKE_BUILD_TYPE Debug)
 
 # PROJECT DEFINITION
