@@ -5,13 +5,13 @@ configure_file(config.h.in config.h)
 
 # Add src files to library
 set(SRC_PATTERN "*.cpp; *.cu")
-file(GLOB srcLibFiles ${SRC_PATTERN})
+file(GLOB srcLibFiles RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${SRC_PATTERN})
 
 message("Library src files found: ${srcLibFiles}")
 
 if (ENABLE_CUDA AND ENABLE_OPTIX)
   # Find all kernels source codes
-  file(GLOB srcCudaFilesToPTX "kernels/*.cu")
+  file(GLOB srcCudaFilesToPTX RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "kernels/*.cu")
 endif()
 
 # Define INCLUDE_DIRECTORIES (subdirectories append to this)
