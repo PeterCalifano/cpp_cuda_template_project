@@ -66,9 +66,9 @@ target_link_libraries(${lib_name} PUBLIC cuda_compile_settings)
 target_link_libraries(${lib_name} PUBLIC 
                       ${OpenCV_LIBS} 
                       Eigen3::Eigen 
-                      jsoncpp
-                      gdt
-                      glfw 
+                      #jsoncpp
+                      #gdt
+                      #glfw 
                       ${OPENGL_LIBRARIES}
                       ${optix_LIBRARY})
 
@@ -92,4 +92,4 @@ install(FILES ${installable_headers}
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${project_name}
       ) # Install headers
 
-install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/config.h"  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${project_name}) # Install config.h 
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/config.h"  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${project_name}) # Install config.h 
