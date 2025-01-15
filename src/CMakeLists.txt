@@ -76,7 +76,7 @@ target_link_libraries(${lib_name} PUBLIC
 set(lib_name_INCLUDE_DIRS ${lib_name_INCLUDE_DIRS} PARENT_SCOPE)
 
 # Add target to installable list 
-set(installable_targets ${installable_targets} ${lib_name} PARENT_SCOPE)
+set(installable_targets ${installable_targets} ${lib_name})
 
 # INSTALL CONFIGURATION
 install(

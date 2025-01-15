@@ -241,13 +241,27 @@ message(STATUS "List of test targets: ${TESTS_LIST}")
 # Print configuration variables
 message(STATUS "===============================================================")
 message(STATUS "================  Configuration Options  ======================")
+message(STATUS "LIBRARY NAME                              : ${project_name}")
+# CXX compiler
+message(STATUS "CMAKE_CXX_COMPILER                        : ${CMAKE_CXX_COMPILER}")
 message(STATUS "CMAKE_CXX_COMPILER_ID type                : ${CMAKE_CXX_COMPILER_ID}")
 message(STATUS "CMAKE_CXX_COMPILER_VERSION                : ${CMAKE_CXX_COMPILER_VERSION}")
-message(STATUS "Build flags                                               ")
+# C compiler
+message(STATUS "CMAKE_C_COMPILER                          : ${CMAKE_C_COMPILER}")
+message(STATUS "CMAKE_C_COMPILER_ID type                  : ${CMAKE_C_COMPILER_ID}")
+message(STATUS "CMAKE_C_COMPILER_VERSION                  : ${CMAKE_C_COMPILER_VERSION}")
+# CUDA compiler
+message(STATUS "CMAKE_CUDA_COMPILER                       : ${CMAKE_CUDA_COMPILER}")
+message(STATUS "CMAKE_CUDA_COMPILER_ID type               : ${CMAKE_CUDA_COMPILER_ID}")
+message(STATUS "CMAKE_CUDA_COMPILER_VERSION               : ${CMAKE_CUDA_COMPILER_VERSION}")
+# Installation
+message(STATUS "CMAKE_INSTALL_PREFIX                      : ${CMAKE_INSTALL_PREFIX}")
+# Build type
+message(STATUS "Build flags:                                               ")
 if(NOT MSVC AND NOT XCODE_VERSION)
   message(STATUS "  Build type                              : ${CMAKE_BUILD_TYPE}")
-  message(STATUS "  C compilation flags                     : ${CMAKE_C_FLAGS}")
-  message(STATUS "  C++ compilation flags                   : ${CMAKE_CXX_FLAGS}")
+  message(STATUS "  C compilation flags (Release)           : ${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_RELEASE}")
+  message(STATUS "  C++ compilation flags (Release)         : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE}")
 endif()
 
 # WRAPPERS CONFIGURATION
