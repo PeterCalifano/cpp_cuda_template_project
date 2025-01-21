@@ -9,7 +9,7 @@ file(GLOB srcLibFiles RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${SRC_PATTERN})
 
 message("Library src files found: ${srcLibFiles}")
 
-if (ENABLE_CUDA AND ENABLE_OPTIX)
+if (ENABLE_OPTIX)
   # Find all kernels source codes
   file(GLOB srcCudaFilesToPTX RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "kernels/*.cu")
 endif()
@@ -73,7 +73,7 @@ target_link_libraries(${lib_name} PUBLIC
                       ${optix_LIBRARY})
 
 # Define INCLUDE_DIRECTORIES
-set(${lib_name}_INCLUDE_DIRS ${lib_name_INCLUDE_DIRS} PARENT_SCOPE)
+set(${lib_name}_INCLUDE_DIRS ${${lib_name}_INCLUDE_DIRS} PARENT_SCOPE)
 
 # Add target to installable list 
 set(installable_targets ${installable_targets} ${lib_name})
