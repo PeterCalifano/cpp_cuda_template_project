@@ -73,7 +73,7 @@ target_link_libraries(${lib_name} PUBLIC
                       ${optix_LIBRARY})
 
 # Define INCLUDE_DIRECTORIES
-set(lib_name_INCLUDE_DIRS ${lib_name_INCLUDE_DIRS} PARENT_SCOPE)
+set(${lib_name}_INCLUDE_DIRS ${lib_name_INCLUDE_DIRS} PARENT_SCOPE)
 
 # Add target to installable list 
 set(installable_targets ${installable_targets} ${lib_name})
