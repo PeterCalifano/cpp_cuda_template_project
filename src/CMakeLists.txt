@@ -15,7 +15,7 @@ if (ENABLE_CUDA AND ENABLE_OPTIX)
 endif()
 
 # Define INCLUDE_DIRECTORIES (subdirectories append to this)
-set(lib_name_INCLUDE_DIRS ${lib_name_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
+set(${lib_name}_INCLUDE_DIRS ${lib_name_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
 
 # Add subdirectories with src files
 message(STATUS "Adding module: template_folder")
@@ -73,7 +73,7 @@ target_link_libraries(${lib_name} PUBLIC
                       ${optix_LIBRARY})
 
 # Define INCLUDE_DIRECTORIES
-set(lib_name_INCLUDE_DIRS ${lib_name_INCLUDE_DIRS} PARENT_SCOPE)
+set(${lib_name}_INCLUDE_DIRS ${lib_name_INCLUDE_DIRS} PARENT_SCOPE)
 
 # Add target to installable list 
 set(installable_targets ${installable_targets} ${lib_name})
