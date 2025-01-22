@@ -17,4 +17,4 @@ message("Library src files found: ${srcLibFiles_local}")
 
 # Set global # Export list of src files to parent scope
 set(srcLibFiles ${srcLibFiles} ${srcLibFiles_local} PARENT_SCOPE)
-set(${project_name}_INCLUDE_DIRS ${GTSAM_SPACENAV_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR} PARENT_SCOPE)
+set(${project_name}_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} PARENT_SCOPE)
