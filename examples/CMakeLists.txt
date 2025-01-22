@@ -1,3 +1,5 @@
+set(lib_name ${project_name}) # Default name for the library is project_name
+
 # Add examples to build
 set(EXAMPLES_PATTERN "example_*.cpp; example_*.cu")
 file(GLOB srcExampleFiles ${EXAMPLES_PATTERN})
@@ -8,6 +10,9 @@ set(EXCLUDED_LIST "")
 list(REMOVE_ITEM srcExampleFiles ${EXCLUDED_LIST})
 
 # Add to build and link
+message(STATUS "Project linked lib ${lib_name} to examples: ${srcExampleFiles}")
+message(STATUS "Include dirs of project root dir: ${${lib_name}_INCLUDE_DIRS}")
+
 foreach(exampleFile ${srcExampleFiles})
 
     get_filename_component(exampleName ${exampleFile} NAME_WE)
