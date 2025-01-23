@@ -170,6 +170,8 @@ if [ "${rebuild_only}" == false ]; then
     #-DGTSAM_BUILD_PYTHON=${python_wrap} \
     #-DGTSAM_INSTALL_MATLAB_TOOLBOX=${matlab_wrap} \
 
+  # TODO introduce check to stop build script if configuration fails!
+  
   # Build and optionally, install 
     make -j ${jobs} -C ${buildpath} 
 
