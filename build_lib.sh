@@ -13,6 +13,7 @@ jobs=3
 rebuild_only=false
 build_type=relwithdebinfo # default build type, possible options: debug, release, relwithdebinfo, minsizerel
 add_checks=true
+add_legacy_tests=false
 CXX_FLAGS=""
 python_wrap=false
 matlab_wrap=false
@@ -176,10 +177,12 @@ if [ "${rebuild_only}" == false ]; then
     make -j ${jobs} -C ${buildpath} 
 
     if [ "${add_checks}" == true ] || [ "${install}" == true ]; then
-      make check -j ${jobs} -C ${buildpath} 
+      if [ "${add_legacy_tests}" == true ]; then
+        make check -j ${jobs} -C ${buildpath} 
+      fi
       make test -j ${jobs} -C ${buildpath} 
     fi
-
+    
     if [ "${install}" == true ]; then
       sudo make install -j ${jobs} -C ${buildpath} 
     fi
