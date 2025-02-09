@@ -7,7 +7,7 @@ configure_file(config.h.in config.h)
 set(SRC_PATTERN "*.cpp; *.cu")
 file(GLOB srcLibFiles RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${SRC_PATTERN})
 
-message("Library src files found: ${srcLibFiles}")
+message(STATUS "Library src files found: ${srcLibFiles}")
 
 if (ENABLE_OPTIX)
   # Find all kernels source codes
@@ -15,7 +15,7 @@ if (ENABLE_OPTIX)
 endif()
 
 # Define INCLUDE_DIRECTORIES (subdirectories append to this)
-set(${lib_name}_INCLUDE_DIRS ${lib_name_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
+set(${lib_name}_INCLUDE_DIRS ${${lib_name}_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
 
 # Add subdirectories with src files
 message(STATUS "Adding module: template_folder")
@@ -51,7 +51,7 @@ endif()
 
 # Link targets
 target_include_directories(${lib_name} PUBLIC 
-                          ${lib_name_INCLUDE_DIRS} 
+                          ${${lib_name}_INCLUDE_DIRS} 
                           ${OpenCV_INCLUDE_DIRS} 
                           ${PROJECT_SOURCE_DIR} 
                           ${JSONCPP_INCLUDE_DIRS} 
