@@ -48,11 +48,11 @@ option(ENABLE_SIMD "Enable SIMD instructions" ON)
 # COMPILER FLAGS
 string(TOUPPER "${CMAKE_BUILD_TYPE}" BUILD_TYPE_UPPER)
 if (NOT BUILD_TYPE_UPPER STREQUAL "DEBUG")      
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -O2")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -O2")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -O3")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -O3")
 else()
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -O0 -g")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -O0 -g")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Og -g -fsanitize=address,undefined") # -Wpedantic
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Og -g -fsanitize=address,undefined")
 endif()
 
 # Guard against in-source builds
