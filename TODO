@@ -1,0 +1,7 @@
+# Lists of upgrades to do in template
+
+- [ ] Improve includes requirements of library using interface targets
+
+- [ ] Add src/programs and root/tools folders to default template
+
+- [ ] See TAeams and copy here
