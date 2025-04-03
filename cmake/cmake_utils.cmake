@@ -14,7 +14,7 @@ function(filter_files_in_list input_var output_var exclude_list)
 endfunction()
 
 # Function to add examples files to the build
-function(add_examples project_lib_name excluded_list cuda_compile_settings)
+function(add_examples project_lib_name excluded_list target_compile_settings)
 
     set(EXAMPLES_PATTERN "example_*.cpp; example_*.cu")
     file(GLOB srcExampleFiles RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${EXAMPLES_PATTERN})
@@ -29,14 +29,14 @@ function(add_examples project_lib_name excluded_list cuda_compile_settings)
     foreach(exampleFile ${srcExampleFiles})
         get_filename_component(exampleName ${exampleFile} NAME_WE)
         add_executable(${exampleName} ${exampleFile})
-        target_link_libraries(${exampleName} PRIVATE ${project_lib_name} cuda_compile_settings)
+        target_link_libraries(${exampleName} PRIVATE ${project_lib_name} target_compile_settings)
         target_include_directories(${exampleName} PRIVATE ${${project_lib_name}_INCLUDE_DIRS})
     endforeach()
 
 endfunction()
 
 # Function to add test files to the build
-function(add_tests project_lib_name excluded_list TESTS_LIST cuda_compile_settings CATCH2_TEST_PROPERTIES)
+function(add_tests project_lib_name excluded_list TESTS_LIST target_compile_settings CATCH2_TEST_PROPERTIES)
 
     set(TESTS_PATTERN "test*.cpp; test*.cu")
     file(GLOB srcTestFiles RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${TESTS_PATTERN})
@@ -51,7 +51,7 @@ function(add_tests project_lib_name excluded_list TESTS_LIST cuda_compile_settin
 
         list(APPEND TESTS_LIST ${testName}) 
 
-        target_link_libraries(${testName} PRIVATE ${project_lib_name} cuda_compile_settings)
+        target_link_libraries(${testName} PRIVATE ${project_lib_name} target_compile_settings)
         catch_discover_tests(${testName} PROPERTIES ${CATCH2_TEST_PROPERTIES})
 
     endforeach()
