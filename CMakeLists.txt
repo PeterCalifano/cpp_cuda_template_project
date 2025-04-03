@@ -12,10 +12,19 @@ set(CMAKE_BUILD_TYPE Debug)
 set(project_name "template_project")
 
 option(ENABLE_OPTIX "Enable OptiX" OFF)
-set(languages CXX CUDA) # ACHTUNG: PTX code requires C language!
+option(ENABLE_CUDA "Enable CUDA" OFF)
+
+set(languages CXX) # ACHTUNG: PTX code requires C language!
 
 if (ENABLE_OPTIX)
-    list(APPEND languages C)
+  set(ENABLE_CUDA ON)
+endif()
+
+if (ENABLE_CUDA)
+    list(APPEND languages CUDA)
+    if (ENABLE_OPTIX)
+      list(APPEND languages C)
+    endif()
 endif()
 
 # Set version number
@@ -28,14 +37,16 @@ project( ${project_name}
         VERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}") # ACHTUNG: PTX code requires C language!
 
 # Set C++ standard
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
+include(cmake/cmake_utils.cmake)
 
 # OPTIONS
 option(ENABLE_OMP "Enable OpenMP" OFF)
 if(NOT DEFINED NUM_OMP_THREADS)
-    set(NUM_OMP_THREADS 4 CACHE INTERNAL "Number of OpenMP threads to use")
+    set(NUM_OMP_THREADS 4 "Number of OpenMP threads to use")
 endif()
 
 option(USE_SYS_OPTIX_SDK "Use Optix system folder if specified" OFF)
@@ -46,14 +57,12 @@ option(ENABLE_SIMD "Enable SIMD instructions" ON)
 # TIP: if different options need to be specified for different targets of the build, use INTERFACE targets
 
 # COMPILER FLAGS
-string(TOUPPER "${CMAKE_BUILD_TYPE}" BUILD_TYPE_UPPER)
-if (NOT BUILD_TYPE_UPPER STREQUAL "DEBUG")      
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -fmax-errors=3 -Wall -fsanitize=address,undefined -O3")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -fmax-errors=3 -Wall -fsanitize=address,undefined -O3")
-else()
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra  -fmax-errors=3 -Og -g -fsanitize=address,undefined") # -Wpedantic
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra  -fmax-errors=3 -Og -g -fsanitize=address,undefined")
-endif()
+# Set compile flags based on configuration type
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wall -Wextra -fmax-errors=3 -Og -g -fsanitize=address,undefined")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -Wextra -fmax-errors=3 -Og -g -fsanitize=address,undefined")
+
+set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -fmax-errors=3 -Wall -fsanitize=address,undefined -O3")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fmax-errors=3 -Wall -fsanitize=address,undefined -O3")
 
 # Guard against in-source builds
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
@@ -66,8 +75,8 @@ message(STATUS "====================  Dependencies ===========================")
 # LIBRARY DEPENDENCIES DEFINITION
 find_package( Eigen3 3.3 REQUIRED )
 find_package( Doxygen )
-find_package( OpenGL REQUIRED )
-find_package( CUDAToolkit 12.0 REQUIRED) 
+find_package( OpenGL )
+find_package( CUDAToolkit 12.0) 
 
 #find_package( GTSAM 4.0 REQUIRED )
 #find_package( GTSAM_UNSTABLE REQUIRED)
@@ -85,22 +94,10 @@ if (CUDAToolkit_FOUND)
     message(STATUS "CUDA found: ${CUDAToolkit_VERSION}")
     message(STATUS "CUDA_INCLUDE_DIRS: ${CUDAToolkit_INCLUDE_DIRS}")
 
-    # TODO ensure this works correctly
-    # Detect the compute capability using nvidia-smi
-    if(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
-      execute_process(
-          COMMAND nvidia-smi --query-gpu=compute_cap --format=csv,noheader
-          OUTPUT_VARIABLE gpu_compute_cap
-          OUTPUT_STRIP_TRAILING_WHITESPACE
-      )
-
-      # Map the compute capability to the correct architecture
-      string(REPLACE "." "" sm_version "${gpu_compute_cap}")
-      set(cuda_arch "sm_${sm_version}")
-
-      message(STATUS "Detected CUDA compute capability: ${gpu_compute_cap}")
-      message(STATUS "Using CUDA architecture: ${cuda_arch}")
-    endif() 
+    set(cuda_arch "")
+    set(sm_version "")
+    # Call the function to detect CUDA architecture
+    detect_cuda_arch(cuda_arch sm_version)
 
     # Define target to specify includes and compile defs
     add_library(cuda_compile_settings INTERFACE)
@@ -130,7 +127,8 @@ endif()
 # OPTIX
 set(OPTIX_FOUND OFF) 
 
-if (ENABLE_OPTIX) # TODO (PC) Move this code to a dedicated cmake file (HandleOptix.cmake)
+if (ENABLE_OPTIX) 
+# TODO (PC) Move this code to a dedicated cmake file (HandleOptix.cmake)
 
   # Specify Optix installation directory
   set(OptiX_INSTALL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/NVIDIA-OptiX-SDK-8.0.0-linux64-x86_64)
@@ -163,19 +161,7 @@ endif()
 
 # Add conveniency tools adapted from GTSAM
 # Include CMake modules from GTSAM
-find_package(GTSAMCMakeTools REQUIRED)
-
-# Load build type flags and default to Debug mode
-#include(GtsamBuildTypes)
-
-# Use macros for creating tests/timing scripts
-#include(GtsamTesting)
-#include(GtsamPrinting)
-
-# Add CppUnitLite testing framework to build
-if ( NOT (BUILD_PYTHON_WRAPPER OR BUILD_MATLAB_WRAPPER) )
-  add_subdirectory(CppUnitLite) # ACHTUNG: when building with wrapper this MUST be excluded because GTSAM already includes it
-endif()
+find_package(GTSAMCMakeTools)
 
 # Add catch2 for unit testing
 find_package(Catch2)
@@ -184,7 +170,7 @@ if (Catch2_FOUND)
     message(STATUS "Catch2 found at system level: ${Catch2_DIR}")
 else()
   message(STATUS "Catch2 not found. Fetching it...")
-  Include(FetchContent)
+  include(FetchContent)
 
   FetchContent_Declare(
     Catch2
@@ -208,7 +194,6 @@ set(installable_targets)
 # INCLUDE DIRECTORIES
 include_directories( ${OpenCV_INCLUDE_DIRS} ) 
 include_directories( ${PROJECT_SOURCE_DIR} )
-include_directories( ${JSONCPP_INCLUDE_DIRS}) 
 include_directories( ${GTSAM_INCLUDE_DIRS}) 
 include_directories( "src")
 
@@ -247,22 +232,38 @@ message(STATUS "LIBRARY NAME                              : ${project_name}")
 message(STATUS "CMAKE_CXX_COMPILER                        : ${CMAKE_CXX_COMPILER}")
 message(STATUS "CMAKE_CXX_COMPILER_ID type                : ${CMAKE_CXX_COMPILER_ID}")
 message(STATUS "CMAKE_CXX_COMPILER_VERSION                : ${CMAKE_CXX_COMPILER_VERSION}")
-# C compiler
-message(STATUS "CMAKE_C_COMPILER                          : ${CMAKE_C_COMPILER}")
-message(STATUS "CMAKE_C_COMPILER_ID type                  : ${CMAKE_C_COMPILER_ID}")
-message(STATUS "CMAKE_C_COMPILER_VERSION                  : ${CMAKE_C_COMPILER_VERSION}")
-# CUDA compiler
-message(STATUS "CMAKE_CUDA_COMPILER                       : ${CMAKE_CUDA_COMPILER}")
-message(STATUS "CMAKE_CUDA_COMPILER_ID type               : ${CMAKE_CUDA_COMPILER_ID}")
-message(STATUS "CMAKE_CUDA_COMPILER_VERSION               : ${CMAKE_CUDA_COMPILER_VERSION}")
+
+if (ENABLE_OPTIX)
+  # C compiler
+  message(STATUS "CMAKE_C_COMPILER                          : ${CMAKE_C_COMPILER}")
+  message(STATUS "CMAKE_C_COMPILER_ID type                  : ${CMAKE_C_COMPILER_ID}")
+  message(STATUS "CMAKE_C_COMPILER_VERSION                  : ${CMAKE_C_COMPILER_VERSION}")
+endif()
+
+# CUDA arch and compiler
+if (ENABLE_CUDA)
+  message(STATUS "CUDA enabled                             : ${ENABLE_CUDA}")
+  message(STATUS "CUDA architecture                        : ${cuda_arch}")
+  message(STATUS "CUDA architecture sm version             : ${sm_version}")
+  message(STATUS "CMAKE_CUDA_COMPILER                      : ${CMAKE_CUDA_COMPILER}")
+  message(STATUS "CMAKE_CUDA_COMPILER_ID type              : ${CMAKE_CUDA_COMPILER_ID}")
+  message(STATUS "CMAKE_CUDA_COMPILER_VERSION              : ${CMAKE_CUDA_COMPILER_VERSION}")
+endif()
+
 # Installation
 message(STATUS "CMAKE_INSTALL_PREFIX                      : ${CMAKE_INSTALL_PREFIX}")
 # Build type
-message(STATUS "Build flags:                                               ")
 if(NOT MSVC AND NOT XCODE_VERSION)
-  message(STATUS "  Build type                              : ${CMAKE_BUILD_TYPE}")
-  message(STATUS "  C compilation flags (Release)           : ${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_RELEASE}")
-  message(STATUS "  C++ compilation flags (Release)         : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE}")
+  message(STATUS "Build type                                : ${CMAKE_BUILD_TYPE}")  
+
+  if(CMAKE_BUILD_TYPE MATCHES Debug)
+    message(STATUS "  C compilation flags                     : ${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_DEBUG}")
+    message(STATUS "  C++ compilation flags                   : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG}")
+  else()
+    message(STATUS "  C compilation flags                     : ${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_RELEASE}")
+    message(STATUS "  C++ compilation flags                   : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE}")
+  endif()
+
 endif()
 
 # WRAPPERS CONFIGURATION

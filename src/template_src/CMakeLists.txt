@@ -7,9 +7,6 @@ file(RELATIVE_PATH relative_path_from_root ${CMAKE_SOURCE_DIR} ${CMAKE_CURRENT_S
 # Remove the 'src/' prefix from the relative path if it exists
 string(REPLACE "src/" "" relative_path_without_src ${relative_path_from_root})
 
-# Install the header files to the relative path
-install(FILES ${installable_headers} DESTINATION include/${project_name}/${relative_path_from_root})
-
 # Add src files to library
 set(SRC_PATTERN "*.cpp; *.cu")
 file(GLOB srcLibFiles_local ${SRC_PATTERN})
@@ -20,3 +17,6 @@ message(STATUS "${CURRENT_FOLDER_NAME} src files found: ${srcLibFiles_local}")
 # Set global # Export list of src files to parent scope
 set(srcLibFiles ${srcLibFiles} ${srcLibFiles_local} PARENT_SCOPE)
 set(${project_name}_INCLUDE_DIRS ${${project_name}_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR} PARENT_SCOPE)
+
+# Install the header files to the relative path
+install(FILES ${installable_headers} DESTINATION include/${project_name}/${relative_path_from_root})

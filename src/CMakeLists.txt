@@ -18,8 +18,8 @@ endif()
 set(${lib_name}_INCLUDE_DIRS ${${lib_name}_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
 
 # Add subdirectories with src files
-message(STATUS "Adding module: template_folder")
-add_subdirectory(template_folder)
+message(STATUS "Adding module: template_src")
+add_subdirectory(template_src)
 
 # Exclude EXCLUDED_LIST from the list of src files
 set(EXCLUDED_LIST "")
@@ -54,7 +54,6 @@ target_include_directories(${lib_name} PUBLIC
                           ${${lib_name}_INCLUDE_DIRS} 
                           ${OpenCV_INCLUDE_DIRS} 
                           ${PROJECT_SOURCE_DIR} 
-                          ${JSONCPP_INCLUDE_DIRS} 
                           )
 
 # Link interface target for CUDA
@@ -66,7 +65,6 @@ target_link_libraries(${lib_name} PUBLIC cuda_compile_settings)
 target_link_libraries(${lib_name} PUBLIC 
                       ${OpenCV_LIBS} 
                       Eigen3::Eigen 
-                      #jsoncpp
                       #gdt
                       #glfw 
                       ${OPENGL_LIBRARIES}
@@ -74,6 +72,11 @@ target_link_libraries(${lib_name} PUBLIC
 
 # Define INCLUDE_DIRECTORIES
 set(${lib_name}_INCLUDE_DIRS ${${lib_name}_INCLUDE_DIRS} PARENT_SCOPE)
+
+
+
+
+# TODO see spectral RT configuration for the correct install
 
 # Add target to installable list 
 set(installable_targets ${installable_targets} ${lib_name})
@@ -86,10 +89,12 @@ install(
 	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   ) # Install targets
 
+
 # Install headers from this directory
 file(GLOB installable_headers "*.h") # Discover and install all header files
 install(FILES ${installable_headers} 
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${project_name}
       ) # Install headers
+
 
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/config.h"  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${project_name}) # Install config.h 

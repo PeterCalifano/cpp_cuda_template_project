@@ -4,6 +4,6 @@
 
 - [ ] Add src/programs and root/tools folders to default template
 
-- [ ] Update autodoc configuration and test with placeholder
+- [x] Update autodoc configuration and test with placeholder
 
 - [ ] See Teams and copy here
