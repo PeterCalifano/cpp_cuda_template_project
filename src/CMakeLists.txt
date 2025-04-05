@@ -63,12 +63,12 @@ target_link_libraries(${lib_name} PUBLIC cuda_compile_settings)
 # TIP: INTERFACE ensures that the consumer target does not need to include manually the include directories the library target depends on, because they are automagically propagated to the target, even if the target does not need thme. The same happens with PUBLIC, but this time the includes are used by the target library itself.
 
 target_link_libraries(${lib_name} PUBLIC 
-                      ${OpenCV_LIBS} 
-                      Eigen3::Eigen 
-                      #gdt
-                      #glfw 
-                      ${OPENGL_LIBRARIES}
-                      ${optix_LIBRARY})
+                                  ${OpenCV_LIBS} 
+                                  Eigen3::Eigen 
+                                  #gdt
+                                  #glfw 
+                                  ${OPENGL_LIBRARIES}
+                                  ${optix_LIBRARY})
 
 # Define INCLUDE_DIRECTORIES
 set(${lib_name}_INCLUDE_DIRS ${${lib_name}_INCLUDE_DIRS} PARENT_SCOPE)
