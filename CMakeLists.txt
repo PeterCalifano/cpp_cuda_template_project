@@ -89,6 +89,9 @@ find_package( CUDAToolkit 12.0)
 # torch
 # tensort
 
+# Define target to specify includes and compile defs
+add_library(cuda_compile_settings INTERFACE)
+
 # Handle CUDA and setup # TODO (PC) Move this code to a dedicated cmake file (HandleCUDA.cmake)
 if (CUDAToolkit_FOUND)
     message(STATUS "CUDA found: ${CUDAToolkit_VERSION}")
@@ -98,9 +101,6 @@ if (CUDAToolkit_FOUND)
     set(sm_version "")
     # Call the function to detect CUDA architecture
     detect_cuda_arch(cuda_arch sm_version)
-
-    # Define target to specify includes and compile defs
-    add_library(cuda_compile_settings INTERFACE)
     
     # Include directories
     target_include_directories(cuda_compile_settings INTERFACE ${CUDAToolkit_INCLUDE_DIRS})
