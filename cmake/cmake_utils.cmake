@@ -29,7 +29,7 @@ function(add_examples project_lib_name excluded_list target_compile_settings)
     foreach(exampleFile ${srcExampleFiles})
         get_filename_component(exampleName ${exampleFile} NAME_WE)
         add_executable(${exampleName} ${exampleFile})
-        target_link_libraries(${exampleName} PRIVATE ${project_lib_name} target_compile_settings)
+        target_link_libraries(${exampleName} PRIVATE ${project_lib_name} ${target_compile_settings})
         target_include_directories(${exampleName} PRIVATE ${${project_lib_name}_INCLUDE_DIRS})
     endforeach()
 
@@ -51,7 +51,7 @@ function(add_tests project_lib_name excluded_list TESTS_LIST target_compile_sett
 
         list(APPEND TESTS_LIST ${testName}) 
 
-        target_link_libraries(${testName} PRIVATE ${project_lib_name} target_compile_settings)
+        target_link_libraries(${testName} PRIVATE ${project_lib_name} ${target_compile_settings})
         catch_discover_tests(${testName} PROPERTIES ${CATCH2_TEST_PROPERTIES})
 
     endforeach()
