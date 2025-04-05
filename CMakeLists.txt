@@ -279,7 +279,7 @@ if(BUILD_PYTHON_WRAPPER OR BUILD_MATLAB_WRAPPER)
     CACHE STRING "The Python version to use for wrapping")
 
   # Look for gtwrap
-  find_package(gtwrap QUIET) 
+  find_package(gtwrap QUIET)
 
   # Check if wrap subdirectory exists, else fetch it from github as submodule
   if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/wrap") 
