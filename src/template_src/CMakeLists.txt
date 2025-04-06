@@ -16,7 +16,6 @@ message(STATUS "${CURRENT_FOLDER_NAME} src files found: ${srcLibFiles_local}")
 
 # Set global # Export list of src files to parent scope
 set(srcLibFiles ${srcLibFiles} ${srcLibFiles_local} PARENT_SCOPE)
-set(${project_name}_INCLUDE_DIRS ${${project_name}_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR} PARENT_SCOPE)
 
 # Install the header files to the relative path
-install(FILES ${installable_headers} DESTINATION include/${project_name}/${relative_path_from_root})
+install(FILES ${installable_headers} DESTINATION include/${project_name}/${relative_path_without_src})

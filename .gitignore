@@ -1,3 +1,7 @@
+/*build*/
+/*debug*/
+/*install*/
+
 CMakeLists.txt.user
 CMakeCache.txt
 CMakeFiles
@@ -13,8 +17,6 @@ CMakeUserPresets.json
 
 *.asv
 *.png
-/build*/
-/debug*/
 .idea
 *.pyc
 *.DS_Store

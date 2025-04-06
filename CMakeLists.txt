@@ -41,7 +41,9 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Load scripts and install dirs
 include(cmake/cmake_utils.cmake)
+include(GNUInstallDirs)
 
 # OPTIONS
 option(ENABLE_OMP "Enable OpenMP" OFF)
@@ -78,6 +80,10 @@ find_package( Doxygen )
 find_package( OpenGL )
 find_package( CUDAToolkit 12.0) 
 
+# Set the dependencies for the automated export
+set(TARGET_DEPS Eigen3 OpenGL CUDAToolkit)
+message(STATUS "Target dependencies: ${TARGET_DEPS}")
+
 #find_package( GTSAM 4.0 REQUIRED )
 #find_package( GTSAM_UNSTABLE REQUIRED)
 #find_package( sopengv )
@@ -108,10 +114,12 @@ if (CUDAToolkit_FOUND)
     set_property(TARGET cuda_compile_settings 
                  PROPERTY CUDA_ARCHITECTURES ${sm_version})
 
-    target_compile_definitions(cuda_compile_settings INTERFACE WITH_CUDA=1)
+    target_compile_definitions(cuda_compile_settings INTERFACE __CUDA_ENABLED__=1)
     
     # Select CUDA libraries to link
     set(CUDA_LINK_LIBRARIES CUDA::cublas CUDA::cudart CUDA::curand CUDA::cuda_driver)
+
+    set_target_properties(cuda_compile_settings PROPERTIES CUDA_SEPARABLE_COMPILATION ON) # Enable separable compilation
 
     # Check if empty
     if (CUDA_LINK_LIBRARIES STREQUAL "")
@@ -130,8 +138,12 @@ set(OPTIX_FOUND OFF)
 if (ENABLE_OPTIX) 
 # TODO (PC) Move this code to a dedicated cmake file (HandleOptix.cmake)
 
+  target_compile_definitions(cuda_compile_settings INTERFACE __OPTIX_ENABLED__=1)
+
   # Specify Optix installation directory
   set(OptiX_INSTALL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/NVIDIA-OptiX-SDK-8.0.0-linux64-x86_64)
+
+  message(STATUS "Using OptiX installation directory: ${OptiX_INSTALL_DIR}")
 
   if(${USE_OPTIX_SDK})
       if (DEFINED ENV{OPTIX_HOME})
@@ -143,7 +155,7 @@ if (ENABLE_OPTIX)
 
   set(OPTIX_FOUND ON)
 
-  # Define Optix includes
+  # Define Optix includes # DEVNOTE these are specific to spectral rt
   set(OPTIX_INCLUDE_DIR ${OptiX_INSTALL_DIR}/include)
   list(APPEND OPTIX_INCLUDE_DIR ${OptiX_INSTALL_DIR}/SDK/) # Add headers in SDK/sutil
   list(APPEND OPTIX_INCLUDE_DIR ${OptiX_INSTALL_DIR}/SDK/sutil) # Add headers in SDK/sutil
@@ -166,6 +178,7 @@ find_package(GTSAMCMakeTools)
 # Add catch2 for unit testing
 find_package(Catch2)
 
+# TODO: move to dedicated cmake script
 if (Catch2_FOUND)
     message(STATUS "Catch2 found at system level: ${Catch2_DIR}")
 else()
@@ -193,9 +206,22 @@ set(installable_targets)
 
 # INCLUDE DIRECTORIES
 include_directories( ${OpenCV_INCLUDE_DIRS} ) 
-include_directories( ${PROJECT_SOURCE_DIR} )
 include_directories( ${GTSAM_INCLUDE_DIRS}) 
-include_directories( "src")
+
+# Define include target interface
+add_library(${project_name}_include INTERFACE)
+
+# Define include directories for the include library
+target_include_directories(${project_name}_include INTERFACE 
+                           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>  # Used during development
+                           #$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/lib/stb_PeterCdev>  
+                           #$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/lib/rapidyaml_PeterCdev>
+                           #$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/lib/gdt>
+                           #$<BUILD_INTERFACE:${CUDA_INCLUDE_DIRS}> 
+                           #$<BUILD_INTERFACE:${OPTIX_INCLUDE_DIR}>   
+                           #$<BUILD_INTERFACE:${OpenCV_INCLUDE_DIRS}>  # Add OpenCV include directories
+                           $<INSTALL_INTERFACE:include/${project_name}>  # Used in installed projects
+)
 
 # Include CTest and Catch2
 include(CTest)
@@ -252,6 +278,10 @@ endif()
 
 # Installation
 message(STATUS "CMAKE_INSTALL_PREFIX                      : ${CMAKE_INSTALL_PREFIX}")
+message(STATUS "CMAKE_INSTALL_LIBDIR                      : ${CMAKE_INSTALL_LIBDIR}")
+message(STATUS "CMAKE_INSTALL_INCLUDEDIR                  : ${CMAKE_INSTALL_INCLUDEDIR}")
+message(STATUS "CMAKE_INSTALL_BINDIR                      : ${CMAKE_INSTALL_BINDIR}")
+
 # Build type
 if(NOT MSVC AND NOT XCODE_VERSION)
   message(STATUS "Build type                                : ${CMAKE_BUILD_TYPE}")  
@@ -268,6 +298,7 @@ endif()
 
 # WRAPPERS CONFIGURATION
 # Handle wrappers
+# TODO update this after gtsam_spaceNav fix
 if(BUILD_PYTHON_WRAPPER OR BUILD_MATLAB_WRAPPER)
 
   if (NOT GTSAM_FOUND)
@@ -421,14 +452,12 @@ set(CTEST_NIGHTLY_START_TIME "00:00:00 CET")
 #set(CTEST_DROP_LOCATION "/submit.php?project=CMakeTutorial")
 #set(CTEST_DROP_SITE_CDASH TRUE)
 
-# PACKAGING CONFIGURATION # TODO test and extended prototype cmake code (this is copied from tutorials)
-#include(InstallRequiredSystemLibraries)
-#set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/License")
-#set(CPACK_PACKAGE_VERSION_MAJOR "${PROJECT_VERSION_MAJOR}")
-#set(CPACK_PACKAGE_VERSION_MINOR "${PROJECT_VERSION_MINOR}")
-#set(CPACK_GENERATOR "TGZ")
-#set(CPACK_SOURCE_GENERATOR "TGZ")
-#include(CPack)
+# PACKAGING CONFIGURATION 
+include(InstallRequiredSystemLibraries)
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
+set(CPACK_PACKAGE_VERSION_MAJOR "${PROJECT_VERSION_MAJOR}")
+set(CPACK_PACKAGE_VERSION_MINOR "${PROJECT_VERSION_MINOR}")
+set(CPACK_GENERATOR "TGZ")
+set(CPACK_SOURCE_GENERATOR "TGZ")
+include(CPack)
 
-# TODO: add cmake configuration to export project, such that it can be found by other projects using find_package()
-# See https://cmake.org/cmake/help/latest/guide/tutorial/Adding%20Export%20Configuration.html

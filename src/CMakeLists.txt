@@ -14,19 +14,26 @@ if (ENABLE_OPTIX)
   file(GLOB srcCudaFilesToPTX RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "kernels/*.cu")
 endif()
 
-# Define INCLUDE_DIRECTORIES (subdirectories append to this)
-set(${lib_name}_INCLUDE_DIRS ${${lib_name}_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
-
 # Add subdirectories with src files
 message(STATUS "Adding module: template_src")
 add_subdirectory(template_src)
+
+message(STATUS "Adding module: .programs")
+add_subdirectory(.programs)
 
 # Exclude EXCLUDED_LIST from the list of src files
 set(EXCLUDED_LIST "")
 list(REMOVE_ITEM srcLibFiles ${EXCLUDED_LIST})
 
-# Add custom library with src files
-list(APPEND srcLibFiles "${CMAKE_CURRENT_SOURCE_DIR}/config.h")
+# Install headers from this directory
+file(GLOB installable_headers "*.h") # Discover and install all header files
+message(WARNING "Header files found: ${installable_headers}")
+install(FILES ${installable_headers} 
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${project_name}
+      ) # Install headers
+
+# Delete installable_headers
+unset(installable_headers)
 
 add_library(${lib_name} SHARED
             ${srcLibFiles})
@@ -51,13 +58,11 @@ endif()
 
 # Link targets
 target_include_directories(${lib_name} PUBLIC 
-                          ${${lib_name}_INCLUDE_DIRS} 
                           ${OpenCV_INCLUDE_DIRS} 
-                          ${PROJECT_SOURCE_DIR} 
                           )
 
 # Link interface target for CUDA
-target_link_libraries(${lib_name} PUBLIC cuda_compile_settings)
+target_link_libraries(${lib_name} PUBLIC cuda_compile_settings ${project_name}_include)
 
 #target_include_directories(${lib_name} INTERFACE ${interface_INCLUDE_DIRS} ) 
 # TIP: INTERFACE ensures that the consumer target does not need to include manually the include directories the library target depends on, because they are automagically propagated to the target, even if the target does not need thme. The same happens with PUBLIC, but this time the includes are used by the target library itself.
@@ -70,31 +75,61 @@ target_link_libraries(${lib_name} PUBLIC
                                   ${OPENGL_LIBRARIES}
                                   ${optix_LIBRARY})
 
-# Define INCLUDE_DIRECTORIES
-set(${lib_name}_INCLUDE_DIRS ${${lib_name}_INCLUDE_DIRS} PARENT_SCOPE)
-
-
-
-
-# TODO see spectral RT configuration for the correct install
-
 # Add target to installable list 
-set(installable_targets ${installable_targets} ${lib_name})
+set(installable_targets ${installable_targets} ${lib_name} cuda_compile_settings ${project_name}_include)
+
+message(NOTICE "Added target to installable list: ${installable_targets}")
+
+# Install global_includes.h file
+#install(FILES "${CMAKE_CURRENT_BINARY_DIR}/global_includes.h" 
+#        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${project_name}) 
+
+# Install config.h file
+##install(FILES "${CMAKE_CURRENT_BINARY_DIR}/config.h" 
+#        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${project_name}) 
 
 # INSTALL CONFIGURATION
 install(
 	TARGETS ${installable_targets}
-	LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+	EXPORT ${project_name} # Export target to be used by other projects
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
 	ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
   ) # Install targets
 
+# Configuration for CPack and consumer targets
+# See https://cmake.org/cmake/help/latest/guide/tutorial/Adding%20Export%20Configuration.html
+include(CMakePackageConfigHelpers)
 
-# Install headers from this directory
-file(GLOB installable_headers "*.h") # Discover and install all header files
-install(FILES ${installable_headers} 
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${project_name}
-      ) # Install headers
+install(EXPORT ${project_name}
+    FILE "${project_name}Target.cmake"
+    NAMESPACE ${project_name}::
+    DESTINATION lib/cmake/${project_name}
+)
 
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/${project_name}ConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY AnyNewerVersion
+)
 
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/config.h"  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${project_name}) # Install config.h 
+configure_package_config_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/${project_name}Config.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/${project_name}Config.cmake"
+    INSTALL_DESTINATION lib/cmake/${project_name}
+)
+
+install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/${project_name}Config.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/${project_name}ConfigVersion.cmake"
+    DESTINATION lib/cmake/${project_name}
+)
+
+# Add target export to allow usage of build by other consumer projects
+export(EXPORT ${lib_name}
+  FILE "${CMAKE_CURRENT_BINARY_DIR}/cmake/${project_name}Target.cmake"
+)
+# Add and build programs subdirectory
+#message(STATUS "Building binary programs")
+#add_subdirectory( .programs )
