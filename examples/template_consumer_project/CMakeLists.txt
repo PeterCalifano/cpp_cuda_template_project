@@ -42,6 +42,6 @@ add_executable(${project_name} example_project.cpp)
 target_link_libraries(${project_name} PRIVATE template_project::template_project)
 #target_include_directories(${project_name} PRIVATE ${template_project_INCLUDE_DIRS})
 
-message(WARNING "Include directories of template_project: ${template_project_INCLUDE_DIRS}")
+message(WARNING "Note that template_project_INCLUDE_DIRS directories is empty because by default it is not built: ${template_project_INCLUDE_DIRS}\nInstead, includes directly transitions through the linekd target.")
 get_target_property(INC template_project::template_project INTERFACE_INCLUDE_DIRECTORIES)
-message(STATUS "Include directories: ${INC}")
+message(STATUS "Include directories: ${INC}\n")

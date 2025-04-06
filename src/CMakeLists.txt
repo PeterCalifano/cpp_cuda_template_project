@@ -27,7 +27,6 @@ list(REMOVE_ITEM srcLibFiles ${EXCLUDED_LIST})
 
 # Install headers from this directory
 file(GLOB installable_headers "*.h") # Discover and install all header files
-message(WARNING "Header files found: ${installable_headers}")
 install(FILES ${installable_headers} 
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${project_name}
       ) # Install headers

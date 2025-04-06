@@ -60,11 +60,17 @@ option(ENABLE_SIMD "Enable SIMD instructions" ON)
 
 # COMPILER FLAGS
 # Set compile flags based on configuration type
-set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wall -Wextra -fmax-errors=3 -Og -g -fsanitize=address,undefined")
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -Wextra -fmax-errors=3 -Og -g -fsanitize=address,undefined")
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wall -Wextra -fmax-errors=3 -Og -g")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -Wextra -fmax-errors=3 -Og -g")
 
-set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -fmax-errors=3 -Wall -fsanitize=address,undefined -O3")
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fmax-errors=3 -Wall -fsanitize=address,undefined -O3")
+set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -fmax-errors=3 -Wall  -O3")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fmax-errors=3 -Wall -O3")
+
+add_library(sanitizer_target_settings INTERFACE)
+target_compile_options(sanitizer_target_settings INTERFACE
+    $<$<CONFIG:DEBUG>: -fsanitize=address,undefined>
+    $<$<CONFIG:RELEASE>: -fsanitize=address,undefined>
+)
 
 # Guard against in-source builds
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
