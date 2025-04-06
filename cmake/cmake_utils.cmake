@@ -55,29 +55,26 @@ function(add_tests project_lib_name excluded_list TESTS_LIST target_compile_sett
         catch_discover_tests(${testName} PROPERTIES ${CATCH2_TEST_PROPERTIES})
 
     endforeach()
-
 endfunction()
-
 
 # Function to detect the compute capability using nvidia-smi
 function(detect_cuda_arch cuda_arch compute_cap)
     if(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
-    execute_process(
-        COMMAND nvidia-smi --query-gpu=compute_cap --format=csv,noheader
-        OUTPUT_VARIABLE gpu_compute_cap
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
+        execute_process(
+            COMMAND nvidia-smi --query-gpu=compute_cap --format=csv,noheader
+            OUTPUT_VARIABLE gpu_compute_cap
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
 
-    # Map the compute capability to the correct architecture
-    string(REPLACE "." "" sm_version "${gpu_compute_cap}")
-    set(${cuda_arch} "sm_${sm_version}" PARENT_SCOPE)
-    set(${compute_cap} "${gpu_compute_cap}" PARENT_SCOPE)
+        # Map the compute capability to the correct architecture
+        string(REPLACE "." "" sm_version "${gpu_compute_cap}")
+        set(${cuda_arch} "sm_${sm_version}" PARENT_SCOPE)
+        set(${compute_cap} "${sm_version}" PARENT_SCOPE)
 
-    message(STATUS "Detected CUDA compute capability: ${gpu_compute_cap}")
-    message(STATUS "Using CUDA architecture: sm_${sm_version}")
+        message(STATUS "Detected CUDA compute capability: ${gpu_compute_cap}")
+        message(STATUS "Using CUDA architecture: sm_${sm_version}")
+
     else()
-    set(${cuda_arch} "" PARENT_SCOPE)
-    set(${compute_cap} "" PARENT_SCOPE)
-    message(STATUS "CUDA architecture detection not supported on ${CMAKE_SYSTEM_PROCESSOR}")
+        message(WARNING "CUDA architecture detection is not supported for this platform.")
     endif()
 endfunction()
