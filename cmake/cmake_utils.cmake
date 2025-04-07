@@ -36,7 +36,7 @@ function(add_examples project_lib_name excluded_list target_compile_settings)
 endfunction()
 
 # Function to add test files to the build
-function(add_tests project_lib_name excluded_list TESTS_LIST target_compile_settings CATCH2_TEST_PROPERTIES)
+function(add_tests project_lib_name excluded_list TESTS_LIST target_compile_settings CATCH2_TEST_PROPERTIES catch2_target)
 
     set(TESTS_PATTERN "test*.cpp; test*.cu")
     file(GLOB srcTestFiles RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${TESTS_PATTERN})
@@ -49,9 +49,9 @@ function(add_tests project_lib_name excluded_list TESTS_LIST target_compile_sett
         get_filename_component(testName ${testFile} NAME_WE)
         add_executable(${testName} ${testFile})
 
-        list(APPEND TESTS_LIST ${testName}) 
+        list(APPEND ${TESTS_LIST} ${testName}) 
 
-        target_link_libraries(${testName} PRIVATE ${project_lib_name} ${target_compile_settings})
+        target_link_libraries(${testName} PRIVATE ${project_lib_name} ${target_compile_settings} ${catch2_target})
         catch_discover_tests(${testName} PROPERTIES ${CATCH2_TEST_PROPERTIES})
 
     endforeach()

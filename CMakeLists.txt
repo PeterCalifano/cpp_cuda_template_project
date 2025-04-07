@@ -182,7 +182,7 @@ endif()
 find_package(GTSAMCMakeTools)
 
 # Add catch2 for unit testing
-find_package(Catch2)
+find_package(Catch2 REQUIRED)
 
 # TODO: move to dedicated cmake script
 if (Catch2_FOUND)
@@ -252,9 +252,6 @@ if (DOXYGEN_FOUND)
 else()
     message(STATUS "Doxygen not found. Skipping building documentation.") 
 endif()
-
-# Make catch2 to search for tests
-message(STATUS "List of test targets: ${TESTS_LIST}")
 
 # Print configuration variables
 message(STATUS "===============================================================")

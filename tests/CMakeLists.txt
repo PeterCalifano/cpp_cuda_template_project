@@ -14,9 +14,15 @@ set(CATCH2_TEST_PROPERTIES "--output-on-failure;--reporter=compact")
 set(EXCLUDED_LIST "test_to_exclude")  # Specify files to exclude WE
 set(TESTS_LIST "") 
 
+# Include the content of the fixtures directory
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+
 # Add subdirectory 
 add_subdirectory(template_test)
+add_subdirectory(template_fixtures)
 
 # Add tests to build
-add_tests(${project_name} EXCLUDED_LIST TESTS_LIST cuda_compile_settings CATCH2_TEST_PROPERTIES)
-set(TESTS_LIST ${TESTS_LIST} PARENT_SCOPE) # Export list of tests to parent scope (applied ONLY here)
+add_tests(${project_name} EXCLUDED_LIST TESTS_LIST cuda_compile_settings CATCH2_TEST_PROPERTIES catch2::Catch2WithMain)
+
+# Make catch2 to search for tests
+message(STATUS "List of test targets: ${TESTS_LIST}")
