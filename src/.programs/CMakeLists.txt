@@ -12,16 +12,16 @@ set(programs_targets "")
 # Add to build and link
 foreach(exampleFile ${srcProgramsFiles})
 
-    get_filename_component(exampleName ${exampleFile} NAME_WE)
-    add_executable(${exampleName} ${exampleFile})
+    get_filename_component(program_name ${exampleFile} NAME_WE)
+    add_executable(${program_name} ${exampleFile})
 
-    target_link_libraries(${exampleName} PRIVATE ${project_name} cuda_compile_settings)
+    target_link_libraries(${program_name} PRIVATE ${project_name} cuda_compile_settings)
 
     # Optionally add additional targets or properties if required
-    set_target_properties(${exampleName} PROPERTIES OUTPUT_NAME "${exampleName}_program")
+    set_target_properties(${program_name} PROPERTIES OUTPUT_NAME "${program_name}")
 
     # Collect target names for further processing
-    list(APPEND programs_targets ${exampleName})
+    list(APPEND programs_targets ${program_name})
 
 endforeach()
 
