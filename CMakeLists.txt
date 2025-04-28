@@ -335,6 +335,9 @@ if(BUILD_PYTHON_WRAPPER OR BUILD_MATLAB_WRAPPER)
       message(STATUS "GTwrap package OR Wrap subdirectory found. Proceeding to build wrappers...")
   endif()
 
+  # Set the include directory for matlab.h
+  set(GTWRAP_INCLUDE_NAME "wrap")
+
   # DEFINE interface files for wrapper
   set(SEARCH_DIR_WRAP 
       "${CMAKE_CURRENT_SOURCE_DIR}/src")
@@ -347,12 +350,16 @@ if(BUILD_PYTHON_WRAPPER OR BUILD_MATLAB_WRAPPER)
 
   if (NOT WRAPPER_INTERFACE_FILES)
     message(FATAL_ERROR "WRAPPER_INTERFACE_FILES list not defined. Please check the cmake configuration.")
-  elseif (${WRAPPER_INTERFACE_FILES} STREQUAL "")
-    message(FATAL_ERROR "No interface files found for wrapping. Please check the search directory or provide files.")
+  else()
+    # Check if list has exactly one element that is empty
+    list(LENGTH WRAPPER_INTERFACE_FILES WRAPPER_INTERFACE_FILES_LEN)
+    if (WRAPPER_INTERFACE_FILES_LEN EQUAL 1)
+      list(GET WRAPPER_INTERFACE_FILES 0 _first_interface)
+      if (_first_interface STREQUAL "")
+        message(FATAL_ERROR "No interface files found for wrapping. Please check the search directory or provide files.")
+      endif()
+    endif()
   endif()
-
-  # Set the include directory for matlab.h
-  set(GTWRAP_INCLUDE_NAME "wrap")
 
   # Copy matlab.h to the correct folder.
   configure_file(${PROJECT_SOURCE_DIR}/wrap/matlab.h
