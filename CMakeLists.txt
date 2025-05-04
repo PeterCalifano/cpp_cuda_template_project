@@ -5,6 +5,10 @@ cmake_minimum_required(VERSION 3.15 FATAL_ERROR)
 #set(CMAKE_CXX_COMPILER g++-11)
 #set(CMAKE_CUDA_COMPILER nvcc)
 
+# Load scripts and install dirs
+include(cmake/cmake_utils.cmake)
+include(GNUInstallDirs)
+
 # Manually specify build type
 set(CMAKE_BUILD_TYPE Debug)
 
@@ -41,10 +45,6 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Load scripts and install dirs
-include(cmake/cmake_utils.cmake)
-include(GNUInstallDirs)
-
 # OPTIONS
 option(ENABLE_OMP "Enable OpenMP" OFF)
 if(NOT DEFINED NUM_OMP_THREADS)
@@ -60,11 +60,17 @@ option(ENABLE_SIMD "Enable SIMD instructions" ON)
 
 # COMPILER FLAGS
 # Set compile flags based on configuration type
-set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wall -Wextra -fmax-errors=3 -Og -g")
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -Wextra -fmax-errors=3 -Og -g")
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wall -Wextra -fmax-errors=3 -Og -g -fsanitize=address,undefined")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -Wextra -fmax-errors=3 -Og -g -fsanitize=address,undefined")
 
-set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -fmax-errors=3 -Wall  -O3")
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fmax-errors=3 -Wall -O3")
+set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -fmax-errors=1 -Wall -Wextra -fsanitize=address,undefined -O3")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fmax-errors=1 -Wall -Wextra -fsanitize=address,undefined -O3")
+
+if (ENABLE_OMP)
+    find_package(OpenMP REQUIRED)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
+endif()
 
 add_library(sanitizer_target_settings INTERFACE)
 target_compile_options(sanitizer_target_settings INTERFACE
@@ -173,13 +179,17 @@ if (ENABLE_OPTIX)
   list(APPEND INCLUDE_DIR_LIST ${OPTIX_INCLUDE_DIR})
   
   # Add Optix includes to interface target
-  target_include_directories(cuda_compile_settings INTERFACE ${OPTIX_INCLUDE_DIR})
+  #target_include_directories(cuda_compile_settings INTERFACE ${OPTIX_INCLUDE_DIR})
 
 endif()
 
 # Add conveniency tools adapted from GTSAM
 # Include CMake modules from GTSAM
 find_package(GTSAMCMakeTools)
+
+# Use macros for creating tests/timing scripts
+#include(GtsamTesting)
+#include(GtsamPrinting)
 
 # Add catch2 for unit testing
 find_package(Catch2 REQUIRED)
@@ -248,7 +258,7 @@ add_subdirectory( tests )
 # Add documentation
 set(DOC_SUBDIRS "${${project_name}_INCLUDE_DIRS}")
 if (DOXYGEN_FOUND)
-    add_subdirectory( doc )
+    add_subdirectory( "doc" )
 else()
     message(STATUS "Doxygen not found. Skipping building documentation.") 
 endif()
