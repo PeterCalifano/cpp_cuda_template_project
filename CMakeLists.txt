@@ -27,11 +27,6 @@ if (ENABLE_CUDA)
     endif()
 endif()
 
-
-# Load scripts and install dirs
-include(cmake/cmake_utils.cmake)
-include(GNUInstallDirs)
-
 # Set version number
 set(PROJECT_VERSION_MAJOR 0)
 set(PROJECT_VERSION_MINOR 1)
@@ -40,6 +35,10 @@ set(PROJECT_VERSION_PATCH 0)
 project( ${project_name} 
         LANGUAGES ${languages}
         VERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}") # ACHTUNG: PTX code requires C language!
+
+# Load scripts and install dirs
+include(cmake/cmake_utils.cmake)
+include(GNUInstallDirs)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 20)
