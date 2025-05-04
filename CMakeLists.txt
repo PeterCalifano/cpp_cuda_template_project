@@ -5,10 +5,6 @@ cmake_minimum_required(VERSION 3.15 FATAL_ERROR)
 #set(CMAKE_CXX_COMPILER g++-11)
 #set(CMAKE_CUDA_COMPILER nvcc)
 
-# Load scripts and install dirs
-include(cmake/cmake_utils.cmake)
-include(GNUInstallDirs)
-
 # Manually specify build type
 set(CMAKE_BUILD_TYPE Debug)
 
@@ -30,6 +26,11 @@ if (ENABLE_CUDA)
       list(APPEND languages C)
     endif()
 endif()
+
+
+# Load scripts and install dirs
+include(cmake/cmake_utils.cmake)
+include(GNUInstallDirs)
 
 # Set version number
 set(PROJECT_VERSION_MAJOR 0)
@@ -87,7 +88,7 @@ message(STATUS "==============================================================")
 message(STATUS "====================  Dependencies ===========================")
 
 # LIBRARY DEPENDENCIES DEFINITION
-find_package( Eigen3 3.3 REQUIRED )
+find_package( Eigen3 3.4 REQUIRED )
 find_package( Doxygen )
 find_package( OpenGL )
 find_package( CUDAToolkit 12.0) 
