@@ -71,7 +71,7 @@ while true; do
     -t|--type-build)
       if [ -n "$2" ] && [ "$2" != "--" ]; then
         build_type="$2"
-        if [ "${build_type}" == "debug" | "${build_type}" == "relwithdebinfo"]; then
+        if [[ "${build_type}" == "debug" || "${build_type}" == "relwithdebinfo" || "${build_type}" == "release" ]]; then
           CXX_FLAGS="${CXX_FLAGS} -Wall -Wextra"
         fi
         shift 2
