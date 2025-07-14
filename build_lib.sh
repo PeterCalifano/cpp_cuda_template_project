@@ -7,6 +7,7 @@
 # - Major rework for cpp_template_project by PeterC, January 2025
 
 # DEVNOTE sorry, this script is not up to date for full automation, but still provides a good starting point. Please modify it manually for your needs.
+set -e
 
 # Default values
 buildpath="build" 
