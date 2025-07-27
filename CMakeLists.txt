@@ -5,9 +5,6 @@ cmake_minimum_required(VERSION 3.15 FATAL_ERROR)
 #set(CMAKE_CXX_COMPILER g++-11)
 #set(CMAKE_CUDA_COMPILER nvcc)
 
-# Manually specify build type
-set(CMAKE_BUILD_TYPE Debug)
-
 # PROJECT DEFINITION
 set(project_name "template_project")
 
@@ -36,9 +33,28 @@ project( ${project_name}
         LANGUAGES ${languages}
         VERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}") # ACHTUNG: PTX code requires C language!
 
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE relwithdebinfo)
+endif()
+string(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LOWER)
+
 # Load scripts and install dirs
 include(cmake/cmake_utils.cmake)
 include(GNUInstallDirs)
+
+set(PROJECT_PYTHON_VERSION 3.11)
+
+# OPTIONS
+option(VERBOSE "Verbose output" OFF) # Defines VERBOSE flag in code if set to ON
+
+option(BUILD_PYTHON_WRAPPER "Build Python wrapper" OFF)
+option(BUILD_MATLAB_WRAPPER "Build MATLAB wrapper" OFF)
+option(NO_OPTIMIZATION "Disable optimization flags" OFF)
+option(WARNINGS_ARE_ERRORS "Treat warnings as errors" OFF)
+option(USE_SYS_OPTIX_SDK "Use Optix system folder if specified" OFF)
+option(ENABLE_SIMD "Enable SIMD instructions" ON)
+
+set(PYTHON_EXECUTABLE "python3") # Specify the Python executable to use
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 20)
@@ -51,25 +67,27 @@ if(NOT DEFINED NUM_OMP_THREADS)
     set(NUM_OMP_THREADS 4 "Number of OpenMP threads to use")
 endif()
 
-option(USE_SYS_OPTIX_SDK "Use Optix system folder if specified" OFF)
-option(BUILD_PYTHON_WRAPPER "Build Python wrapper" OFF)
-option(BUILD_MATLAB_WRAPPER "Build MATLAB wrapper" OFF)
-option(ENABLE_SIMD "Enable SIMD instructions" ON)
-
 # TIP: if different options need to be specified for different targets of the build, use INTERFACE targets
 
 # COMPILER FLAGS
 # Set compile flags based on configuration type
-set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wall -Wextra -fmax-errors=3 -Og -g -fsanitize=address,undefined")
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -Wextra -fmax-errors=3 -Og -g -fsanitize=address,undefined")
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -O0 -g -Wnon-virtual-dtor -Wnull-dereference -Wfloat-equal -fdelete-null-pointer-checks -Wconversion")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -O0 -g -Wnon-virtual-dtor -Wnull-dereference -Wfloat-equal -fdelete-null-pointer-checks -Wconversion")
 
-set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -fmax-errors=1 -Wall -Wextra -fsanitize=address,undefined -O3")
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fmax-errors=1 -Wall -Wextra -fsanitize=address,undefined -O3")
+set(CMAKE_C_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -fmax-errors=1 -Wall -Wextra")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -fmax-errors=1 -Wall -Wextra")
 
-if (ENABLE_OMP)
+set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS} -O2 -g -Wnon-virtual-dtor -Wnull-dereference -Wfloat-equal -fdelete-null-pointer-checks -Wconversion")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS} -O2 -g -Wnon-virtual-dtor -Wnull-dereference -Wfloat-equal -fdelete-null-pointer-checks -Wconversion")
+
+set(CMAKE_C_FLAGS_NOPTIM "${CMAKE_CXX_FLAGS} -O0 -g -Wnon-virtual-dtor -Wnull-dereference -fdelete-null-pointer-checks -Wfloat-equal -Wconversion")
+set(CMAKE_CXX_FLAGS_NOPTIM "${CMAKE_CXX_FLAGS} -O0 -g -Wnon-virtual-dtor -Wnull-dereference -fdelete-null-pointer-checks -Wfloat-equal -Wconversion")
+
+if (ENABLE_OMP AND NOT NO_OPTIMIZATION)
     find_package(OpenMP REQUIRED)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
+else()
+    set(OpenMP_CXX_FOUND OFF)
 endif()
 
 add_library(sanitizer_target_settings INTERFACE)
@@ -77,6 +95,11 @@ target_compile_options(sanitizer_target_settings INTERFACE
     $<$<CONFIG:DEBUG>: -fsanitize=address,undefined>
     $<$<CONFIG:RELEASE>: -fsanitize=address,undefined>
 )
+
+if (WARNINGS_ARE_ERRORS)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
+    message(WARNING "ACHTUNG! Warnings will be treated treated as errors.")
+endif()
 
 # Guard against in-source builds
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
@@ -106,6 +129,45 @@ message(STATUS "Target dependencies: ${TARGET_DEPS}")
 #find_package( rapid_yaml) ??
 # torch
 # tensort
+
+# Interface target for C++ flags
+add_library(lib_compile_settings INTERFACE)
+if (CMAKE_BUILD_TYPE_LOWER MATCHES "debug")
+  # Set compile flags
+  set(CMAKE_C_FLAGS ${CMAKE_CXX_FLAGS_DEBUG})
+  set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS_DEBUG})
+
+  # Set compile options for the interface target
+  target_compile_options(lib_compile_settings INTERFACE
+                      -fsanitize=address,undefined
+                      -fno-omit-frame-pointer
+  )
+
+  target_link_options(lib_compile_settings INTERFACE
+                      -fsanitize=address,undefined
+                      -fno-omit-frame-pointer
+  )
+
+elseif (CMAKE_BUILD_TYPE_LOWER MATCHES "release" AND NOT NO_OPTIMIZATION)
+  # Set compile flags
+  set(CMAKE_C_FLAGS ${CMAKE_CXX_FLAGS_RELEASE})
+  set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS_RELEASE})
+
+elseif (CMAKE_BUILD_TYPE_LOWER MATCHES "relwithdebinfo" AND NOT NO_OPTIMIZATION) 
+  # Set compile flags
+  set(CMAKE_C_FLAGS ${CMAKE_CXX_FLAGS_RELWITHDEBINFO})
+  set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS_RELWITHDEBINFO})
+
+elseif (NO_OPTIMIZATION)
+  set(CMAKE_C_FLAGS ${CMAKE_CXX_FLAGS_NOPTIM})
+  set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS_NOPTIM})
+  target_compile_definitions(lib_compile_settings INTERFACE NDEBUG)
+
+else()
+  # Stop build
+  message(FATAL_ERROR "Unknown build type: ${CMAKE_BUILD_TYPE}. Stopping build.")
+endif()
+
 
 # Define target to specify includes and compile defs
 add_library(cuda_compile_settings INTERFACE)
@@ -298,13 +360,23 @@ message(STATUS "CMAKE_INSTALL_BINDIR                      : ${CMAKE_INSTALL_BIND
 # Build type
 if(NOT MSVC AND NOT XCODE_VERSION)
   message(STATUS "Build type                                : ${CMAKE_BUILD_TYPE}")  
+  message(STATUS "Optimization override:                    : ${NO_OPTIMIZATION}")  
 
   if(CMAKE_BUILD_TYPE MATCHES Debug)
     message(STATUS "  C compilation flags                     : ${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_DEBUG}")
     message(STATUS "  C++ compilation flags                   : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG}")
-  else()
+  elseif (CMAKE_BUILD_TYPE MATCHES Release)
     message(STATUS "  C compilation flags                     : ${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_RELEASE}")
     message(STATUS "  C++ compilation flags                   : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE}")
+  elseif (CMAKE_BUILD_TYPE MATCHES RelWithDebInfo)
+    message(STATUS "  C compilation flags                     : ${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_RELWITHDEBINFO}")
+    message(STATUS "  C++ compilation flags                   : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+  elseif (NO_OPTIMIZATION)
+    message(STATUS "  C compilation flags                     : ${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_NOPTIM}")
+    message(STATUS "  C++ compilation flags                   : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_NOPTIM}")
+  else()
+    message(STATUS "  C compilation flags                     : ${CMAKE_C_FLAGS}")
+    message(STATUS "  C++ compilation flags                   : ${CMAKE_CXX_FLAGS}")
   endif()
 
 endif()
@@ -397,11 +469,9 @@ if(BUILD_PYTHON_WRAPPER OR BUILD_MATLAB_WRAPPER)
 
     # Python toolbox
     if(BUILD_PYTHON_WRAPPER)
-        # Check if python folder exists
-        #if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/python")
-        #    message(FATAL_ERROR "Python wrapper requested but python folder not found.")
-        #endif()
-        #add_subdirectory(python)
+      if ("${PYTHON_EXECUTABLE}" STREQUAL "python3")
+          message(WARNING "PYTHON_EXECUTABLE is set to python3. This will likely fail at install time if no venv is activated. Please specify the full path to the python executable if conda.")
+      endif()
     endif()
 
     # Matlab toolbox
@@ -416,16 +486,94 @@ if(BUILD_PYTHON_WRAPPER OR BUILD_MATLAB_WRAPPER)
 
   # Python toolbox
   if(BUILD_PYTHON_WRAPPER)
-  # TODO: Add the python wrapper configuration here
+    # TODO review code to make it general
+    ## Install Python wrap
+    message(STATUS "Configuring Python wrap...")
 
-    if ( NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/python" )
-      # Make directory
-      file(MAKE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/python")
+    set(PROJECT_PYTHON_SOURCE_DIR ${PROJECT_SOURCE_DIR}/python)
+    set(PROJECT_PYTHON_BUILD_DIRECTORY ${PROJECT_BINARY_DIR}/python)
+
+    # Generate setup.py from template # TODO see gtsam/python/CMakeLists.txt for how to do this
+    file(READ "${PROJECT_SOURCE_DIR}/README.md" README_CONTENTS)
+    configure_file(${PROJECT_PYTHON_SOURCE_DIR}/setup.py.in
+                  ${PROJECT_PYTHON_BUILD_DIRECTORY}/setup.py)
+
+    set(interface_files ${PROJECT_SOURCE_DIR}/cpp/${PROJECT_NAME}.h)
+
+    include(PybindWrap)
+    
+    # TODO move this macro somewhere else
+    macro(SET_PYTHON_TARGET_PROPERTIES PYTHON_TARGET OUTPUT_NAME OUTPUT_DIRECTORY)
+    set_target_properties(${PYTHON_TARGET} PROPERTIES
+        INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib"
+        INSTALL_RPATH_USE_LINK_PATH TRUE
+        OUTPUT_NAME "${OUTPUT_NAME}"
+        LIBRARY_OUTPUT_DIRECTORY "${OUTPUT_DIRECTORY}"
+        DEBUG_POSTFIX "" # Otherwise you will have a wrong name
+        RELWITHDEBINFO_POSTFIX "" # Otherwise you will have a wrong name
+        TIMING_POSTFIX "" # Otherwise you will have a wrong name
+        PROFILING_POSTFIX "" # Otherwise you will have a wrong name
+    )
+    endmacro()
+
+    # This is required to avoid an error in modern pybind11 cmake scripts:
+    if(POLICY CMP0057)
+        cmake_policy(SET CMP0057 NEW)
     endif()
+
+    # Use bundled pybind11 version (in wrap)
+    add_subdirectory(${PROJECT_SOURCE_DIR}/wrap/pybind11 pybind11)
+
+    # Set the wrapping script variable
+    set(PYBIND_WRAP_SCRIPT "${PROJECT_SOURCE_DIR}/wrap/scripts/pybind_wrap.py")
+
+    set(ENABLE_BOOST_SERIALIZATION OFF)
+    set(PROJECT_PYTHON_TARGET_NAME ${project_name}_py)
+
+    pybind_wrap(${PROJECT_PYTHON_TARGET_NAME} # target
+              "${WRAPPER_INTERFACE_FILES}" # list of interface header files
+              "${PROJECT_PYTHON_TARGET_NAME}.cpp" # the generated cpp
+              "${PROJECT_NAME}" # module_name
+              "gtsam" # top namespace in the cpp file e.g. gtsam
+              "${ignore}" # ignore classes
+              ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.tpl # the wrapping template file
+              ${PROJECT_NAME} # libs
+              "gtsam; gtsam_spaceNav" # dependencies
+              ${ENABLE_BOOST_SERIALIZATION} # use boost serialization
+              )
+
+    SET_PYTHON_TARGET_PROPERTIES(${PROJECT_PYTHON_TARGET_NAME} ${project_name} "${PROJECT_PYTHON_BUILD_DIRECTORY}/${project_name}")
+
+    # Copy all python files to build folder.
+    copy_directory("${CMAKE_CURRENT_SOURCE_DIR}/${project_name}"
+            "${PROJECT_PYTHON_BUILD_DIRECTORY}/${project_name}")
+
+    set(PROJECT_PYTHON_DEPS ${project_name} gtsam)
+
+
+    # TODO move this to a cmake scripts file
+    # Add custom targets to install python package
+    add_custom_target(
+            python-stubs
+            COMMAND
+              ${CMAKE_COMMAND} -E env
+              "PYTHONPATH=${PROJECT_PYTHON_BUILD_DIRECTORY}/$ENV{PYTHONPATH}"
+            ${PYTHON_EXECUTABLE} -m pybind11_stubgen -o . --ignore ${ignore} #--ignore-all-errors
+            DEPENDS ${PROJECT_PYTHON_DEPS} ${PROJECT_PYTHON_TARGET_NAME}
+            WORKING_DIRECTORY "${PROJECT_PYTHON_BUILD_DIRECTORY}/"
+    )
+
+    add_custom_target(python-install
+        COMMAND ${PYTHON_EXECUTABLE} -c "import sys, subprocess; cmd = [sys.executable, '-m', 'pip', 'install']; has_venv = hasattr(sys, 'real_prefix') or (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix); cmd.append('--user' if not has_venv else ''); cmd.append('.'); subprocess.check_call([c for c in cmd if c])"
+        DEPENDS ${PROJECT_PYTHON_DEPS}
+        WORKING_DIRECTORY ${PROJECT_PYTHON_BUILD_DIRECTORY}
+        VERBATIM)
+
   endif()
 
   # Matlab toolbox
   if(BUILD_MATLAB_WRAPPER)
+    message(STATUS "Configuring MATLAB wrap...")
     include( MatlabWrap ) 
 
     # Configure MATLAB paths
