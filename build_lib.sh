@@ -1,4 +1,4 @@
-#!bin/bash
+#!/usr/bin/env bash
 # Script to build cppprojects in GNU/Linux systems
 # NOTE: this script assumes to be in the project root folder.
 # CHANGELOG: 
@@ -24,8 +24,8 @@ ninja_build=false
 
 # Parse options using getopt
 # NOTE: no ":" after option means no argument, ":" means required argument, "::" means optional argument
-OPTIONS=B::,j::,i,r,t::,c,f::,p,m,n
-LONGOPTIONS=buildpath::,jobs::,install,rebuild_only,type-build::,checks,flagsCXX::,python-wrap,matlab-wrap,ninja-build
+OPTIONS=B::,j::,i,r,t::,c,f::,p,m,n,h
+LONGOPTIONS=buildpath::,jobs::,install,rebuild_only,type-build::,checks,flagsCXX::,python-wrap,matlab-wrap,ninja-build,--help
 
 # Parsed arguments list with getopt
 PARSED=$(getopt --options ${OPTIONS} --longoptions ${LONGOPTIONS} --name "$0" -- "$@") 
@@ -106,6 +106,10 @@ while true; do
     -i|--install)
       install=true
       shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
       ;;
     --)
       shift

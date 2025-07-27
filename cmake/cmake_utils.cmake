@@ -62,18 +62,37 @@ function(detect_cuda_arch cuda_arch compute_cap)
     if(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
         execute_process(
             COMMAND nvidia-smi --query-gpu=compute_cap --format=csv,noheader
-            OUTPUT_VARIABLE gpu_compute_cap
+            OUTPUT_VARIABLE gpu_compute_caps
             OUTPUT_STRIP_TRAILING_WHITESPACE
         )
 
+        # Split each compute capability
+        separate_arguments(gpu_compute_caps_list UNIX_COMMAND "${gpu_compute_caps}")
+        set(sm_archs "")
+        set(clean_caps "")
+
         # Map the compute capability to the correct architecture
-        string(REPLACE "." "" sm_version "${gpu_compute_cap}")
-        set(${cuda_arch} "sm_${sm_version}" PARENT_SCOPE)
-        set(${compute_cap} "${sm_version}" PARENT_SCOPE)
+        foreach(cap ${gpu_compute_caps_list})
+            string(REPLACE "." "" sm "${cap}")
+            list(APPEND sm_archs "sm_${sm}")
+            list(APPEND clean_caps "${sm}")
+        endforeach()
 
-        message(STATUS "Detected CUDA compute capability: ${gpu_compute_cap}")
-        message(STATUS "Using CUDA architecture: sm_${sm_version}")
+        #######
+        # BUG selection of a single device is required to avoid failure of the cmake function building the ptx. Need to fix it and allow both capabilities to be used. In principle, the code should be built for all compute capabilities but not sure how to do it now.
+        list(GET clean_caps 0 clean_caps)
+        list(GET sm_archs 0 sm_archs)
+        #######
 
+        string(JOIN " " final_arch "${sm_archs}")
+        string(JOIN " " final_caps "${clean_caps}")
+
+        set(${cuda_arch} "${final_arch}" PARENT_SCOPE)
+        set(${compute_cap} "${final_caps}" PARENT_SCOPE)
+
+
+        message(STATUS "Detected CUDA compute capabilities: ${gpu_compute_caps_list}")
+        message(STATUS "Using CUDA architectures: ${final_arch}")
     else()
         message(WARNING "CUDA architecture detection is not supported for this platform.")
     endif()
