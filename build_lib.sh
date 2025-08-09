@@ -5,9 +5,10 @@
 # - Created January 2024,- modified May 2024 for Ubuntu 24.04 TLS by PeterC.
 # - Last updated with shell parser by PeterC, July 2024
 # - Major rework for cpp_template_project by PeterC, January 2025
+# - Improvements for cpp_cuda projects with several build types by PeterC, August 2025
 
-# DEVNOTE sorry, this script is not up to date for full automation, but still provides a good starting point. Please modify it manually for your needs.
-set -e
+# Stop script if any error
+set -e 
 
 # Default values
 buildpath="build" 
@@ -25,7 +26,7 @@ ninja_build=false
 # Parse options using getopt
 # NOTE: no ":" after option means no argument, ":" means required argument, "::" means optional argument
 OPTIONS=B::,j::,i,r,t::,c,f::,p,m,n,h
-LONGOPTIONS=buildpath::,jobs::,install,rebuild_only,type-build::,checks,flagsCXX::,python-wrap,matlab-wrap,ninja-build,--help
+LONGOPTIONS=buildpath::,jobs::,install,rebuild_only,type-build::,checks,flagsCXX::,python-wrap,matlab-wrap,ninja-build,no-optim,help
 
 # Parsed arguments list with getopt
 PARSED=$(getopt --options ${OPTIONS} --longoptions ${LONGOPTIONS} --name "$0" -- "$@") 
@@ -73,7 +74,7 @@ while true; do
       if [ -n "$2" ] && [ "$2" != "--" ]; then
         build_type="$2"
         if [[ "${build_type}" == "debug" || "${build_type}" == "relwithdebinfo" || "${build_type}" == "release" ]]; then
-          CXX_FLAGS="${CXX_FLAGS} -Wall -Wextra"
+          CXX_FLAGS="${CXX_FLAGS} -Wall -Wextra -Wpedantic"
         fi
         shift 2
       else
@@ -107,6 +108,10 @@ while true; do
       install=true
       shift
       ;;
+    -n|--no-optim)
+      no_optim=true
+      shift
+      ;;
     -h|--help)
       usage
       exit 0
@@ -136,7 +141,6 @@ fi
   # TODO add gtwrap repository/tools to the project or ensure they are present
 #fi
 
-
 if [ "${rebuild_only}" == false ]; then
 
   # Rebuild using existing buildpath
@@ -153,9 +157,7 @@ if [ "${rebuild_only}" == false ]; then
   BUILD_CONFIG_COMMANDS=" -DCMAKE_CXX_FLAGS=${CXX_FLAGS} \
                           -DCMAKE_C_FLAGS=${CXX_FLAGS} \
                           -DCMAKE_BUILD_TYPE=${build_type}"
-
-
-
+                          
   # Append additional build options
   if [ "${ninja_build}" == true ]; then
     BUILD_CONFIG_COMMANDS+=" -GNinja"
@@ -168,7 +170,9 @@ if [ "${rebuild_only}" == false ]; then
   if [ "$matlab_wrap" == true ]; then
     BUILD_CONFIG_COMMANDS+=" -DBUILD_MATLAB_WRAPPER=True"
   fi
-
+  if [ "${no_optim}" == true ]; then
+    BUILD_CONFIG_COMMANDS+=" -DNO_OPTIMIZATION=True"
+  fi
   #BUILD_CONFIG_COMMANDS+=""
 
   # Generate build configuration
