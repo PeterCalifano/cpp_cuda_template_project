@@ -5,7 +5,7 @@
 # - Generator-agnostic build via `cmake --build`
 
 set -Eeuo pipefail
-IFS=$'\n\t' # TODO what is this?
+IFS=$'\n\t' # Narrows word splitting to newlines and tabs (safe with spaces)
 
 # --- defaults ---
 buildpath="build"
