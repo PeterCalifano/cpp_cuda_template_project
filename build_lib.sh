@@ -7,9 +7,12 @@
 set -Eeuo pipefail
 IFS=$'\n\t' # Narrows word splitting to newlines and tabs (safe with spaces)
 
-# --- defaults ---
+# --- Defaults ---
 buildpath="build"
+
 jobs="${JOBS:-$(command -v nproc >/dev/null 2>&1 && nproc || echo 4)}"
+jobs=$(( jobs < 6 ? jobs : 6 ))
+
 rebuild_only=false
 build_type="relwithdebinfo"   # debug|release|relwithdebinfo|minsizerel
 run_tests=true
@@ -24,7 +27,7 @@ clean_first=false
 # Helper function to print instructions
 usage() {
   cat <<'USAGE'
-Usage: build_cpp.sh [OPTIONS]
+Usage: build_lib.sh [OPTIONS]
 
 Options:
   -B, --buildpath <dir>       Build directory (default: ./build)
@@ -45,13 +48,13 @@ Options:
 
 Examples:
   # Configure + build (RelWithDebInfo) into ./build
-  ./build_cpp.sh
+  ./build_lib.sh
 
   # Debug build with warnings, 8 jobs, and Ninja
-  ./build_cpp.sh -t debug -j 8 -N
+  ./build_lib.sh -t debug -j 8 -N
 
   # Custom build dir and flags, run tests then install
-  ./build_cpp.sh -B out/release -t release -f "-march=native" -i
+  ./build_lib.sh -B out/release -t release -f "-march=native" -i
 
 Notes:
   * Short options with arguments use a separate value: "-B build", "-j 8".
