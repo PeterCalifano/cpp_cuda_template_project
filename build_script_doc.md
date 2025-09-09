@@ -1,4 +1,4 @@
-# build\_cpp.sh — Detailed changes & option reference
+# build_cpp.sh — Detailed changes & option reference
 
 ## 1) Shell safety & ergonomics
 
