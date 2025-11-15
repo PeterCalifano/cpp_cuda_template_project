@@ -415,8 +415,10 @@ if(NOT MSVC AND NOT XCODE_VERSION)
   endif()
 
 endif()
+message(STATUS "===============================================================")
 
-# WRAPPERS CONFIGURATION
+###########################################################################
+### WRAPPERS CONFIGURATION
 # Handle wrappers
 # TODO update this after gtsam_spaceNav fix
 if(BUILD_PYTHON_WRAPPER OR BUILD_MATLAB_WRAPPER)
