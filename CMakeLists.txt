@@ -455,7 +455,8 @@ if(BUILD_PYTHON_WRAPPER OR BUILD_MATLAB_WRAPPER)
   endif()
 
   # Set the include directory for matlab.h
-  set(GTWRAP_INCLUDE_NAME "wrap")
+  set(GTWRAP_INCLUDE_NAME ${PROJECT_SOURCE_DIR})
+  include_directories(${GTWRAP_INCLUDE_NAME})
 
   # DEFINE interface files for wrapper
   set(SEARCH_DIR_WRAP 
