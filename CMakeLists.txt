@@ -44,12 +44,13 @@ endif()
 string(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LOWER)
 
 # Load scripts and install dirs
-include(cmake/cmake_utils.cmake)
 include(GNUInstallDirs)
 
 set(PROJECT_PYTHON_VERSION 3.11)
 
 # OPTIONS
+option(ENABLE_TESTS           "Build and run tests" ON)
+option(DOWNLOAD_CATCH2_IF_NEEDED "Fetch Catch2 from GitHub if not found" ON)
 option(VERBOSE "Verbose output" OFF) # Defines VERBOSE flag in code if set to ON
 
 option(BUILD_PYTHON_WRAPPER "Build Python wrapper" OFF)
@@ -69,7 +70,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # OPTIONS
 option(ENABLE_OMP "Enable OpenMP" OFF)
 if(NOT DEFINED NUM_OMP_THREADS)
-    set(NUM_OMP_THREADS 4 "Number of OpenMP threads to use")
+    set(NUM_OMP_THREADS 8 "Number of OpenMP threads to use")
 endif()
 
 # TIP: if different options need to be specified for different targets of the build, use INTERFACE targets
@@ -141,6 +142,12 @@ find_package( Eigen3 3.4 REQUIRED )
 find_package( Doxygen )
 find_package( OpenGL )
 find_package( CUDAToolkit 12.0) 
+
+# Handle Catch2 tools
+include(cmake/HandleCatch2.cmake)
+
+# Include cmake tools (depends on Catch2)
+include(cmake/cmake_utils.cmake)
 
 # Set the dependencies for the automated export
 set(TARGET_DEPS Eigen3 OpenGL CUDAToolkit)
@@ -281,24 +288,7 @@ find_package(GTSAMCMakeTools)
 #include(GtsamPrinting)
 
 # Add catch2 for unit testing
-find_package(Catch2 REQUIRED)
-
-# TODO: move to dedicated cmake script
-if (Catch2_FOUND)
-    message(STATUS "Catch2 found at system level: ${Catch2_DIR}")
-else()
-  message(STATUS "Catch2 not found. Fetching it...")
-  include(FetchContent)
-
-  FetchContent_Declare(
-    Catch2
-    GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-    GIT_TAG        v3.4.0 # or a later release (TO UPDATE AS NEEDED)
-  )
-
-  FetchContent_MakeAvailable(Catch2)
-  message(STATUS "Catch2 library fetched successfully.")
-endif()
+find_package(OpenCV QUIET)
 
 # Create the installation target list 
 set(installable_targets)
@@ -336,10 +326,6 @@ target_link_options(${project_name}_include INTERFACE
 # Install-tree exes look next to themselves
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
 
-# Include CTest and Catch2
-include(CTest)
-include(Catch)
-
 # Add other subdirectories if needed
 #add_subdirectory( other_folder )
 
@@ -350,7 +336,9 @@ add_subdirectory( src )
 add_subdirectory( examples )
 
 # Add tests to build
-add_subdirectory( tests )
+if (ENABLE_TESTS AND Catch2_FOUND)
+  add_subdirectory( tests )
+endif()
 
 # Add documentation
 set(DOC_SUBDIRS "${${project_name}_INCLUDE_DIRS}")

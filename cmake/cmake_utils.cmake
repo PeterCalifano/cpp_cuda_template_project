@@ -36,26 +36,30 @@ function(add_examples project_lib_name excluded_list target_compile_settings)
 endfunction()
 
 # Function to add test files to the build
-function(add_tests project_lib_name excluded_list TESTS_LIST target_compile_settings CATCH2_TEST_PROPERTIES catch2_target)
+if (Catch2_FOUND)
+    function(add_tests project_lib_name excluded_list TESTS_LIST target_compile_settings CATCH2_TEST_PROPERTIES catch2_target)
 
-    set(TESTS_PATTERN "test*.cpp; test*.cu")
-    file(GLOB srcTestFiles RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${TESTS_PATTERN})
-    filter_files_in_list(srcTestFiles srcTestFiles ${excluded_list})
-    message(STATUS "Test files found: ${srcTestFiles}")
+        set(TESTS_PATTERN "test*.cpp; test*.cu")
+        file(GLOB srcTestFiles RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${TESTS_PATTERN})
+        filter_files_in_list(srcTestFiles srcTestFiles ${excluded_list})
+        message(STATUS "Test files found: ${srcTestFiles}")
 
-    # Add content of this directory 
-    foreach(testFile ${srcTestFiles})
+        # Add content of this directory 
+        foreach(testFile ${srcTestFiles})
 
-        get_filename_component(testName ${testFile} NAME_WE)
-        add_executable(${testName} ${testFile})
+            get_filename_component(testName ${testFile} NAME_WE)
+            add_executable(${testName} ${testFile})
 
-        list(APPEND ${TESTS_LIST} ${testName}) 
+            list(APPEND ${TESTS_LIST} ${testName}) 
 
-        target_link_libraries(${testName} PRIVATE ${project_lib_name} ${target_compile_settings} ${catch2_target})
-        catch_discover_tests(${testName} PROPERTIES ${CATCH2_TEST_PROPERTIES})
+            target_link_libraries(${testName} PRIVATE ${project_lib_name} ${target_compile_settings} ${catch2_target})
+            catch_discover_tests(${testName} PROPERTIES ${CATCH2_TEST_PROPERTIES})
 
-    endforeach()
-endfunction()
+        endforeach()
+    endfunction()
+else()
+    message(WARNING "Catch2 not found. Command to add tests will not be available!")
+endif()
 
 # Function to detect the compute capability using nvidia-smi
 function(detect_cuda_arch cuda_arch compute_cap)
