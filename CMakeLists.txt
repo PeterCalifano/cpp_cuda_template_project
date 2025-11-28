@@ -249,7 +249,7 @@ if (ENABLE_OPTIX)
   target_compile_definitions(cuda_compile_settings INTERFACE __OPTIX_ENABLED__=1)
 
   # Specify Optix installation directory
-  set(OptiX_INSTALL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/NVIDIA-OptiX-SDK-8.0.0-linux64-x86_64)
+  set(OptiX_INSTALL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/NVIDIA-OptiX-SDK-8.0.0-linux64-x86_64)
 
   message(STATUS "Using OptiX installation directory: ${OptiX_INSTALL_DIR}")
 
