@@ -1,4 +1,4 @@
-# build_cpp.sh — Detailed changes & option reference
+# build_lib.sh — Detailed changes & option reference
 
 ## 1) Shell safety & ergonomics
 
@@ -80,6 +80,10 @@ The script now uses **GNU `getopt`** to support:
 * **`-n, --no-optim`**
   Sets `-DNO_OPTIMIZATION=ON` in the CMake cache. Your toolchain/CMakeLists can use this to toggle optimizer knobs (e.g., turn off vectorization or special CPU flags independent of `CMAKE_BUILD_TYPE`).
 
+* **`--toolchain <file>`**
+  Pass a CMake toolchain file: `-DCMAKE_TOOLCHAIN_FILE=<file>`.
+  Example: `--toolchain cmake/toolchains/clang.cmake`.
+
 * **`-p, --python-wrap`**
   Adds `-DBUILD_PYTHON_WRAPPER=ON`. Wire this to your CMake to build pybind11/gtwrap targets.
 
@@ -152,31 +156,37 @@ The script now uses **GNU `getopt`** to support:
 * **Default dev build** (RelWithDebInfo):
 
   ```bash
-  ./build_cpp.sh
+  ./build_lib.sh
   ```
 
 * **Debug + Ninja + extra flags + 12 jobs**:
 
   ```bash
-  ./build_cpp.sh -t debug -N -j 12 -f "-march=native -g3"
+  ./build_lib.sh -t debug -N -j 12 -f "-march=native -g3"
   ```
 
 * **Release + tests + install into system prefix**:
 
   ```bash
-  ./build_cpp.sh -t release -i
+  ./build_lib.sh -t release -i
   ```
 
 * **Clean reconfigure to a custom dir**:
 
   ```bash
-  ./build_cpp.sh -B out/rel -t relwithdebinfo --clean
+  ./build_lib.sh -B out/rel -t relwithdebinfo --clean
   ```
 
 * **Rebuild only** (no reconfigure):
 
   ```bash
-  ./build_cpp.sh -r -j 8
+  ./build_lib.sh -r -j 8
+  ```
+
+* **Clang toolchain build**:
+
+  ```bash
+  ./build_lib.sh --toolchain cmake/toolchains/clang.cmake
   ```
 
 ---
@@ -184,10 +194,9 @@ The script now uses **GNU `getopt`** to support:
 ## 8) Optional future extensions
 
 * `--preset <name>` → `cmake --preset <name>` / `cmake --build --preset <name>` / `ctest --preset <name>`.
-* `--toolchain <file>` → pass `-DCMAKE_TOOLCHAIN_FILE=<file>`.
 * Sanitizer toggles for debug: `--asan`, `--ubsan`, `--tsan` that append safe defaults and adjust `LD_PRELOAD`/`ASAN_OPTIONS` for tests.
 * Colorized `ctest` output via `--output-on-failure` (already used) and `CTEST_OUTPUT_ON_FAILURE=1` environment.
 
 ---
 
-If you want, I can integrate **presets**, **toolchains**, and **sanitizers** directly into the script next, with sensible defaults and conflict checks.
+If you want, I can integrate **presets** and **sanitizers** directly into the script next, with sensible defaults and conflict checks.

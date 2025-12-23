@@ -23,6 +23,7 @@ install=false
 use_ninja=false
 no_optim=false
 clean_first=false
+toolchain_file=""
 
 # Helper function to print instructions
 usage() {
@@ -43,6 +44,7 @@ Options:
   -i, --install               Run "install" target after tests
   -N, --ninja-build           Use Ninja generator (requires `ninja`)
   -n, --no-optim              Set -DNO_OPTIMIZATION=ON in the CMake cache
+      --toolchain <file>      Pass CMake toolchain file (-DCMAKE_TOOLCHAIN_FILE=<file>)
       --clean                 Delete build dir before configuring
   -h, --help                  Show this help and exit
 
@@ -73,7 +75,7 @@ if ! command -v getopt > /dev/null 2>&1; then
 fi
 
 OPTIONS=B:j:rt:c:f:pmhNni
-LONGOPTIONS=buildpath:,jobs:,rebuild-only,type:,type-build:,checks,flagsCXX:,python-wrap,matlab-wrap,help,ninja-build,no-optim,skip-tests,clean,install
+LONGOPTIONS=buildpath:,jobs:,rebuild-only,type:,type-build:,checks,flagsCXX:,python-wrap,matlab-wrap,help,ninja-build,no-optim,skip-tests,clean,install,toolchain:
 PARSED=$(getopt -o "$OPTIONS" -l "$LONGOPTIONS" -- "$@") || { usage; exit 2; }
 eval set -- "$PARSED"
 
@@ -91,6 +93,7 @@ while true; do
     -i|--install)         install=true;    shift ;;
     -N|--ninja-build)     use_ninja=true;  shift ;;
     -n|--no-optim)        no_optim=true;   shift ;;
+        --toolchain)      toolchain_file="$2"; shift 2 ;;
         --clean)          clean_first=true; shift ;;
     -h|--help)            usage; exit 0 ;;
     --) shift; break ;;
@@ -118,6 +121,11 @@ if [[ "$cmake_bt" == "Release" ]]; then
   run_tests=true
 fi
 
+# Validate toolchain file if provided
+if [[ -n "$toolchain_file" && ! -f "$toolchain_file" ]]; then
+  die "Toolchain file not found: $toolchain_file"
+fi
+
 # Pre-build checks
 command -v cmake >/dev/null 2>&1 || die "cmake not found"
 if [[ "$use_ninja" == true ]]; then
@@ -132,6 +140,7 @@ info "Extra CXX flags    : ${CXX_FLAGS:-<none>}"
 info "Python wrapper     : $python_wrap"
 info "MATLAB wrapper     : $matlab_wrap"
 info "Generator          : $([[ "$use_ninja" == true ]] && echo Ninja || echo 'Unix Makefiles')"
+info "Toolchain file     : ${toolchain_file:-<none>}"
 info "Run tests          : $run_tests"
 info "Install after build: $install"
 
@@ -156,9 +165,12 @@ if [[ "$rebuild_only" == false ]]; then
   [[ "$python_wrap" == true ]] && cmake_args+=( -DBUILD_PYTHON_WRAPPER=ON )
   [[ "$matlab_wrap" == true ]] && cmake_args+=( -DBUILD_MATLAB_WRAPPER=ON )
   [[ "$no_optim"   == true ]] && cmake_args+=( -DNO_OPTIMIZATION=ON )
+  [[ -n "$toolchain_file" ]] && cmake_args+=( "-DCMAKE_TOOLCHAIN_FILE=$toolchain_file" )
 
   info "Configuring with CMake..."
   cmake "${cmake_args[@]}"
+elif [[ -n "$toolchain_file" ]]; then
+  info "Toolchain file provided, but --rebuild-only skips configure."
 fi
 
 # --- Build ---
