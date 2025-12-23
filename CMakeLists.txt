@@ -78,6 +78,8 @@ option(BUILD_MATLAB_WRAPPER "Build MATLAB wrapper" OFF)
 option(NO_OPTIMIZATION "Disable optimization flags" OFF)
 option(WARNINGS_ARE_ERRORS "Treat warnings as errors" OFF)
 option(USE_SYS_OPTIX_SDK "Use Optix system folder if specified" OFF)
+option(SANITIZE_BUILD "Enable sanitizers in build" OFF)
+set(SANITIZERS "address,undefined,leak" CACHE STRING "Sanitizers to enable when SANITIZE_BUILD is ON (comma-separated)")
 set(PYTHON_EXECUTABLE "python3") # Specify the Python executable to use
 
 # Set C++ standard
@@ -92,7 +94,10 @@ set(_common_c_warnings -Wall -Wextra)
 set(_common_cxx_warnings ${_common_c_warnings} -Wsuggest-override)
 
 set(_debug_flags -Og -g -fmax-errors=3)
-set(_debug_sanitizers -fsanitize=address,undefined)
+set(_debug_sanitizers)
+if(SANITIZE_BUILD AND SANITIZERS)
+  set(_debug_sanitizers -fsanitize=${SANITIZERS})
+endif()
 set(_release_flags -O3 -fmax-errors=1)
 set(_relwithdebinfo_flags -O2 -g)
 set(_noptim_flags -O0 -g)
@@ -116,15 +121,12 @@ string(JOIN " " CMAKE_CXX_FLAGS_RELWITHDEBINFO ${_relwithdebinfo_cxx_flags})
 string(JOIN " " CMAKE_C_FLAGS_NOPTIM ${_noptim_c_flags})
 string(JOIN " " CMAKE_CXX_FLAGS_NOPTIM ${_noptim_cxx_flags})
 
+# Handle OpenMP
 handle_openmp()
 
-# Define sanitizer target settings
-# TODO move to cmake/HandleSanitizers.cmake
-add_library(sanitizer_target_settings INTERFACE)
-target_compile_options(sanitizer_target_settings INTERFACE
-    $<$<CONFIG:DEBUG>: -fsanitize=address,undefined>
-    $<$<CONFIG:RELEASE>: -fsanitize=address,undefined>
-)
+# Handle sanitizers
+include(cmake/HandleSanitizers.cmake)
+handle_sanitizers()
 
 if (WARNINGS_ARE_ERRORS)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
@@ -134,10 +136,14 @@ endif()
 message(STATUS "==============================================================")
 message(STATUS "====================  Dependencies ===========================")
 
+# Add submodules if any found
+include(cmake/HandleSubmodules.cmake)
+handle_submodules() # Automatically adds subdirectories in lib/ (and build them if CMakeLists.txt found)
+
 # LIBRARY DEPENDENCIES DEFINITION
 find_package( Eigen3 3.4 REQUIRED )
 find_package( Doxygen QUIET)
-#find_package( OpenGL )
+#find_package( OpenGL ) # TODO add handle opengl
 
 # Handle Catch2 tools
 include(cmake/HandleCatch2.cmake)
@@ -177,13 +183,17 @@ if (CMAKE_BUILD_TYPE_LOWER MATCHES "debug")
   set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS_DEBUG})
 
   # Set compile options for the interface target
+  set(_sanitizer_flags)
+  if(SANITIZE_BUILD AND SANITIZERS)
+    set(_sanitizer_flags -fsanitize=${SANITIZERS})
+  endif()
   target_compile_options(lib_compile_interface INTERFACE
-                      -fsanitize=address,undefined
+                      ${_sanitizer_flags}
                       -fno-omit-frame-pointer
   )
 
   target_link_options(lib_compile_interface INTERFACE
-                      -fsanitize=address,undefined
+                      ${_sanitizer_flags}
                       -fno-omit-frame-pointer
   )
 
@@ -206,9 +216,6 @@ else()
   # Stop build
   message(FATAL_ERROR "Unknown build type: ${CMAKE_BUILD_TYPE}. Stopping build.")
 endif()
-
-
-# CUDA/OptiX interface targets configured above
 
 # Add catch2 for unit testing
 find_package(OpenCV QUIET)

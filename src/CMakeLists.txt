@@ -37,6 +37,11 @@ unset(installable_headers)
 add_library(${lib_name} SHARED
             ${srcLibFiles})
 
+# Link sanitizer target only for in-tree builds to avoid export/install deps.
+if (ENABLE_SANITIZERS AND TARGET sanitizer_target_interface)
+  target_link_libraries(${lib_name} PRIVATE sanitizer_target_interface)
+endif()
+
 # If need to add other files after add_library, use:
 #target_sources(${lib_name} SHARED ${srcLibFiles})
 
@@ -56,9 +61,13 @@ if ( ENABLE_OPTIX )
 endif()
 
 ### Link targets
+# Project include directories
+target_link_libraries(${lib_name} PUBLIC ${project_name}_include)
+
 # Link interface target for CUDA
+
 if (ENABLE_CUDA)
-target_link_libraries(${lib_name} PUBLIC cuda_compile_interface ${project_name}_include)
+  target_link_libraries(${lib_name} PUBLIC cuda_compile_interface)
 endif()
 
 # Link OptiX interface target
@@ -79,6 +88,7 @@ target_link_libraries(${lib_name} PUBLIC
 # Add target to installable list 
 set(installable_targets ${installable_targets} 
                         ${lib_name} ${project_name}_include)
+                      
 if (ENABLE_CUDA)
   list(APPEND installable_targets cuda_compile_interface)
   if(ENABLE_OPTIX)
@@ -138,6 +148,3 @@ install(FILES
 export(EXPORT ${lib_name}
   FILE "${CMAKE_CURRENT_BINARY_DIR}/cmake/${project_name}Target.cmake"
 )
-# Add and build programs subdirectory
-#message(STATUS "Building binary executables")
-#add_subdirectory( bin )
