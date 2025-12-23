@@ -1,3 +1,7 @@
+include_guard(GLOBAL)
+
+# TODO rework and generalize to generic projects 
+
 # Set Python version if either Python or MATLAB wrapper is requested.
 if(GTSAM_BUILD_PYTHON OR GTSAM_INSTALL_MATLAB_TOOLBOX)
   if(${GTSAM_PYTHON_VERSION} STREQUAL "Default")
