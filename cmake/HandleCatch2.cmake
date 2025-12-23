@@ -1,8 +1,10 @@
+include_guard(GLOBAL)
+
 if (ENABLE_TESTS)
   include(CTest)
   find_package(Catch2 3 QUIET)
 
-  if(NOT Catch2_FOUND AND DOWNLOAD_CATCH2_IF_NEEDED)
+  if(NOT Catch2_FOUND AND ENABLE_FETCH_CATCH2)
     message(STATUS "Catch2 not found. Will try to fetch it from GitHub...")
     # Try to see if git/network are available BEFORE calling FetchContent
     find_package(Git QUIET)
@@ -39,8 +41,8 @@ if (ENABLE_TESTS)
         endif()
       endif()
       
-  elseif(NOT Catch2_FOUND AND NOT DOWNLOAD_CATCH2_IF_NEEDED)
-      message(STATUS "Catch2 not found and DOWNLOAD_CATCH2_IF_NEEDED=OFF. Tests will be disabled.")
+  elseif(NOT Catch2_FOUND AND NOT ENABLE_FETCH_CATCH2)
+      message(STATUS "Catch2 not found and ENABLE_FETCH_CATCH2=OFF. Tests will be disabled.")
       set(ENABLE_TESTS OFF CACHE BOOL "Build and run tests" FORCE)
   endif()
 

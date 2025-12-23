@@ -37,6 +37,7 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 #
 #============================================================================
+include_guard(GLOBAL)
 
 # Finding NumPy involves calling the Python interpreter
 if(NumPy_FIND_REQUIRED)
