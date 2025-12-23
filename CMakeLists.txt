@@ -143,7 +143,8 @@ handle_submodules() # Automatically adds subdirectories in lib/ (and build them 
 # LIBRARY DEPENDENCIES DEFINITION
 find_package( Eigen3 3.4 REQUIRED )
 find_package( Doxygen QUIET)
-#find_package( OpenGL ) # TODO add handle opengl
+include(cmake/HandleOpenGL.cmake)
+handle_opengl(TARGET opengl_compile_interface)
 
 # Handle Catch2 tools
 include(cmake/HandleCatch2.cmake)

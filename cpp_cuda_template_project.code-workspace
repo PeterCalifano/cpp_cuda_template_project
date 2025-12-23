@@ -4,9 +4,6 @@
 			"path": "."
 		},
 		{
-			"path": "../cpp_template_project"
-		},
-		{
 			"path": "../python_template_project"
 		}
 	],
