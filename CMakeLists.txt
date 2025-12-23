@@ -31,22 +31,32 @@ if (ENABLE_CUDA)
     endif()
 endif()
 
+# Add cmake folder to path
+list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
+
+# Add git version handling
+include(cmake/HandleGitVersion.cmake)
+
 # Set version number
 set(PROJECT_VERSION_MAJOR 0)
-set(PROJECT_VERSION_MINOR 1)
+set(PROJECT_VERSION_MINOR 0)
 set(PROJECT_VERSION_PATCH 0)
+
+# Get version from git if possible
+get_version_from_git()
 
 project( ${project_name} 
         LANGUAGES ${languages}
-        VERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}") # ACHTUNG: PTX code requires C language!
+        VERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH})
 
 string(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LOWER)
 
-# Load scripts and install dirs
+# Add GNU install dirs
 include(GNUInstallDirs)
 
-# Add CUDA tools if necessary
-include(cmake/HandleCUDA.cmake)
+# Add CUDA/OptiX tools
+include(HandleCUDA.cmake)
+include(HandleOptiX.cmake)
 
 # OPTIONS
 option(ENABLE_TESTS           "Build and run tests" ON)
