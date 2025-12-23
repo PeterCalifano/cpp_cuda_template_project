@@ -1,5 +1,7 @@
 # VERSION CONTROL 
 cmake_minimum_required(VERSION 3.15 FATAL_ERROR)
+set(PROJECT_PYTHON_VERSION 3.11)
+set(MATLAB_DEFAULT_RELEASE "R2023b")
 
 #set(CMAKE_C_COMPILER gcc-11)
 #set(CMAKE_CXX_COMPILER g++-11)
@@ -38,15 +40,13 @@ project( ${project_name}
         LANGUAGES ${languages}
         VERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}") # ACHTUNG: PTX code requires C language!
 
-if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE relwithdebinfo)
-endif()
 string(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LOWER)
 
 # Load scripts and install dirs
 include(GNUInstallDirs)
 
-set(PROJECT_PYTHON_VERSION 3.11)
+# Add CUDA tools if necessary
+include(cmake/HandleCUDA.cmake)
 
 # OPTIONS
 option(ENABLE_TESTS           "Build and run tests" ON)
@@ -150,8 +150,8 @@ include(cmake/HandleCatch2.cmake)
 include(cmake/cmake_utils.cmake)
 
 # Set the dependencies for the automated export
-set(TARGET_DEPS Eigen3 OpenGL CUDAToolkit)
-message(STATUS "Target dependencies: ${TARGET_DEPS}")
+set(EXPORT_TARGET_DEPS Eigen3 OpenGL CUDAToolkit)
+message(STATUS "Target dependencies: ${EXPORT_TARGET_DEPS}")
 
 #find_package( GTSAM 4.0 REQUIRED )
 #find_package( GTSAM_UNSTABLE REQUIRED)
@@ -160,9 +160,7 @@ message(STATUS "Target dependencies: ${TARGET_DEPS}")
 #find_package( DBoW2 )
 #find_package( Pangolin )
 #find_package( jsoncpp )
-#find_package( rapid_yaml) ??
-# torch
-# tensort
+#find_package( rapid_yaml)
 
 # Interface target for C++ flags
 add_library(lib_compile_settings INTERFACE)
@@ -278,14 +276,6 @@ if (ENABLE_OPTIX)
   #target_include_directories(cuda_compile_settings INTERFACE ${OPTIX_INCLUDE_DIR})
 
 endif()
-
-# Add conveniency tools adapted from GTSAM
-# Include CMake modules from GTSAM
-find_package(GTSAMCMakeTools)
-
-# Use macros for creating tests/timing scripts
-#include(GtsamTesting)
-#include(GtsamPrinting)
 
 # Add catch2 for unit testing
 find_package(OpenCV QUIET)
@@ -408,7 +398,7 @@ message(STATUS "==============================================================="
 ###########################################################################
 ### WRAPPERS CONFIGURATION
 # Handle wrappers
-# TODO update this after gtsam_spaceNav fix
+# TODO requires some updates
 if(BUILD_PYTHON_WRAPPER OR BUILD_MATLAB_WRAPPER)
 
   if (NOT GTSAM_FOUND)
@@ -489,7 +479,6 @@ if(BUILD_PYTHON_WRAPPER OR BUILD_MATLAB_WRAPPER)
     list(APPEND CMAKE_PREFIX_PATH ${WRAP_INSTALL_DIR})
 
     message(STATUS "GTwrap package correctly built and added to CMAKE_PREFIX_PATH.")
-      
     add_subdirectory(wrap)
     list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/wrap/cmake")
 
@@ -606,8 +595,6 @@ if(BUILD_PYTHON_WRAPPER OR BUILD_MATLAB_WRAPPER)
     message (STATUS "Including MATLAB directories...")
     find_package (Matlab REQUIRED)
     set(MATLAB_MEX_INCLUDE "${Matlab_ROOT_DIR}/extern/include")
-    set(SOURCE_DIR "mexCodes")
-    set(MATLAB_DEFAULT_RELEASE "R2023b")
 
     message(STATUS "MATLAB_MEX_INCLUDE directory: ${MATLAB_MEX_INCLUDE}")
     message(STATUS "Matlab_MEX_LIBRARY directory: ${Matlab_MEX_LIBRARY}")
@@ -622,7 +609,7 @@ if(BUILD_PYTHON_WRAPPER OR BUILD_MATLAB_WRAPPER)
       file(MAKE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/matlab")
     endif()
 
-    # Set up installation paths (#TODO Understand these options better)
+    # Set up installation paths (#TODO need to review these options)
     set(WRAP_MEX_BUILD_STATIC_MODULE OFF) # Defines if the mex module is built as a static module
     #set(WRAP_BUILD_MEX_BINARY_FLAGS ${GTSAM_BUILD_MEX_BINARY_FLAGS})
     set(WRAP_TOOLBOX_INSTALL_PATH "${CMAKE_CURRENT_SOURCE_DIR}/matlab") # Defines the installation path for the MATLAB wrapper files
