@@ -55,37 +55,46 @@ if ( ENABLE_OPTIX )
   target_sources(${lib_name} PUBLIC ${embedded_ptx_code})    
 endif()
 
-# Link targets
-target_include_directories(${lib_name} PUBLIC 
-                          ${OpenCV_INCLUDE_DIRS} 
-                          )
-
+### Link targets
 # Link interface target for CUDA
-target_link_libraries(${lib_name} PUBLIC cuda_compile_settings ${project_name}_include)
+if (ENABLE_CUDA)
+target_link_libraries(${lib_name} PUBLIC cuda_compile_interface ${project_name}_include)
+endif()
+
+# Link OptiX interface target
+if(ENABLE_OPTIX)
+  target_link_libraries(${lib_name} PUBLIC optix_compile_interface)
+endif()
 
 #target_include_directories(${lib_name} INTERFACE ${interface_INCLUDE_DIRS} ) 
 # TIP: INTERFACE ensures that the consumer target does not need to include manually the include directories the library target depends on, because they are automagically propagated to the target, even if the target does not need thme. The same happens with PUBLIC, but this time the includes are used by the target library itself.
 
 target_link_libraries(${lib_name} PUBLIC 
-                                  ${OpenCV_LIBS} 
-                                  Eigen3::Eigen 
+                                  Eigen3::Eigen
                                   #gdt
                                   #glfw 
-                                  ${OPENGL_LIBRARIES}
-                                  ${optix_LIBRARY})
+                                  #${OPENGL_LIBRARIES})
+                     )
 
 # Add target to installable list 
-set(installable_targets ${installable_targets} ${lib_name} cuda_compile_settings ${project_name}_include)
+set(installable_targets ${installable_targets} 
+                        ${lib_name} ${project_name}_include)
+if (ENABLE_CUDA)
+  list(APPEND installable_targets cuda_compile_interface)
+  if(ENABLE_OPTIX)
+    list(APPEND installable_targets optix_compile_interface)
+  endif()
+endif()
 
 message(NOTICE "Added target to installable list: ${installable_targets}")
 
 # Install global_includes.h file
-#install(FILES "${CMAKE_CURRENT_BINARY_DIR}/global_includes.h" 
-#        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${project_name}) 
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/global_includes.h" 
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${project_name}) 
 
 # Install config.h file
-##install(FILES "${CMAKE_CURRENT_BINARY_DIR}/config.h" 
-#        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${project_name}) 
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/config.h" 
+       DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${project_name}) 
 
 # INSTALL CONFIGURATION
 install(

@@ -15,8 +15,10 @@ if(NOT DEFINED CMAKE_INSTALL_PREFIX)
   set(CMAKE_INSTALL_PREFIX ${CMAKE_SOURCE_DIR}/install CACHE PATH "Install path" FORCE)
 endif()
 
+# Major options
 option(ENABLE_OPTIX "Enable OptiX" OFF)
 option(ENABLE_CUDA "Enable CUDA" OFF)
+include(cmake/HandleOpenMP.cmake)
 
 set(languages CXX) # ACHTUNG: PTX code requires C language!
 
@@ -49,18 +51,26 @@ project( ${project_name}
         LANGUAGES ${languages}
         VERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH})
 
+if (NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING "Build type (Debug, Release, RelWithDebInfo, MinSizeRel, NOPTIM)" FORCE)
+endif()
 string(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LOWER)
+
+# Guard against in-source builds
+if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
+  message(FATAL_ERROR "In-source builds not allowed. Please make a new directory (called a build directory) and run CMake from there. You may need to remove CMakeCache.txt. ")
+endif()
 
 # Add GNU install dirs
 include(GNUInstallDirs)
 
 # Add CUDA/OptiX tools
-include(HandleCUDA.cmake)
-include(HandleOptiX.cmake)
+include(cmake/HandleCUDA.cmake)
+include(cmake/HandleOptiX.cmake)
 
 # OPTIONS
-option(ENABLE_TESTS           "Build and run tests" ON)
-option(DOWNLOAD_CATCH2_IF_NEEDED "Fetch Catch2 from GitHub if not found" ON)
+option(ENABLE_TESTS              "Build and run tests" ON)
+option(ENABLE_FETCH_CATCH2 "Fetch Catch2 from GitHub if not found" ON)
 option(VERBOSE "Verbose output" OFF) # Defines VERBOSE flag in code if set to ON
 
 option(BUILD_PYTHON_WRAPPER "Build Python wrapper" OFF)
@@ -68,20 +78,12 @@ option(BUILD_MATLAB_WRAPPER "Build MATLAB wrapper" OFF)
 option(NO_OPTIMIZATION "Disable optimization flags" OFF)
 option(WARNINGS_ARE_ERRORS "Treat warnings as errors" OFF)
 option(USE_SYS_OPTIX_SDK "Use Optix system folder if specified" OFF)
-option(ENABLE_SIMD "Enable SIMD instructions" ON)
-
 set(PYTHON_EXECUTABLE "python3") # Specify the Python executable to use
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-
-# OPTIONS
-option(ENABLE_OMP "Enable OpenMP" OFF)
-if(NOT DEFINED NUM_OMP_THREADS)
-    set(NUM_OMP_THREADS 8 "Number of OpenMP threads to use")
-endif()
 
 # TIP: if different options need to be specified for different targets of the build, use INTERFACE targets
 
@@ -114,20 +116,10 @@ string(JOIN " " CMAKE_CXX_FLAGS_RELWITHDEBINFO ${_relwithdebinfo_cxx_flags})
 string(JOIN " " CMAKE_C_FLAGS_NOPTIM ${_noptim_c_flags})
 string(JOIN " " CMAKE_CXX_FLAGS_NOPTIM ${_noptim_cxx_flags})
 
-if (ENABLE_OMP AND NOT NO_OPTIMIZATION)
-    find_package(OpenMP REQUIRED)
-    foreach(_lang C CXX)
-        set(_lang_var "CMAKE_${_lang}_FLAGS")
-        if (OpenMP_${_lang}_FLAGS)
-            set(${_lang_var} "${${_lang_var}} ${OpenMP_${_lang}_FLAGS}")
-        else()
-            set(${_lang_var} "${${_lang_var}} -fopenmp")
-        endif()
-    endforeach()
-else()
-    set(OpenMP_CXX_FOUND OFF)
-endif()
+handle_openmp()
 
+# Define sanitizer target settings
+# TODO move to cmake/HandleSanitizers.cmake
 add_library(sanitizer_target_settings INTERFACE)
 target_compile_options(sanitizer_target_settings INTERFACE
     $<$<CONFIG:DEBUG>: -fsanitize=address,undefined>
@@ -139,19 +131,13 @@ if (WARNINGS_ARE_ERRORS)
     message(WARNING "ACHTUNG! Warnings will be treated treated as errors.")
 endif()
 
-# Guard against in-source builds
-if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
-  message(FATAL_ERROR "In-source builds not allowed. Please make a new directory (called a build directory) and run CMake from there. You may need to remove CMakeCache.txt. ")
-endif()
-
 message(STATUS "==============================================================")
 message(STATUS "====================  Dependencies ===========================")
 
 # LIBRARY DEPENDENCIES DEFINITION
 find_package( Eigen3 3.4 REQUIRED )
-find_package( Doxygen )
-find_package( OpenGL )
-find_package( CUDAToolkit 12.0) 
+find_package( Doxygen QUIET)
+#find_package( OpenGL )
 
 # Handle Catch2 tools
 include(cmake/HandleCatch2.cmake)
@@ -159,8 +145,18 @@ include(cmake/HandleCatch2.cmake)
 # Include cmake tools (depends on Catch2)
 include(cmake/cmake_utils.cmake)
 
+# Configure CUDA/OptiX (creates interface targets even when disabled)
+handle_cuda(TARGET cuda_compile_interface 
+            MIN_VERSION 12.0)
+handle_optix(TARGET optix_compile_interface 
+            CUDA_TARGET cuda_compile_interface)
+
 # Set the dependencies for the automated export
-set(EXPORT_TARGET_DEPS Eigen3 OpenGL CUDAToolkit)
+set(EXPORT_TARGET_DEPS Eigen3) # TODO make automatic based on used packages
+
+if(ENABLE_CUDA)
+  list(APPEND EXPORT_TARGET_DEPS CUDAToolkit)
+endif()
 message(STATUS "Target dependencies: ${EXPORT_TARGET_DEPS}")
 
 #find_package( GTSAM 4.0 REQUIRED )
@@ -173,19 +169,20 @@ message(STATUS "Target dependencies: ${EXPORT_TARGET_DEPS}")
 #find_package( rapid_yaml)
 
 # Interface target for C++ flags
-add_library(lib_compile_settings INTERFACE)
+add_library(lib_compile_interface INTERFACE)
+
 if (CMAKE_BUILD_TYPE_LOWER MATCHES "debug")
   # Set compile flags
   set(CMAKE_C_FLAGS ${CMAKE_CXX_FLAGS_DEBUG})
   set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS_DEBUG})
 
   # Set compile options for the interface target
-  target_compile_options(lib_compile_settings INTERFACE
+  target_compile_options(lib_compile_interface INTERFACE
                       -fsanitize=address,undefined
                       -fno-omit-frame-pointer
   )
 
-  target_link_options(lib_compile_settings INTERFACE
+  target_link_options(lib_compile_interface INTERFACE
                       -fsanitize=address,undefined
                       -fno-omit-frame-pointer
   )
@@ -203,7 +200,7 @@ elseif (CMAKE_BUILD_TYPE_LOWER MATCHES "relwithdebinfo" AND NOT NO_OPTIMIZATION)
 elseif (NO_OPTIMIZATION)
   set(CMAKE_C_FLAGS ${CMAKE_CXX_FLAGS_NOPTIM})
   set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS_NOPTIM})
-  target_compile_definitions(lib_compile_settings INTERFACE NDEBUG)
+  target_compile_definitions(lib_compile_interface INTERFACE NDEBUG)
 
 else()
   # Stop build
@@ -211,81 +208,7 @@ else()
 endif()
 
 
-# Define target to specify includes and compile defs
-add_library(cuda_compile_settings INTERFACE)
-
-# Handle CUDA and setup # TODO (PC) Move this code to a dedicated cmake file (HandleCUDA.cmake)
-if (CUDAToolkit_FOUND)
-    message(STATUS "CUDA found: ${CUDAToolkit_VERSION}")
-    message(STATUS "CUDA_INCLUDE_DIRS: ${CUDAToolkit_INCLUDE_DIRS}")
-
-    set(cuda_arch "")
-    set(sm_version "")
-    # Call the function to detect CUDA architecture
-    detect_cuda_arch(cuda_arch sm_version)
-    
-    # Include directories
-    target_include_directories(cuda_compile_settings INTERFACE ${CUDAToolkit_INCLUDE_DIRS})
-
-    set_property(TARGET cuda_compile_settings 
-                 PROPERTY CUDA_ARCHITECTURES ${sm_version})
-
-    target_compile_definitions(cuda_compile_settings INTERFACE __CUDA_ENABLED__=1)
-    
-    # Select CUDA libraries to link
-    set(CUDA_LINK_LIBRARIES CUDA::cublas CUDA::cudart CUDA::curand CUDA::cuda_driver)
-
-    set_target_properties(cuda_compile_settings PROPERTIES CUDA_SEPARABLE_COMPILATION ON) # Enable separable compilation
-
-    # Check if empty
-    if (CUDA_LINK_LIBRARIES STREQUAL "")
-      message(FATAL_ERROR "CUDA libraries not found.")
-    else()
-      message(STATUS "CUDA interface target linked against CUDA libraries: ${CUDA_LINK_LIBRARIES}")
-    endif()
-
-    target_link_libraries(cuda_compile_settings INTERFACE ${CUDA_LINK_LIBRARIES})  # CUDA
-
-endif()
-
-# OPTIX
-set(OPTIX_FOUND OFF) 
-
-if (ENABLE_OPTIX) 
-# TODO (PC) Move this code to a dedicated cmake file (HandleOptix.cmake)
-
-  target_compile_definitions(cuda_compile_settings INTERFACE __OPTIX_ENABLED__=1)
-
-  # Specify Optix installation directory
-  set(OptiX_INSTALL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/NVIDIA-OptiX-SDK-8.0.0-linux64-x86_64)
-
-  message(STATUS "Using OptiX installation directory: ${OptiX_INSTALL_DIR}")
-
-  if(${USE_OPTIX_SDK})
-      if (DEFINED ENV{OPTIX_HOME})
-        set(OptiX_INSTALL_DIR $ENV{OPTIX_HOME})
-      else()
-      message(FATAL_ERROR "USE_SYS_OPTIX_SDK is enabled but OPTIX_HOME variable is not defined.")
-      endif()
-  endif()
-
-  set(OPTIX_FOUND ON)
-
-  # Define Optix includes # DEVNOTE these are specific to spectral rt
-  set(OPTIX_INCLUDE_DIR ${OptiX_INSTALL_DIR}/include)
-  list(APPEND OPTIX_INCLUDE_DIR ${OptiX_INSTALL_DIR}/SDK/) # Add headers in SDK/sutil
-  list(APPEND OPTIX_INCLUDE_DIR ${OptiX_INSTALL_DIR}/SDK/sutil) # Add headers in SDK/sutil
-  list(APPEND OPTIX_INCLUDE_DIR ${OptiX_INSTALL_DIR}/SDK/support)
-  list(APPEND OPTIX_INCLUDE_DIR ${OptiX_INSTALL_DIR}/SDK/optixConsole)
-
-  message(STATUS "OptiX enabled")
-  message(STATUS "OPTIX_INCLUDE_DIR: ${OPTIX_INCLUDE_DIR}")
-  list(APPEND INCLUDE_DIR_LIST ${OPTIX_INCLUDE_DIR})
-  
-  # Add Optix includes to interface target
-  #target_include_directories(cuda_compile_settings INTERFACE ${OPTIX_INCLUDE_DIR})
-
-endif()
+# CUDA/OptiX interface targets configured above
 
 # Add catch2 for unit testing
 find_package(OpenCV QUIET)
@@ -299,14 +222,10 @@ set(installable_targets)
 #"$<${gcc_like_cxx}: $<BUILD_INTERFACE: -Wall;-Wextra;-Wshadow;-Wformat=2;-Wunused>>")
 #target_link_libraries(library_target PUBLIC any_other_target library_compile_flags)
 
-# INCLUDE DIRECTORIES
-include_directories( ${OpenCV_INCLUDE_DIRS} ) 
-include_directories( ${GTSAM_INCLUDE_DIRS}) 
-
 # Define include target interface
 add_library(${project_name}_include INTERFACE)
 
-# Define include directories for the include library
+# Define include directories for install compatibility
 target_include_directories(${project_name}_include INTERFACE 
                            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>  # Used during development
                            #$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/lib/stb_PeterCdev>  
@@ -328,6 +247,9 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
 
 # Add other subdirectories if needed
 #add_subdirectory( other_folder )
+
+message(STATUS "===================================================================")
+message(STATUS "====================  Library composition  ========================")
 
 # Add library
 add_subdirectory( src )
@@ -651,4 +573,3 @@ set(CPACK_PACKAGE_VERSION_MINOR "${PROJECT_VERSION_MINOR}")
 set(CPACK_GENERATOR "TGZ")
 set(CPACK_SOURCE_GENERATOR "TGZ")
 include(CPack)
-
