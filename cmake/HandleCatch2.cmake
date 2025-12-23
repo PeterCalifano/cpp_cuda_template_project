@@ -19,7 +19,8 @@ if (ENABLE_TESTS)
           COMMAND "${GIT_EXECUTABLE}" ls-remote https://github.com/catchorg/Catch2.git
           RESULT_VARIABLE _git_result
           OUTPUT_QUIET
-          ERROR_QUIET)
+          ERROR_QUIET
+          TIMEOUT 10)
 
         if(_git_result EQUAL 0)
           # If network access is available, fetch Catch2
@@ -31,8 +32,11 @@ if (ENABLE_TESTS)
           )
           FetchContent_MakeAvailable(catch2)
 
-          # After FetchContent, Catch2 provides a config package
+          # After FetchContent, Catch2 provides targets even if config lookup fails
           find_package(Catch2 3 CONFIG QUIET)
+          if(TARGET Catch2::Catch2WithMain OR TARGET Catch2::Catch2)
+            set(Catch2_FOUND TRUE)
+          endif()
 
         else()
           # Network access fails

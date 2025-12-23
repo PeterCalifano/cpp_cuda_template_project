@@ -39,6 +39,8 @@
 #============================================================================
 include_guard(GLOBAL)
 
+# TODO requires PythonInterp, to rework
+
 # Finding NumPy involves calling the Python interpreter
 if(NumPy_FIND_REQUIRED)
   find_package(PythonInterp ${GTSAM_PYTHON_VERSION} EXACT REQUIRED)
