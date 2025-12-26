@@ -28,6 +28,7 @@ CMakeUserPresets.json
 *.txt.user.6d59f0c
 *.pydevproject
 #.vscode
+lib/Catch2
 .env
 /.vs/
 /CMakeSettings.json
