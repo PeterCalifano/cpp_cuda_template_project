@@ -31,7 +31,6 @@ Usage: ./configure_devcontainer.sh [options]
 
 Options:
   --cuda               Enable CUDA support.
-  --no-cuda            Disable CUDA support.
   --base <name>        Base image tag (ubuntu-24.04, ubuntu-22.04, ubuntu-20.04, ubuntu-18.04, debian-12, debian-11, custom).
   --base-image <img>   Full base image name (overrides --base).
   --ros <distro>       Install ROS 1 with selected distro (noetic, melodic).
@@ -46,6 +45,7 @@ Examples:
   ./configure_devcontainer.sh --base-image ubuntu:20.04 --ros noetic
 
 Note:
+  CUDA is off by default (use --cuda to enable).
   ROS 1 supports Ubuntu 18.04/20.04; ROS 2 supports Ubuntu 22.04+.
 EOF
 }
@@ -202,33 +202,58 @@ ROS_MODE="$ros_mode_default"
 ROS_DISTRO="$ros_distro_default"
 ROS_PROFILE="$ros_profile_default"
 NON_INTERACTIVE="no"
+CUDA_SET="no"
+BASE_SET="no"
+BASE_IMAGE_SET="no"
+ROS_MODE_SET="no"
+ROS_DISTRO_SET="no"
+ROS_PROFILE_SET="no"
 
 # Parse command-line arguments
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --cuda) CUDA="on" ;;
-    --no-cuda) CUDA="off" ;;
+    --cuda)
+      CUDA="on"
+      CUDA_SET="yes"
+      ;;
+    --no-cuda)
+      CUDA="off"
+      CUDA_SET="yes"
+      ;;
     --base)
       shift
       BASE="${1:-}"
+      BASE_SET="yes"
       ;;
     --base-image)
       shift
       BASE_IMAGE="${1:-}"
+      BASE_IMAGE_SET="yes"
       ;;
     --ros)
       shift
       ROS_MODE="ros"
       ROS_DISTRO="${1:-}"
+      ROS_MODE_SET="yes"
+      if [[ -n "$ROS_DISTRO" ]]; then
+        ROS_DISTRO_SET="yes"
+      fi
       ;;
     --ros2)
       shift
       ROS_MODE="ros2"
       ROS_DISTRO="${1:-}"
+      ROS_MODE_SET="yes"
+      if [[ -n "$ROS_DISTRO" ]]; then
+        ROS_DISTRO_SET="yes"
+      fi
       ;;
     --ros-profile)
       shift
       ROS_PROFILE="${1:-}"
+      if [[ -n "$ROS_PROFILE" ]]; then
+        ROS_PROFILE_SET="yes"
+      fi
       ;;
     --non-interactive) NON_INTERACTIVE="yes" ;;
     -h|--help) usage; exit 0 ;;
@@ -241,49 +266,73 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
-# Validate and prompt for missing options
-if [[ "$ROS_MODE" == "ros" && -z "$ROS_DISTRO" ]]; then
-  ROS_DISTRO="${ROS1_DISTROS[0]}"
-elif [[ "$ROS_MODE" == "ros2" && -z "$ROS_DISTRO" ]]; then
-  ROS_DISTRO="${ROS2_DISTROS[0]}"
+# Pre-fill defaults for interactive prompts
+if [[ "$NON_INTERACTIVE" != "yes" ]]; then
+  if [[ "$ROS_MODE" == "ros" && -z "$ROS_DISTRO" ]]; then
+    ROS_DISTRO="${ROS1_DISTROS[0]}"
+  elif [[ "$ROS_MODE" == "ros2" && -z "$ROS_DISTRO" ]]; then
+    ROS_DISTRO="${ROS2_DISTROS[0]}"
+  fi
 fi
 
 # Prompt user for options
 if [[ "$NON_INTERACTIVE" != "yes" ]]; then
   # Interactive mode
   # CUDA
-  cuda_prompt_default="n"
-  if [[ "$CUDA" == "on" ]]; then
-    cuda_prompt_default="y"
+  if [[ "$CUDA_SET" != "yes" ]]; then
+    cuda_prompt_default="n"
+    if [[ "$CUDA" == "on" ]]; then
+      cuda_prompt_default="y"
+    fi
+    CUDA="$(prompt_bool "Enable CUDA support?" "$cuda_prompt_default")"
   fi
-  CUDA="$(prompt_bool "Enable CUDA support?" "$cuda_prompt_default")"
 
   # Base image
-  if [[ -z "$BASE_IMAGE" ]]; then
+  if [[ -z "$BASE_IMAGE" && "$BASE_SET" != "yes" ]]; then
     if ! contains_value "$BASE" "${BASE_OPTIONS[@]}"; then
       BASE="${BASE_OPTIONS[0]}"
     fi
     BASE="$(prompt_select "Select base image:" "$BASE" "${BASE_OPTIONS[@]}")"
-    if [[ "$BASE" == "custom" ]]; then
-      default_custom="${current_from:-mcr.microsoft.com/devcontainers/cpp:1-ubuntu-24.04}"
-      BASE_IMAGE="$(prompt_text "Enter full base image" "$default_custom")"
+  fi
+  if [[ -z "$BASE_IMAGE" && "$BASE" != "custom" ]]; then
+    if ! contains_value "$BASE" "${BASE_OPTIONS[@]}"; then
+      echo "Invalid --base value: $BASE"
+      exit 1
     fi
+  fi
+  if [[ -z "$BASE_IMAGE" && "$BASE" == "custom" ]]; then
+    default_custom="${current_from:-mcr.microsoft.com/devcontainers/cpp:1-ubuntu-24.04}"
+    BASE_IMAGE="$(prompt_text "Enter full base image" "$default_custom")"
   fi
 
   # ROS / ROS 2
-  ROS_MODE="$(prompt_select "Select ROS option:" "$ROS_MODE" "none" "ros" "ros2")"
+  if [[ "$ROS_MODE_SET" != "yes" && "$ROS_MODE" != "none" ]]; then
+    ROS_MODE="$(prompt_select "Select ROS option:" "$ROS_MODE" "none" "ros" "ros2")"
+  fi
   case "$ROS_MODE" in
     ros)
       if ! contains_value "$ROS_DISTRO" "${ROS1_DISTROS[@]}"; then
+        if [[ "$ROS_DISTRO_SET" == "yes" ]]; then
+          echo "Invalid --ros distro: $ROS_DISTRO"
+          exit 1
+        fi
         ROS_DISTRO="${ROS1_DISTROS[0]}"
       fi
-      ROS_DISTRO="$(prompt_select "Select ROS 1 distro:" "$ROS_DISTRO" "${ROS1_DISTROS[@]}")"
+      if [[ "$ROS_DISTRO_SET" != "yes" ]]; then
+        ROS_DISTRO="$(prompt_select "Select ROS 1 distro:" "$ROS_DISTRO" "${ROS1_DISTROS[@]}")"
+      fi
       ;;
     ros2)
       if ! contains_value "$ROS_DISTRO" "${ROS2_DISTROS[@]}"; then
+        if [[ "$ROS_DISTRO_SET" == "yes" ]]; then
+          echo "Invalid --ros2 distro: $ROS_DISTRO"
+          exit 1
+        fi
         ROS_DISTRO="${ROS2_DISTROS[0]}"
       fi
-      ROS_DISTRO="$(prompt_select "Select ROS 2 distro:" "$ROS_DISTRO" "${ROS2_DISTROS[@]}")"
+      if [[ "$ROS_DISTRO_SET" != "yes" ]]; then
+        ROS_DISTRO="$(prompt_select "Select ROS 2 distro:" "$ROS_DISTRO" "${ROS2_DISTROS[@]}")"
+      fi
       ;;
     none)
       ROS_DISTRO=""
@@ -293,14 +342,26 @@ if [[ "$NON_INTERACTIVE" != "yes" ]]; then
   if [[ "$ROS_MODE" != "none" ]]; then
     if [[ "$ROS_MODE" == "ros2" ]]; then
       if ! contains_value "$ROS_PROFILE" "${ROS2_PROFILES[@]}"; then
+        if [[ "$ROS_PROFILE_SET" == "yes" ]]; then
+          echo "Invalid --ros-profile value for ROS 2: $ROS_PROFILE"
+          exit 1
+        fi
         ROS_PROFILE="${ROS2_PROFILES[0]}"
       fi
-      ROS_PROFILE="$(prompt_select "Select ROS 2 profile:" "$ROS_PROFILE" "${ROS2_PROFILES[@]}")"
+      if [[ "$ROS_PROFILE_SET" != "yes" ]]; then
+        ROS_PROFILE="$(prompt_select "Select ROS 2 profile:" "$ROS_PROFILE" "${ROS2_PROFILES[@]}")"
+      fi
     else
       if ! contains_value "$ROS_PROFILE" "${ROS_PROFILES[@]}"; then
+        if [[ "$ROS_PROFILE_SET" == "yes" ]]; then
+          echo "Invalid --ros-profile value: $ROS_PROFILE"
+          exit 1
+        fi
         ROS_PROFILE="${ROS_PROFILES[0]}"
       fi
-      ROS_PROFILE="$(prompt_select "Select ROS profile:" "$ROS_PROFILE" "${ROS_PROFILES[@]}")"
+      if [[ "$ROS_PROFILE_SET" != "yes" ]]; then
+        ROS_PROFILE="$(prompt_select "Select ROS profile:" "$ROS_PROFILE" "${ROS_PROFILES[@]}")"
+      fi
     fi
   fi
 
