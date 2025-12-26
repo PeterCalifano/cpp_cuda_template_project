@@ -85,6 +85,10 @@ if (ENABLE_TESTS)
 
   # Only add tests if we really have Catch2 (either found or fetched)
   if(ENABLE_TESTS AND Catch2_FOUND)
+    # Ensure the Catch CMake module is discoverable when Catch2 is a subproject.
+    if(DEFINED Catch2_SOURCE_DIR AND EXISTS "${Catch2_SOURCE_DIR}/extras/Catch.cmake")
+      list(APPEND CMAKE_MODULE_PATH "${Catch2_SOURCE_DIR}/extras")
+    endif()
     include(Catch)
     message(STATUS "Catch2 available: tests will be built.")
     # add_subdirectory(tests) or whatever you do:
