@@ -18,8 +18,8 @@ endif()
 #   Test target, for "make test"
 # ----------------------------------------------------------------------------
 
-if (NOT TARGET test)
-  add_custom_target(test
+if (NOT TARGET test_catch2)
+  add_custom_target(test_catch2
     COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
     DEPENDS ${PROJECT_NAME})
 endif()

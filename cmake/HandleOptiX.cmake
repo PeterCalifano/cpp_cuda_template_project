@@ -58,7 +58,7 @@ function(handle_optix)
                 if(EXISTS "${_lib_dir}/${_folder}/include/optix.h")
                     set(_lib_optix_found ON)
                     set(_lib_optix_root "${_lib_dir}/${_folder}")
-                    break()()
+                    break()
                 endif()
             endforeach()
 

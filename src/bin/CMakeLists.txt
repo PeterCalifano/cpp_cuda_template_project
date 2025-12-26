@@ -1,11 +1,14 @@
 # Add programs to build
 set(EXAMPLES_PATTERN "*.cpp" "*.cu")
 file(GLOB srcProgramsFiles RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${EXAMPLES_PATTERN})
-message(STATUS "Programs files found: ${srcProgramsFiles}")
 
 # Exclude EXCLUDED_LIST from the list of examples
 set(EXCLUDED_LIST "")
 list(REMOVE_ITEM srcProgramsFiles ${EXCLUDED_LIST})
+
+# Get name of current folder
+get_filename_component(CURRENT_FOLDER_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
+message(STATUS "Programs files found in ${CURRENT_FOLDER_NAME}: ${srcProgramsFiles}")
 
 set(programs_targets "")
 

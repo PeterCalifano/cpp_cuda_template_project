@@ -18,13 +18,16 @@ function(add_examples project_lib_name excluded_list target_compile_settings)
 
     set(EXAMPLES_PATTERN "example_*.cpp; example_*.cu")
     file(GLOB srcExampleFiles RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${EXAMPLES_PATTERN})
-    message("Example files found: ${srcExampleFiles}")
 
     # Exclude files in excluded_list (filter_files_in_list is assumed to be a custom macro)
     filter_files_in_list(srcExampleFiles srcExampleFiles ${excluded_list})
 
-    message(STATUS "Project linked lib ${project_lib_name} to examples: ${srcExampleFiles}")
-    message(STATUS "Include directories of project lib: ${${project_lib_name}_INCLUDE_DIRS}")
+    # Get current folder name
+    get_filename_component(CURRENT_FOLDER_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
+    message(STATUS "Example files found in ${CURRENT_FOLDER_NAME}: ${srcExampleFiles}")
+
+    #message(STATUS "Project linked lib ${project_lib_name} to examples: ${srcExampleFiles}")
+    #message(STATUS "Include directories of project lib: ${${project_lib_name}_INCLUDE_DIRS}")
 
     foreach(exampleFile ${srcExampleFiles})
         get_filename_component(exampleName ${exampleFile} NAME_WE)
@@ -42,7 +45,10 @@ if (Catch2_FOUND)
         set(TESTS_PATTERN "test*.cpp; test*.cu")
         file(GLOB srcTestFiles RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${TESTS_PATTERN})
         filter_files_in_list(srcTestFiles srcTestFiles ${excluded_list})
-        message(STATUS "Test files found: ${srcTestFiles}")
+        
+        # Get current folder name
+        get_filename_component(CURRENT_FOLDER_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
+        message(STATUS "Test files found in ${CURRENT_FOLDER_NAME}: ${srcTestFiles}")
 
         # Add content of this directory 
         foreach(testFile ${srcTestFiles})

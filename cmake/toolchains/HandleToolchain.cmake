@@ -67,23 +67,6 @@ function(handle_toolchain)
   set(${HT_TARGET}_COMPILER "${CMAKE_CXX_COMPILER_ID}" PARENT_SCOPE)
   set(${HT_TARGET}_OS "${CMAKE_SYSTEM_NAME}" PARENT_SCOPE)
 
-  # Print info on toolchain settings
-  message(STATUS "Toolchain settings:")
-  message(STATUS "  Target Architecture: ${CMAKE_SYSTEM_PROCESSOR}")
-  message(STATUS "  Target OS: ${CMAKE_SYSTEM_NAME}")
-  message(STATUS "  Compiler ID: ${CMAKE_CXX_COMPILER_ID}")
-  message(STATUS "  C Compiler: ${CMAKE_C_COMPILER}")
-  message(STATUS "  CXX Compiler: ${CMAKE_CXX_COMPILER}")
-  set(_compiler_target "")
-  if(DEFINED CMAKE_C_COMPILER_TARGET)
-    set(_compiler_target "${CMAKE_C_COMPILER_TARGET}")
-  elseif(DEFINED CMAKE_CXX_COMPILER_TARGET)
-    set(_compiler_target "${CMAKE_CXX_COMPILER_TARGET}")
-  endif()
-  if(_compiler_target)
-    message(STATUS "  Compiler Target: ${_compiler_target}")
-  endif()
-  message(STATUS "  Cross Compiling: ${CMAKE_CROSSCOMPILING}")
 endfunction()
 
 # Default interface target for callers that just include this module.

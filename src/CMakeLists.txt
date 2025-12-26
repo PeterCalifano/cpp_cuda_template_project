@@ -7,7 +7,9 @@ configure_file(config.h.in config.h)
 set(SRC_PATTERN "*.cpp; *.cu")
 file(GLOB srcLibFiles RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${SRC_PATTERN})
 
-message(STATUS "Library src files found: ${srcLibFiles}")
+# Get current folder name
+get_filename_component(CURRENT_FOLDER_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
+message(STATUS "Library src files found in ${CURRENT_FOLDER_NAME}: ${srcLibFiles}")
 
 if (ENABLE_OPTIX)
   # Find all kernels source codes
@@ -97,7 +99,7 @@ if (ENABLE_CUDA)
 endif()
 
 message(NOTICE "Added target to installable list: ${installable_targets}")
-
+#############################################################################
 # Install global_includes.h file
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/global_includes.h" 
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${project_name}) 
@@ -105,7 +107,6 @@ install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/global_includes.h"
 # Install config.h file
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/config.h" 
        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${project_name}) 
-
 # INSTALL CONFIGURATION
 install(
 	TARGETS ${installable_targets}

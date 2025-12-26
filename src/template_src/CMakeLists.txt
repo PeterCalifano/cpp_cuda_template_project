@@ -11,8 +11,9 @@ string(REPLACE "src/" "" relative_path_without_src ${relative_path_from_root})
 set(SRC_PATTERN "*.cpp; *.cu")
 file(GLOB srcLibFiles_local ${SRC_PATTERN})
 
+# Get current folder name
 get_filename_component(CURRENT_FOLDER_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
-#message(STATUS "${CURRENT_FOLDER_NAME} src files found: ${srcLibFiles_local}")
+message(STATUS "Library src files found in ${CURRENT_FOLDER_NAME}: ${srcLibFiles_local}")
 
 # Set global # Export list of src files to parent scope
 set(srcLibFiles ${srcLibFiles} ${srcLibFiles_local} PARENT_SCOPE)
