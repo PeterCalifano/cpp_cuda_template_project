@@ -1,3 +1,4 @@
+# CMake configuration to handle Catch2 testing framework
 include_guard(GLOBAL)
 
 if (ENABLE_TESTS)

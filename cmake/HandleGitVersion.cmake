@@ -1,3 +1,5 @@
+# CMake configuration to extract version information from Git tags
+
 function(get_version_from_git)
     find_package(Git QUIET)
     if(NOT Git_FOUND)

@@ -1,3 +1,4 @@
+# CMake configuration to handle submodule inclusion and automatic build
 include_guard(GLOBAL)
 function(handle_submodules)
     if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lib")

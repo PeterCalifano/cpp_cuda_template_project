@@ -1,3 +1,4 @@
+# CMake configuration to handle OptiX SDK setup and linking or installation as library
 include_guard(GLOBAL)
 include(CMakeParseArguments)
 
@@ -36,7 +37,7 @@ function(handle_optix)
     # If USE_SYS_OPTIX_SDK is ON, use system-installed OptiX (from ENV{OPTIX_HOME})
     # Else if ENV{OPTIX_HOME} is defined, but USE_SYS_OPTIX_SDK and OPTIX_ROOT are not, use that anyway
     # Else if OPTIX_ROOT is defined, use that
-    # Else try default path relative to this file
+    # Else try default path relative to this file or auto-install from git submodule
     if(USE_SYS_OPTIX_SDK OR (DEFINED ENV{OPTIX_HOME} AND NOT OPTIX_ROOT))
         if(DEFINED ENV{OPTIX_HOME})
             set(_optix_root "$ENV{OPTIX_HOME}")
@@ -46,7 +47,52 @@ function(handle_optix)
     elseif(OPTIX_ROOT)
         set(_optix_root "${OPTIX_ROOT}")
     else()
-        set(_default_root "${CMAKE_CURRENT_LIST_DIR}/../lib/NVIDIA-OptiX-SDK-8.0.0-linux64-x86_64")
+        option(OPTIX_AUTO_INSTALL "Auto-install OptiX SDK submodule in lib/optix-sdk" ON)
+        if (NOT OPTIX_AUTO_INSTALL)
+            set(_lib_optix_found OFF)
+
+            # Search for optix in lib/<any_folder_containing_optix>/include/optix.h
+            set(_lib_dir "${CMAKE_CURRENT_LIST_DIR}/../lib")
+            file(GLOB _lib_folders RELATIVE "${_lib_dir}" "${_lib_dir}/*")
+            foreach(_folder IN LISTS _lib_folders)
+                if(EXISTS "${_lib_dir}/${_folder}/include/optix.h")
+                    set(_lib_optix_found ON)
+                    set(_lib_optix_root "${_lib_dir}/${_folder}")
+                    break()()
+                endif()
+            endforeach()
+
+            if(_lib_optix_found)
+                set(_optix_root "${_lib_optix_root}")
+            else()
+                message(FATAL_ERROR "OPTIX_ROOT or ENV{OPTIX_HOME} not set, auto-install off and no optix folder found in lib/.")
+            endif()
+        else()
+            message(WARNING "OPTIX_ROOT not set. Attempting to use auto-install OptiX SDK submodule in lib/optix-sdk...")
+
+            set(_default_root "${CMAKE_CURRENT_LIST_DIR}/../lib/optix-sdk")
+            set(OPTIX_SDK_REPO "git@github.com:PeterCalifano/optix-dev.git" CACHE STRING "OptiX SDK repo for auto-install")
+
+            if(NOT EXISTS "${_default_root}") # Clone it only if not already present
+                if(OPTIX_AUTO_INSTALL)
+                    set(_optix_lib_dir "${CMAKE_CURRENT_LIST_DIR}/../lib")
+                    file(MAKE_DIRECTORY "${_optix_lib_dir}")
+                    execute_process(
+                        COMMAND git submodule add "${OPTIX_SDK_REPO}" "optix-sdk"
+                        WORKING_DIRECTORY "${_optix_lib_dir}"
+                        RESULT_VARIABLE _optix_git_result
+                        OUTPUT_VARIABLE _optix_git_out
+                        ERROR_VARIABLE _optix_git_err
+                    )
+                    if(NOT _optix_git_result EQUAL 0)
+                        message(WARNING "Failed to add OptiX SDK submodule: ${_optix_git_err}")
+                    endif()
+                else()
+                    message(FATAL_ERROR "OptiX SDK not found. Set OPTIX_AUTO_INSTALL=ON to add ${OPTIX_SDK_REPO} as a submodule in lib/, or set OPTIX_ROOT/OPTIX_HOME.")
+                endif()
+            endif()
+        endif()
+
         if(EXISTS "${_default_root}")
             set(_optix_root "${_default_root}")
         endif()
@@ -61,6 +107,7 @@ function(handle_optix)
     endif()
 
     # Include SDK directories (typically used) TBC
+    # TODO improve this, only select what's needed and without duplicates
     set(_optix_includes
         "${_optix_root}/include"
         "${_optix_root}/SDK"

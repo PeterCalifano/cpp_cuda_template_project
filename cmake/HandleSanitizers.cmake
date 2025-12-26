@@ -1,3 +1,4 @@
+# CMake configuration to handle sanitizers setup and linking (build only)
 include_guard(GLOBAL)
 
 function(handle_sanitizers)

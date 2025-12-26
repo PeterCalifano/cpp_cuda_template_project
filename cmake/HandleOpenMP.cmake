@@ -1,3 +1,4 @@
+# CMake configuration to handle OpenMP setup and linking
 include_guard(GLOBAL)
 
 option(ENABLE_OMP "Enable OpenMP" OFF)

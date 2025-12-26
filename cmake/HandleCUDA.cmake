@@ -1,3 +1,4 @@
+# CMake configuration to handle CUDA setup and architecture detection
 include_guard(GLOBAL)
 include(CMakeParseArguments)
 

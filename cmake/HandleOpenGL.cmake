@@ -1,3 +1,4 @@
+# CMake configuration to handle OpenGL setup and linking
 include_guard(GLOBAL)
 include(CMakeParseArguments)
 

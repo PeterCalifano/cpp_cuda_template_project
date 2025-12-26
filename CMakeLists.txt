@@ -51,9 +51,13 @@ project( ${project_name}
         LANGUAGES ${languages}
         VERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH})
 
-# Set toolchain settings (after project so compiler/system vars are populated)
+# Handle toolchain settings (after project so compiler/system vars are populated)
 include(cmake/toolchains/HandleToolchain.cmake)
 
+# Configure cmake targets
+include(cmake/HandleCustomTargets.cmake)
+
+# Add build type if not specified
 if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING "Build type (Debug, Release, RelWithDebInfo, MinSizeRel, NOPTIM)" FORCE)
 endif()
@@ -66,6 +70,10 @@ endif()
 
 # Add GNU install dirs
 include(GNUInstallDirs)
+
+# Add cmake modules
+include(ExternalProject)
+include()
 
 # Add CUDA/OptiX tools
 include(cmake/HandleCUDA.cmake)
@@ -191,7 +199,7 @@ if (CMAKE_BUILD_TYPE_LOWER MATCHES "debug")
   if(SANITIZE_BUILD AND SANITIZERS)
     set(_sanitizer_flags -fsanitize=${SANITIZERS})
   endif()
-  target_compile_options(lib_compile_interface INTERFACE
+  target_compile_options(lib_compile_int1erface INTERFACE
                       ${_sanitizer_flags}
                       -fno-omit-frame-pointer
   )
@@ -409,8 +417,6 @@ if(BUILD_PYTHON_WRAPPER OR BUILD_MATLAB_WRAPPER)
   if (NOT gtwrap_FOUND) # Build GTwrap within project
     message(STATUS "GTwrap package NOT found. Attempting to build it as ExternalProject...")
   
-    include(ExternalProject)
-
     ExternalProject_Add(
       wrap_project
       SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/wrap

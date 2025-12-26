@@ -1,3 +1,6 @@
+# CMake configuration to handle uninstall target
+include_guard(GLOBAL)
+
 # ----------------------------------------------------------------------------
 #   Uninstall target, for "make uninstall"
 # ----------------------------------------------------------------------------
@@ -6,7 +9,17 @@ configure_file(
   "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
   IMMEDIATE @ONLY)
 
-if (NOT TARGET uninstall) # avoid duplicating this target
+if (NOT TARGET uninstall) 
   add_custom_target(uninstall
     "${CMAKE_COMMAND}" -P "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake")
+endif()
+
+# ----------------------------------------------------------------------------
+#   Test target, for "make test"
+# ----------------------------------------------------------------------------
+
+if (NOT TARGET test)
+  add_custom_target(test
+    COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+    DEPENDS ${PROJECT_NAME})
 endif()
