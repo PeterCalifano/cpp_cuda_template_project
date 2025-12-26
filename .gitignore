@@ -2,6 +2,8 @@
 /*debug*/
 /*install*/
 
+**/*bak*
+
 CMakeLists.txt.user
 CMakeCache.txt
 CMakeFiles
