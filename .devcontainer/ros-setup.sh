@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -Euox pipefail
+set -Euo pipefail
 
 ros_mode="${ROS_MODE:-none}"
 ros_distro="${ROS_DISTRO:-}"

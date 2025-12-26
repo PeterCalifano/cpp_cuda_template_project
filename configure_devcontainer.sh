@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Created by Pietro Califano and GPT-5.2 Codex, Dec 2025
-set -euox pipefail
+set -euo pipefail
 
 # Get paths to files
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
