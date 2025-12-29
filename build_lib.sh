@@ -24,6 +24,7 @@ use_ninja=false
 no_optim=false
 clean_first=false
 toolchain_file=""
+cmake_defines=()
 
 # Helper function to print instructions
 usage() {
@@ -39,6 +40,7 @@ Options:
       --skip-tests            Do not run tests
   -f, --flagsCXX <flags>      Extra C++ flags (quoted). Appends warnings for
                               Debug/RelWithDebInfo/Release
+  -D, --define <var[=val]>    Extra CMake cache definitions (repeatable)
   -p, --python-wrap           Enable Python wrapper in CMake (-DBUILD_PYTHON_WRAPPER=ON)
   -m, --matlab-wrap           Enable MATLAB wrapper in CMake (-DBUILD_MATLAB_WRAPPER=ON)
   -i, --install               Run "install" target after tests
@@ -57,9 +59,11 @@ Examples:
 
   # Custom build dir and flags, run tests then install
   ./build_lib.sh -B out/release -t release -f "-march=native" -i
+./build_lib.sh -DOPENCV_DIR=/opt/opencv -DENABLE_SOMETHING=ON
 
 Notes:
   * Short options with arguments use a separate value: "-B build", "-j 8".
+    For CMake defines, use "-DVAR=ON" or "-D VAR=ON".
   * This script requires GNU getopt (standard on Debian/Ubuntu).
 USAGE
 }
@@ -74,8 +78,8 @@ if ! command -v getopt > /dev/null 2>&1; then
   die "GNU getopt is required. On macOS: brew install gnu-getopt and adjust PATH."
 fi
 
-OPTIONS=B:j:rt:c:f:pmhNni
-LONGOPTIONS=buildpath:,jobs:,rebuild-only,type:,type-build:,checks,flagsCXX:,python-wrap,matlab-wrap,help,ninja-build,no-optim,skip-tests,clean,install,toolchain:
+OPTIONS=B:j:rt:c:f:D:pmhNni
+LONGOPTIONS=buildpath:,jobs:,rebuild-only,type:,type-build:,checks,flagsCXX:,define:,python-wrap,matlab-wrap,help,ninja-build,no-optim,skip-tests,clean,install,toolchain:
 PARSED=$(getopt -o "$OPTIONS" -l "$LONGOPTIONS" -- "$@") || { usage; exit 2; }
 eval set -- "$PARSED"
 
@@ -88,6 +92,7 @@ while true; do
     -c|--checks)          run_tests=true;  shift ;;
         --skip-tests|--no-checks) run_tests=false; shift ;;
     -f|--flagsCXX)        CXX_FLAGS="$2"; shift 2 ;;
+    -D|--define)          cmake_defines+=( "-D$2" ); shift 2 ;;
     -p|--python-wrap)     python_wrap=true; shift ;;
     -m|--matlab-wrap)     matlab_wrap=true; shift ;;
     -i|--install)         install=true;    shift ;;
@@ -137,6 +142,7 @@ info "Buildpath          : $buildpath"
 info "Jobs               : $jobs"
 info "Build Type         : $cmake_bt"
 info "Extra CXX flags    : ${CXX_FLAGS:-<none>}"
+info "Extra CMake defines: ${cmake_defines[*]:-<none>}"
 info "Python wrapper     : $python_wrap"
 info "MATLAB wrapper     : $matlab_wrap"
 info "Generator          : $([[ "$use_ninja" == true ]] && echo Ninja || echo 'Unix Makefiles')"
@@ -166,20 +172,21 @@ if [[ "$rebuild_only" == false ]]; then
   [[ "$matlab_wrap" == true ]] && cmake_args+=( -DBUILD_MATLAB_WRAPPER=ON )
   [[ "$no_optim"   == true ]] && cmake_args+=( -DNO_OPTIMIZATION=ON )
   [[ -n "$toolchain_file" ]] && cmake_args+=( "-DCMAKE_TOOLCHAIN_FILE=$toolchain_file" )
+  [[ ${#cmake_defines[@]} -gt 0 ]] && cmake_args+=( "${cmake_defines[@]}" )
 
-  info "Configuring with CMake..."
+  info "Configuring with CMake...\n"
   cmake "${cmake_args[@]}"
 elif [[ -n "$toolchain_file" ]]; then
   info "Toolchain file provided, but --rebuild-only skips configure."
 fi
 
 # --- Build ---
-info "Building..."
+info "\nBuilding..."
 cmake --build "$buildpath" --parallel "$jobs"
 
 # --- Test ---
 if [[ "$run_tests" == true || "$install" == true ]]; then
-  info "Running tests..."
+  info "\nRunning tests..."
   ctest --test-dir "$buildpath" --output-on-failure -j "$jobs"
 fi
 
