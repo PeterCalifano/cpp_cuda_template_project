@@ -6,19 +6,18 @@ configure_file(config.h.in config.h)
 # Add src files to library
 set(SRC_PATTERN "*.cpp; *.cu")
 file(GLOB srcLibFiles RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${SRC_PATTERN})
+file(GLOB srcCudaFilesToPTX "*.ptx.cu")
 
 # Get current folder name
 get_filename_component(CURRENT_FOLDER_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
 message(STATUS "Library src files found in ${CURRENT_FOLDER_NAME}: ${srcLibFiles}")
 
-if (ENABLE_OPTIX)
-  # Find all kernels source codes
-  file(GLOB srcCudaFilesToPTX RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "kernels/*.cu")
-endif()
-
 # Add subdirectories with src files
 message(STATUS "Adding module: template_src")
 add_subdirectory(template_src)
+
+message(STATUS "Adding module: template_src_kernels")
+add_subdirectory(template_src_kernels)
 
 message(STATUS "Adding module: programs")
 add_subdirectory(bin)
@@ -50,16 +49,24 @@ endif()
 if ( ENABLE_OPTIX )
   message("Library .cu kernels files to compile as PTX: ${srcCudaFilesToPTX}")
 
-  # TODO (PC) - Add CUDA to PTX code
+  # Build CUDA to PTX code and const char
+  get_target_property(project_interface_INCLUDE_DIRS ${project_name}_include INTERFACE_INCLUDE_DIRECTORIES)
+  if (NOT project_interface_INCLUDE_DIRS)
+    set(project_interface_INCLUDE_DIRS "")
+  endif()
 
-  # Build CUDA to PTX code (conveniency tool by Ingo Wald)
-  cuda_compile_and_embed(embedded_ptx_code ${srcCudaFilesToPTX}) 
+  set(PTX_INCLUDE_DIRS ${CUDAToolkit_INCLUDE_DIRS} 
+                      ${OptiX_INCLUDE_DIRS} 
+                      ${project_interface_INCLUDE_DIRS} 
+                      ) # Include directories for PTX compilation
+
+  cuda_compile_and_embed(embedded_ptx_code ${sm_version} "${PTX_INCLUDE_DIRS}" ${srcCudaFilesToPTX})
   # NOTE: Macro above sets up the build of CUDA kernels -> PTX code from which OptiX module is built.
   # Build occurs before compilation and linking of the library (or executables).
-  # Variable embedded_ptx_code must be extern "C" const char withing the cpp source code.
+  # Variable embedded_ptx_code must be extern "C" const char within the cpp source code.
     
   # Add the embedded PTX code to the library
-  target_sources(${lib_name} PUBLIC ${embedded_ptx_code})    
+  target_sources(${lib_name} PRIVATE ${embedded_ptx_code})    
 endif()
 
 ### Link targets
@@ -77,25 +84,34 @@ if(ENABLE_OPTIX)
   target_link_libraries(${lib_name} PUBLIC optix_compile_interface)
 endif()
 
+if (ENABLE_OPENGL)
+  target_link_libraries(${lib_name} PUBLIC opengl_compile_interface)
+endif()
+
 #target_include_directories(${lib_name} INTERFACE ${interface_INCLUDE_DIRS} ) 
 # TIP: INTERFACE ensures that the consumer target does not need to include manually the include directories the library target depends on, because they are automagically propagated to the target, even if the target does not need thme. The same happens with PUBLIC, but this time the includes are used by the target library itself.
 
 target_link_libraries(${lib_name} PUBLIC 
-                                  Eigen3::Eigen
-                                  #gdt
-                                  #glfw 
-                                  #${OPENGL_LIBRARIES})
-                     )
+                      Eigen3::Eigen 
+                      #gdt
+                      #glfw 
+                      #${OPENGL_LIBRARIES}
+                      )
 
 # Add target to installable list 
 set(installable_targets ${installable_targets} 
-                        ${lib_name} ${project_name}_include)
+                        ${lib_name} 
+                        ${project_name}_include)
                       
 if (ENABLE_CUDA)
   list(APPEND installable_targets cuda_compile_interface)
   if(ENABLE_OPTIX)
     list(APPEND installable_targets optix_compile_interface)
   endif()
+endif()
+
+if (ENABLE_OPENGL)
+  list(APPEND installable_targets opengl_compile_interface)
 endif()
 
 message(NOTICE "Added target to installable list: ${installable_targets}")

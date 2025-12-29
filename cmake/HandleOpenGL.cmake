@@ -2,7 +2,9 @@
 include_guard(GLOBAL)
 include(CMakeParseArguments)
 
-option(ENABLE_OPENGL "Enable OpenGL" OFF)
+if (NOT DEFINED ENABLE_OPENGL)
+    option(ENABLE_OPENGL "Enable OpenGL" OFF)
+endif()
 
 function(handle_opengl)
 

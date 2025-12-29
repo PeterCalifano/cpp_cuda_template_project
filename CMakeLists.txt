@@ -150,15 +150,9 @@ endif()
 message(STATUS "==============================================================")
 message(STATUS "====================  Dependencies ===========================")
 
-# Add submodules if any found
-include(cmake/HandleSubmodules.cmake)
-handle_submodules() # Automatically adds subdirectories in lib/ (and build them if CMakeLists.txt found)
-
 # LIBRARY DEPENDENCIES DEFINITION
 find_package( Eigen3 3.4 REQUIRED )
 find_package( Doxygen QUIET)
-include(cmake/HandleOpenGL.cmake)
-handle_opengl(TARGET opengl_compile_interface)
 
 # Handle Catch2 tools
 include(cmake/HandleCatch2.cmake)
@@ -172,12 +166,29 @@ handle_cuda(TARGET cuda_compile_interface
 handle_optix(TARGET optix_compile_interface 
             CUDA_TARGET cuda_compile_interface)
 
+if (ENABLE_CUDA)
+  # Add tools to manage cuda and ptx
+  include(cmake/cmake_cuda_ptx_tools.cmake)
+endif()
+
+# Handle OpenGL (creates interface targets even when disabled)
+include(cmake/HandleOpenGL.cmake)
+handle_opengl(TARGET opengl_compile_interface)
+
+# Add submodules if any found
+include(cmake/HandleSubmodules.cmake)
+handle_submodules() # Automatically adds subdirectories in lib/ (and build them if CMakeLists.txt found)
+
 # Set the dependencies for the automated export
 set(EXPORT_TARGET_DEPS Eigen3) # TODO make automatic based on used packages
 
 if(ENABLE_CUDA)
   list(APPEND EXPORT_TARGET_DEPS CUDAToolkit)
 endif()
+if (ENABLE_OPENGL)
+  list(APPEND EXPORT_TARGET_DEPS OpenGL::GL)
+endif()
+
 message(STATUS "Target dependencies: ${EXPORT_TARGET_DEPS}")
 
 #find_package( GTSAM 4.0 REQUIRED )
@@ -202,7 +213,7 @@ if (CMAKE_BUILD_TYPE_LOWER MATCHES "debug")
   if(SANITIZE_BUILD AND SANITIZERS)
     set(_sanitizer_flags -fsanitize=${SANITIZERS})
   endif()
-  target_compile_options(lib_compile_int1erface INTERFACE
+  target_compile_options(lib_compile_interface INTERFACE
                       ${_sanitizer_flags}
                       -fno-omit-frame-pointer
   )
@@ -267,8 +278,8 @@ target_link_options(${project_name}_include INTERFACE
 # Install-tree exes look next to themselves
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
 
-# Add other subdirectories if needed
-#add_subdirectory( other_folder )
+# Add libraries subdirectories if needed
+include_directories( lib/header_only ) # tclap, fast_obj, stb image, rapidyaml, rapidjson
 
 message(STATUS "===================================================================")
 message(STATUS "====================  Library composition  ========================")

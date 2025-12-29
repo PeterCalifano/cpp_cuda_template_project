@@ -124,6 +124,7 @@ function(handle_cuda)
         endforeach()
     endif()
 
+    set(CUDAToolkit_FOUND TRUE CACHE BOOL "CUDA Toolkit found" FORCE)
     set(cuda_arch "${_cuda_arch_names}" PARENT_SCOPE)
     set(sm_version "${_cuda_arch_nums}" PARENT_SCOPE)
     set(CUDA_LINK_LIBRARIES "${_cuda_libs}" PARENT_SCOPE)
