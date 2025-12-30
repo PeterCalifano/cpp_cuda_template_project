@@ -51,6 +51,17 @@ project( ${project_name}
         LANGUAGES ${languages}
         VERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH})
 
+# Define variable for namespacing (required to prevent global target clashes!)
+set(LIB_NAMESPACE "${PROJECT_NAME}")
+if (DEFINED LIB_NAMESPACE_OVERRIDE)
+  set(LIB_NAMESPACE "${LIB_NAMESPACE_OVERRIDE}")
+endif()
+set(CUDA_COMPILE_TARGET "${LIB_NAMESPACE}_cuda_compile_interface")
+set(OPTIX_COMPILE_TARGET "${LIB_NAMESPACE}_optix_compile_interface")
+set(OPENGL_COMPILE_TARGET "${LIB_NAMESPACE}_opengl_compile_interface")
+set(LIB_COMPILE_TARGET "${LIB_NAMESPACE}_lib_compile_interface")
+set(SANITIZER_TARGET "${LIB_NAMESPACE}_sanitizer_target_interface")
+
 # Handle toolchain settings (after project so compiler/system vars are populated)
 include(cmake/toolchains/HandleToolchain.cmake)
 
@@ -161,10 +172,10 @@ include(cmake/HandleCatch2.cmake)
 include(cmake/cmake_utils.cmake)
 
 # Configure CUDA/OptiX (creates interface targets even when disabled)
-handle_cuda(TARGET cuda_compile_interface 
+handle_cuda(TARGET ${CUDA_COMPILE_TARGET} 
             MIN_VERSION 12.0)
-handle_optix(TARGET optix_compile_interface 
-            CUDA_TARGET cuda_compile_interface)
+handle_optix(TARGET ${OPTIX_COMPILE_TARGET} 
+            CUDA_TARGET ${CUDA_COMPILE_TARGET})
 
 if (ENABLE_CUDA)
   # Add tools to manage cuda and ptx
@@ -173,7 +184,7 @@ endif()
 
 # Handle OpenGL (creates interface targets even when disabled)
 include(cmake/HandleOpenGL.cmake)
-handle_opengl(TARGET opengl_compile_interface)
+handle_opengl(TARGET ${OPENGL_COMPILE_TARGET})
 
 # Add submodules if any found
 include(cmake/HandleSubmodules.cmake)
@@ -201,7 +212,7 @@ message(STATUS "Target dependencies: ${EXPORT_TARGET_DEPS}")
 #find_package( rapid_yaml)
 
 # Interface target for C++ flags
-add_library(lib_compile_interface INTERFACE)
+add_library(${LIB_COMPILE_TARGET} INTERFACE)
 
 if (CMAKE_BUILD_TYPE_LOWER MATCHES "debug")
   # Set compile flags
@@ -213,12 +224,12 @@ if (CMAKE_BUILD_TYPE_LOWER MATCHES "debug")
   if(SANITIZE_BUILD AND SANITIZERS)
     set(_sanitizer_flags -fsanitize=${SANITIZERS})
   endif()
-  target_compile_options(lib_compile_interface INTERFACE
+  target_compile_options(${LIB_COMPILE_TARGET} INTERFACE
                       ${_sanitizer_flags}
                       -fno-omit-frame-pointer
   )
 
-  target_link_options(lib_compile_interface INTERFACE
+  target_link_options(${LIB_COMPILE_TARGET} INTERFACE
                       ${_sanitizer_flags}
                       -fno-omit-frame-pointer
   )
@@ -236,7 +247,7 @@ elseif (CMAKE_BUILD_TYPE_LOWER MATCHES "relwithdebinfo" AND NOT NO_OPTIMIZATION)
 elseif (NO_OPTIMIZATION)
   set(CMAKE_C_FLAGS ${CMAKE_CXX_FLAGS_NOPTIM})
   set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS_NOPTIM})
-  target_compile_definitions(lib_compile_interface INTERFACE NDEBUG)
+  target_compile_definitions(${LIB_COMPILE_TARGET} INTERFACE NDEBUG)
 
 else()
   # Stop build

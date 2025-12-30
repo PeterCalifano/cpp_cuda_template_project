@@ -22,7 +22,7 @@ add_subdirectory(template_test)
 add_subdirectory(template_fixtures)
 
 # Add tests to build
-add_tests(${project_name} EXCLUDED_LIST TESTS_LIST cuda_compile_interface CATCH2_TEST_PROPERTIES Catch2::Catch2WithMain)
+add_tests(${project_name} EXCLUDED_LIST TESTS_LIST ${CUDA_COMPILE_TARGET} CATCH2_TEST_PROPERTIES Catch2::Catch2WithMain)
 
 # Make catch2 to search for tests
 message(STATUS "List of test targets: ${TESTS_LIST}")

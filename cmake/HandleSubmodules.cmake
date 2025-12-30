@@ -1,10 +1,12 @@
 # CMake configuration to handle submodule inclusion and automatic build
 include_guard(GLOBAL)
-set(LIB_SEARCH_PATH "${CMAKE_CURRENT_LIST_DIR}/../lib" CACHE PATH "Path to search for libraries/submodules")
 
 function(handle_submodules)
-    if (EXISTS "${LIB_SEARCH_PATH}")
-        file(GLOB _submodule_dirs LIST_DIRECTORIES true "${LIB_SEARCH_PATH}/*")
+    # Root is where the function is called from
+    set(_lib_search_path "${CMAKE_CURRENT_SOURCE_DIR}/lib")
+
+    if (EXISTS "${_lib_search_path}")
+        file(GLOB _submodule_dirs LIST_DIRECTORIES true "${_lib_search_path}/*")
         foreach(_submodule_dir IN LISTS _submodule_dirs)
             if (IS_DIRECTORY "${_submodule_dir}")
             get_filename_component(_submodule_name "${_submodule_dir}" NAME)
