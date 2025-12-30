@@ -5,6 +5,15 @@
 		},
 		{
 			"path": "../python_template_project"
+		},
+		{
+			"path": "../docker_codes"
+		},
+		{
+			"path": "../study_notes_archive"
+		},
+		{
+			"path": "../../codeRepoPeterC"
 		}
 	],
 	"settings": {
