@@ -41,8 +41,8 @@ Options:
   -f, --flagsCXX <flags>      Extra C++ flags (quoted). Appends warnings for
                               Debug/RelWithDebInfo/Release
   -D, --define <var[=val]>    Extra CMake cache definitions (repeatable)
-  -p, --python-wrap           Enable Python wrapper in CMake (-DBUILD_PYTHON_WRAPPER=ON)
-  -m, --matlab-wrap           Enable MATLAB wrapper in CMake (-DBUILD_MATLAB_WRAPPER=ON)
+  -p, --python-wrap           Enable Python wrapper defaults (-DGTWRAP_BUILD_PYTHON_DEFAULT=ON)
+  -m, --matlab-wrap           Enable MATLAB wrapper defaults (-DGTWRAP_BUILD_MATLAB_DEFAULT=ON)
   -i, --install               Run "install" target after tests
   -N, --ninja-build           Use Ninja generator (requires `ninja`)
   -n, --no-optim              Set -DNO_OPTIMIZATION=ON in the CMake cache
@@ -168,8 +168,8 @@ if [[ "$rebuild_only" == false ]]; then
     -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
   )
   [[ "$use_ninja"  == true ]] && cmake_args+=( -G Ninja )
-  [[ "$python_wrap" == true ]] && cmake_args+=( -DBUILD_PYTHON_WRAPPER=ON )
-  [[ "$matlab_wrap" == true ]] && cmake_args+=( -DBUILD_MATLAB_WRAPPER=ON )
+  [[ "$python_wrap" == true ]] && cmake_args+=( -DGTWRAP_BUILD_PYTHON_DEFAULT=ON )
+  [[ "$matlab_wrap" == true ]] && cmake_args+=( -DGTWRAP_BUILD_MATLAB_DEFAULT=ON )
   [[ "$no_optim"   == true ]] && cmake_args+=( -DNO_OPTIMIZATION=ON )
   [[ -n "$toolchain_file" ]] && cmake_args+=( "-DCMAKE_TOOLCHAIN_FILE=$toolchain_file" )
   [[ ${#cmake_defines[@]} -gt 0 ]] && cmake_args+=( "${cmake_defines[@]}" )
