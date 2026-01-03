@@ -18,6 +18,17 @@ endfunction()
 ### Python and MATLAB wrapper configuration using gtwrap
 # Function for common wrapper configuration
 function(configure_gtwrappers_common)
+
+  # Set interface files list
+  set(WRAPPER_INTERFACE_FILES "${ARGV}")
+  if (NOT ARGC)
+    set(WRAPPER_INTERFACE_FILES "")
+  endif()
+  message(STATUS "Configuring common gtwrap settings...")
+
+  # Define the wrap directory
+  set(_lib_wrap_dir "${CMAKE_CURRENT_SOURCE_DIR}/lib/wrap")
+
   if (NOT GTSAM_FOUND)
     message(STATUS "Attempt to find GTSAM package for wrapper configuration. This is required to build python and MATLAB bindings using gtwrap.")
     find_package(GTSAM 4.0 REQUIRED) # GTSAM types are required for wrappers TBC
@@ -60,17 +71,24 @@ function(configure_gtwrappers_common)
       else()
           message(STATUS "Wrap subdirectory fetched successfully.")
       endif()
+
+      # Add subdirectory to build it
+      list(APPEND CMAKE_PREFIX_PATH ${_lib_wrap_dir})
+      add_subdirectory(${_lib_wrap_dir})
+      set(gtwrap_FOUND TRUE) # Mark as found
   else()
       message(STATUS "GTwrap package OR Wrap subdirectory found. Proceeding to build wrappers...")
   endif()
 
   # Set the include directory for matlab.h
+  list(APPEND CMAKE_MODULE_PATH "${_lib_wrap_dir}/cmake")
   include_directories(${_lib_wrap_dir}/include)
 
   # DEFINE interface files for wrapper
   set(SEARCH_DIR_WRAP
       "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
+  # TODO update to recursive search if WRAPPER_INTERFACE_FILES not set manually (no input)
   #message(STATUS "Searching for wrapper interface files in: ${SEARCH_DIR_WRAP}")
   #file(GLOB WRAPPER_INTERFACE_FILES "${SEARCH_DIR_WRAP}" "*.i") # Not working for now
 
@@ -81,58 +99,36 @@ function(configure_gtwrappers_common)
 
     set(WRAPPER_INTERFACE_FILES "")
     message(WARNING "WRAPPER_INTERFACE_FILES list not defined. No wrapper will be built. Please check the cmake configuration.")
+    
     # Disable further processing
-    set(BUILD_PYTHON_WRAPPER OFF CACHE BOOL "Disable Python wrapper build due to missing interface files." FORCE)
-    set(BUILD_MATLAB_WRAPPER OFF CACHE BOOL "Disable Matlab wrapper build due to missing interface files." FORCE)
+    if (GTWRAP_PYTHON_OPTION_NAME)
+      set(${GTWRAP_PYTHON_OPTION_NAME} OFF CACHE BOOL "Disable Python wrapper build due to missing interface files." FORCE)
+    else()
+      set(BUILD_PYTHON_WRAPPER OFF CACHE BOOL "Disable Python wrapper build due to missing interface files." FORCE)
+    endif()
+    if (GTWRAP_MATLAB_OPTION_NAME)
+      set(${GTWRAP_MATLAB_OPTION_NAME} OFF CACHE BOOL "Disable Matlab wrapper build due to missing interface files." FORCE)
+    else()
+      set(BUILD_MATLAB_WRAPPER OFF CACHE BOOL "Disable Matlab wrapper build due to missing interface files." FORCE)
+    endif()
     
   else()
     # Check if list has exactly one element that is empty
     list(LENGTH WRAPPER_INTERFACE_FILES WRAPPER_INTERFACE_FILES_LEN)
+
     if (WRAPPER_INTERFACE_FILES_LEN EQUAL 1)
       list(GET WRAPPER_INTERFACE_FILES 0 _first_interface)
       if (_first_interface STREQUAL "")
         message(FATAL_ERROR "No interface files found for wrapping. Please check the search directory or provide files.")
       endif()
     endif()
+
   endif()
 
   # Copy matlab.h to the correct folder.
   configure_file(${_lib_wrap_dir}/matlab.h
               ${PROJECT_BINARY_DIR}/wrap/matlab.h COPYONLY)
 
-  if (NOT gtwrap_FOUND) # Build GTwrap within project
-    message(STATUS "GTwrap package NOT found. Attempting to build it as ExternalProject...")
-
-    ExternalProject_Add(
-      wrap_project
-      SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/wrap
-      CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${WRAP_INSTALL_DIR}
-      BUILD_ALWAYS OFF  # Optional: rebuild every time (remove for performance)
-    )
-
-    # Add the install directory to CMake's module path
-    list(APPEND CMAKE_PREFIX_PATH ${WRAP_INSTALL_DIR})
-
-    message(STATUS "GTwrap package correctly built and added to CMAKE_PREFIX_PATH.")
-    add_subdirectory(wrap)
-    list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/wrap/cmake")
-
-    # Python toolbox
-    if(BUILD_PYTHON_WRAPPER)
-      if ("${PYTHON_EXECUTABLE}" STREQUAL "python3")
-          message(WARNING "PYTHON_EXECUTABLE is set to python3. This will likely fail at install time if no venv is activated. Please specify the full path to the python executable if conda.")
-      endif()
-    endif()
-
-    # Matlab toolbox
-    if(BUILD_MATLAB_WRAPPER)
-        # Check if matlab folder exists
-        #if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/matlab")
-        #    message(FATAL_ERROR "MATLAB wrapper requested but matlab folder not found.")
-        #endif()
-        #add_subdirectory(matlab)
-    endif()
-  endif()
 endfunction()
 
 # TODO review code to make it general / test it
@@ -206,7 +202,7 @@ function(configure_python_gtwrapper)
 endfunction()
 
 # MATLAB wrapper configuration using gtwrap
-function(configure_matlab_gtwrapper)
+function(configure_matlab_gtwrapper )
   message(STATUS "Configuring MATLAB wrap...")
   include(MatlabWrap)
 
@@ -240,15 +236,26 @@ function(configure_matlab_gtwrapper)
 endfunction()
 
 function(handle_gtwrappers)
+
+  set(WRAPPER_INTERFACE_FILES "${ARGV}")
+  if(NOT ARGC)
+    set(WRAPPER_INTERFACE_FILES "")
+  endif()
+
   if(NOT BUILD_PYTHON_WRAPPER AND NOT BUILD_MATLAB_WRAPPER)
+    # Return if none of the wrappers are to be built
     return()
   endif()
 
+  # Configure common gtwrap settings
   configure_gtwrappers_common()
+
+  # Configure python wrapper if requested
   if(BUILD_PYTHON_WRAPPER)
     configure_python_gtwrapper()
   endif()
 
+  # Configure matlab wrapper if requested
   if(BUILD_MATLAB_WRAPPER)
     configure_matlab_gtwrapper()
   endif()
