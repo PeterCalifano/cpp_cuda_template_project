@@ -20,7 +20,7 @@ endfunction()
 function(configure_gtwrappers_common)
   if (NOT GTSAM_FOUND)
     message(STATUS "Attempt to find GTSAM package for wrapper configuration. This is required to build python and MATLAB bindings using gtwrap.")
-    find_package(GTSAM 4.0 REQUIRED) # GTSAM types are required for wrappers
+    find_package(GTSAM 4.0 REQUIRED) # GTSAM types are required for wrappers TBC
   endif()
 
   # Set the default Python version to use for wrapping
@@ -31,16 +31,32 @@ function(configure_gtwrappers_common)
   find_package(gtwrap QUIET)
 
   # Check if wrap subdirectory exists, else fetch it from github as submodule
-  if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lib/wrap")
-      message(STATUS "Wrap subdirectory not found. Attempting to fetch it from GitHub...")
-      execute_process(COMMAND git submodule add "git@github.com:PeterCalifano/wrap.git"
-                      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
-      execute_process(COMMAND git submodule update --init --recursive
-                      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+  if (NOT EXISTS "${_lib_wrap_dir}" AND NOT gtwrap_FOUND)
 
-      if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lib/wrap")
+      message(STATUS "Wrap subdirectory not found. Attempting to fetch it from GitHub...")
+      
+      # Clone the wrap repository as a submodule
+      execute_process(COMMAND git submodule add "git@github.com:PeterCalifano/wrap.git" 
+                      WORKING_DIRECTORY ${_lib_wrap_dir}
+                      RESULT_VARIABLE git_wrap_clone_submodule_result_)
+
+      if(NOT git_wrap_clone_submodule_result_ EQUAL "0")
+          message(FATAL_ERROR "Failed to add wrap submodule from GitHub. Please make sure git is installed and you have network access.")
+      endif()
+                      
+      # Clone the submodule contents
+      execute_process(COMMAND git checkout cpp_cuda_templ_reference_tag
+                      WORKING_DIRECTORY ${_lib_wrap_dir}
+                      RESULT_VARIABLE git_wrap_checkout_result_
+                      )
+
+      if(NOT git_wrap_checkout_result_ EQUAL "0")
+          message(FATAL_ERROR "Failed to checkout the correct wrap submodule tag from GitHub. Please make sure git is installed and you have network access.")
+      endif()
+
+      if (NOT EXISTS "${_lib_wrap_dir}/.git")
       # Throw an error if the submodule was not fetched successfully
-          message(FATAL_ERROR "Failed to fetch wrap subdirectory from GitHub!")
+          message(FATAL_ERROR "Failed to fetch wrap subdirectory from GitHub. Something may have gone wrong in the configuration. Please report issue.")
       else()
           message(STATUS "Wrap subdirectory fetched successfully.")
       endif()
@@ -49,8 +65,7 @@ function(configure_gtwrappers_common)
   endif()
 
   # Set the include directory for matlab.h
-  set(GTWRAP_INCLUDE_NAME ${PROJECT_SOURCE_DIR}/lib/wrap/include)
-  include_directories(${GTWRAP_INCLUDE_NAME})
+  include_directories(${_lib_wrap_dir}/include)
 
   # DEFINE interface files for wrapper
   set(SEARCH_DIR_WRAP
@@ -63,7 +78,13 @@ function(configure_gtwrappers_common)
   message(STATUS "Found wrapper interface files: ${WRAPPER_INTERFACE_FILES}")
 
   if (NOT WRAPPER_INTERFACE_FILES)
-    message(FATAL_ERROR "WRAPPER_INTERFACE_FILES list not defined. Please check the cmake configuration.")
+
+    set(WRAPPER_INTERFACE_FILES "")
+    message(WARNING "WRAPPER_INTERFACE_FILES list not defined. No wrapper will be built. Please check the cmake configuration.")
+    # Disable further processing
+    set(BUILD_PYTHON_WRAPPER OFF CACHE BOOL "Disable Python wrapper build due to missing interface files." FORCE)
+    set(BUILD_MATLAB_WRAPPER OFF CACHE BOOL "Disable Matlab wrapper build due to missing interface files." FORCE)
+    
   else()
     # Check if list has exactly one element that is empty
     list(LENGTH WRAPPER_INTERFACE_FILES WRAPPER_INTERFACE_FILES_LEN)
@@ -76,7 +97,7 @@ function(configure_gtwrappers_common)
   endif()
 
   # Copy matlab.h to the correct folder.
-  configure_file(${PROJECT_SOURCE_DIR}/lib/wrap/matlab.h
+  configure_file(${_lib_wrap_dir}/matlab.h
               ${PROJECT_BINARY_DIR}/wrap/matlab.h COPYONLY)
 
   if (NOT gtwrap_FOUND) # Build GTwrap within project
