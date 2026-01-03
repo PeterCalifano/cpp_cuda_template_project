@@ -1,6 +1,6 @@
-#include "placeholder.h"
+#include "CWrapperPlaceholder.h"
 
-namespace placeholder 
+namespace cpp_playground
 {
 
 }

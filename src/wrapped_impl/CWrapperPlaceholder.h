@@ -11,17 +11,17 @@ namespace cpp_playground
         std::is_arithmetic_v<T> == true && std::is_floating_point_v<T> == true;
     };
 
-    template <IsNumericFloatType T>
+    template <typename T>
     class CWrapperPlaceholder
     {
       public:
         // Public methods
-        const T &getDataMember() const
+        T getDataMember() const
         {
             return a_float_number;
         }
 
-        T &setDataMember()
+        T setDataMember()
         {
             return a_float_number;
         }
@@ -37,4 +37,4 @@ namespace cpp_playground
         }
     };
 
-} // namespace cpp_playground
+}; // namespace cpp_playground
