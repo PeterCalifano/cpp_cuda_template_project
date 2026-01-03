@@ -4,7 +4,6 @@
 
 **/*bak*
 .gitmodules
-lib/*
 CMakeLists.txt.user
 CMakeCache.txt
 CMakeFiles
