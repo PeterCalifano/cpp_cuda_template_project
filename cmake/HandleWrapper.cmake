@@ -76,15 +76,21 @@ function(configure_gtwrappers_common)
 
       message(STATUS "Wrap subdirectory not found. Attempting to fetch it from GitHub...")
       
-      # Clone the wrap repository as a submodule
+            # Clone the wrap repository as a submodule
       execute_process(COMMAND git submodule add "git@github.com:PeterCalifano/wrap.git" 
                       WORKING_DIRECTORY ${_lib_dir}
                       RESULT_VARIABLE git_wrap_clone_submodule_result_)
 
+      # Run update of submodule the submodule contents
+      execute_process(COMMAND git submodule update --init --recursive
+                      WORKING_DIRECTORY ${_lib_dir}
+                      RESULT_VARIABLE git_wrap_clone_submodule_result_
+                      )
+
       if(NOT git_wrap_clone_submodule_result_ EQUAL "0")
           message(FATAL_ERROR "Failed to add wrap submodule from GitHub. Please make sure git is installed and you have network access.")
       endif()
-                      
+              
       # Clone the submodule contents
       execute_process(COMMAND git checkout cpp_cuda_templ_reference_tag
                       WORKING_DIRECTORY ${_lib_wrap_dir}
