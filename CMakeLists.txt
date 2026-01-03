@@ -3,6 +3,12 @@ cmake_minimum_required(VERSION 3.15 FATAL_ERROR)
 set(PROJECT_PYTHON_VERSION 3.11)
 set(MATLAB_DEFAULT_RELEASE "R2023b")
 
+# Define variable for build as subproject (compare source dir)
+set(BUILD_AS_MAIN_PROJECT ON)
+if(NOT CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
+  set(BUILD_AS_MAIN_PROJECT OFF)
+endif()
+
 #set(CMAKE_C_COMPILER gcc-11)
 #set(CMAKE_CXX_COMPILER g++-11)
 #set(CMAKE_CUDA_COMPILER nvcc)
@@ -310,10 +316,12 @@ message(STATUS "====================  Library composition  =====================
 add_subdirectory( src )
 
 # Add examples to build
-add_subdirectory( examples )
+if (BUILD_AS_MAIN_PROJECT)
+  add_subdirectory( examples )
+endif()
 
 # Add tests to build
-if (ENABLE_TESTS AND Catch2_FOUND)
+if (ENABLE_TESTS AND Catch2_FOUND AND BUILD_AS_MAIN_PROJECT)
   add_subdirectory( tests )
 endif()
 
