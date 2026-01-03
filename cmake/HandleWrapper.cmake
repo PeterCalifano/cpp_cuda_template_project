@@ -15,21 +15,52 @@ function(set_python_target_properties PYTHON_TARGET OUTPUT_NAME OUTPUT_DIRECTORY
   )
 endfunction()
 
+# Function to check validity of interface files list
+function (check_interface_files_validity VALIDITY_BOOL INTERFACE_FILES_VAR)
+  set(${VALIDITY_BOOL} false PARENT_SCOPE) # Default value
+
+  # Check that the variable is defined
+  if (NOT DEFINED INTERFACE_FILES_VAR)
+    return()
+  endif()
+
+  # Check that any file is specified
+  set(_interface_files ${INTERFACE_FILES_VAR})
+  if ("${_interface_files}" STREQUAL "")
+    return()
+  endif()
+
+  # Check all files have .i extension
+  foreach(_path IN LISTS _interface_files)
+    if (NOT _path MATCHES "\\.i$")
+      return()
+    endif()
+  endforeach()
+
+  # If all checks passed, set validity to true
+  set(${VALIDITY_BOOL} true PARENT_SCOPE)
+endfunction()
+
 ### Python and MATLAB wrapper configuration using gtwrap
 # Function for common wrapper configuration
 function(configure_gtwrappers_common)
-  set(_gtwrap_python_option "${LIB_NAMESPACE}_BUILD_PYTHON_WRAPPER")
-  set(_gtwrap_matlab_option "${LIB_NAMESPACE}_BUILD_MATLAB_WRAPPER")
-  set(_gtwrap_interface_var "${LIB_NAMESPACE}_WRAPPER_INTERFACE_FILES")
+  set(_gtwrap_python_option ${${LIB_NAMESPACE}_BUILD_PYTHON_WRAPPER})
+  set(_gtwrap_matlab_option ${${LIB_NAMESPACE}_BUILD_MATLAB_WRAPPER})
+  set(_gtwrap_interface_var ${${LIB_NAMESPACE}_WRAPPER_INTERFACE_FILES})
 
-  if (NOT DEFINED ${_gtwrap_interface_var})
-    set(${_gtwrap_interface_var} "" CACHE STRING "Wrapper interface files")
+  option(_gtwrap_autofetch_interface_files "Automatically fetch wrapper interface files from src/" OFF)
+  check_interface_files_validity(_valid_interface_files "${_gtwrap_interface_var}")
+
+  if (NOT DEFINED _gtwrap_interface_var OR NOT _valid_interface_files)
+    set(_gtwrap_autofetch_interface_files ON)
+    set(_gtwrap_interface_var "" CACHE STRING "Wrapper interface files")
   endif()
 
   message(STATUS "Configuring common gtwrap settings...")
 
   # Define the wrap directory
-  set(_lib_wrap_dir "${CMAKE_CURRENT_SOURCE_DIR}/lib/wrap")
+  set(_lib_dir "${CMAKE_CURRENT_SOURCE_DIR}/lib")
+  set(_lib_wrap_dir "${_lib_dir}/wrap")
 
   if (NOT GTSAM_FOUND)
     message(STATUS "Attempt to find GTSAM package for wrapper configuration. This is required to build python and MATLAB bindings using gtwrap.")
@@ -40,17 +71,14 @@ function(configure_gtwrappers_common)
   set(WRAP_PYTHON_VERSION ${PROJECT_PYTHON_VERSION}
     CACHE STRING "The Python version to use for wrapping")
 
-  # Look for gtwrap
-  find_package(gtwrap QUIET)
-
   # Check if wrap subdirectory exists, else fetch it from github as submodule
-  if (NOT EXISTS "${_lib_wrap_dir}" AND NOT gtwrap_FOUND)
+  if (NOT EXISTS "${_lib_wrap_dir}")
 
       message(STATUS "Wrap subdirectory not found. Attempting to fetch it from GitHub...")
       
       # Clone the wrap repository as a submodule
       execute_process(COMMAND git submodule add "git@github.com:PeterCalifano/wrap.git" 
-                      WORKING_DIRECTORY ${_lib_wrap_dir}
+                      WORKING_DIRECTORY ${_lib_dir}
                       RESULT_VARIABLE git_wrap_clone_submodule_result_)
 
       if(NOT git_wrap_clone_submodule_result_ EQUAL "0")
@@ -77,43 +105,37 @@ function(configure_gtwrappers_common)
       # Add subdirectory to build it
       list(APPEND CMAKE_PREFIX_PATH ${_lib_wrap_dir})
       add_subdirectory(${_lib_wrap_dir})
-      set(gtwrap_FOUND TRUE) # Mark as found
   else()
-      message(STATUS "GTwrap package OR Wrap subdirectory found. Proceeding to build wrappers...")
+      message(STATUS "Wrap subdirectory found. Proceeding to build wrappers...")
   endif()
 
   # Set the include directory for matlab.h
-  list(APPEND CMAKE_MODULE_PATH "${_lib_wrap_dir}/cmake")
+  include(${_lib_wrap_dir}/cmake/configure_wrap_paths.cmake)
   include_directories(${_lib_wrap_dir}/include)
 
   # DEFINE interface files for wrapper
   set(SEARCH_DIR_WRAP
       "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
-  # TODO update to recursive search if ${_gtwrap_interface_var} not set manually (no input)
-  #message(STATUS "Searching for wrapper interface files in: ${SEARCH_DIR_WRAP}")
-  #file(GLOB ${_gtwrap_interface_var} "${SEARCH_DIR_WRAP}" "*.i") # Not working for now
+  if(_gtwrap_autofetch_interface_files)
+    message(STATUS "Searching for wrapper interface files in: ${SEARCH_DIR_WRAP}")
+    file(GLOB_RECURSE _gtwrap_interface_var "${SEARCH_DIR_WRAP}/*.i")
+
+    check_interface_files_validity(_valid_interface_files "${_gtwrap_interface_var}")
+    message(STATUS "Found wrapper interface files: ${_gtwrap_interface_var}")
+  endif()
 
   # Template: set(${_gtwrap_interface_var} "${SEARCH_DIR_WRAP}/<name>.i") # Add the interface files here
-  message(STATUS "Found wrapper interface files: ${${_gtwrap_interface_var}}")
-
-  if (NOT ${_gtwrap_interface_var})
+  if (NOT DEFINED _gtwrap_interface_var OR NOT _valid_interface_files)
     message(WARNING "No wrapper interface files specified. Wrappers will be disabled.")
-    set(${_gtwrap_interface_var} "")
-    set(${_gtwrap_python_option} OFF "Disable Python wrapper build due to missing interface files." )
-    set(${_gtwrap_matlab_option} OFF "Disable Matlab wrapper build due to missing interface files.")
-  else()
-    # Check if list has exactly one element that is empty
-    list(LENGTH ${_gtwrap_interface_var} WRAPPER_INTERFACE_FILES_LEN)
-    if (WRAPPER_INTERFACE_FILES_LEN EQUAL 1)
-      list(GET ${_gtwrap_interface_var} 0 _first_interface)
-      if (_first_interface STREQUAL "")
-        message(WARNING "No interface files found for wrapping. Wrappers will be disabled.")
-        set(${_gtwrap_python_option} OFF CACHE BOOL "Disable Python wrapper build due to missing interface files." FORCE)
-        set(${_gtwrap_matlab_option} OFF CACHE BOOL "Disable Matlab wrapper build due to missing interface files." FORCE)
-      endif()
-    endif()
+    set(gtwrap_interface_var "" PARENT_SCOPE)
+    set(_gtwrap_python_option OFF CACHE BOOL "Disable Python wrapper build due to missing interface files." FORCE )
+    set(_gtwrap_matlab_option OFF CACHE BOOL "Disable Matlab wrapper build due to missing interface files." FORCE )
+    return()
   endif()
+
+  # Move variables to parent scope
+  set(gtwrap_interface_var "${_gtwrap_interface_var}" PARENT_SCOPE)
 
   # Copy matlab.h to the correct folder.
   configure_file(${_lib_wrap_dir}/matlab.h
@@ -126,6 +148,11 @@ endfunction()
 function(configure_python_gtwrapper)
   ## Install Python wrap
   message(STATUS "Configuring Python wrap...")
+  message(FATAL_ERROR "Python wrapper handling requires update to work with new version of wrap. Please report issue or contribute fix if you need this feature.")
+
+  set(_lib_dir "${CMAKE_CURRENT_SOURCE_DIR}/lib")
+  set(_lib_wrap_dir "${_lib_dir}/wrap")
+  include("${_lib_wrap_dir}/cmake/PybindWrap.cmake")
 
   set(PROJECT_PYTHON_SOURCE_DIR ${PROJECT_SOURCE_DIR}/python)
   set(PROJECT_PYTHON_BUILD_DIRECTORY ${PROJECT_BINARY_DIR}/python)
@@ -136,8 +163,6 @@ function(configure_python_gtwrapper)
                 ${PROJECT_PYTHON_BUILD_DIRECTORY}/setup.py)
 
   set(interface_files ${PROJECT_SOURCE_DIR}/cpp/${PROJECT_NAME}.h)
-
-  include(PybindWrap)
 
   # This is required to avoid an error in modern pybind11 cmake scripts:
   if(POLICY CMP0057)
@@ -193,9 +218,12 @@ function(configure_python_gtwrapper)
 endfunction()
 
 # MATLAB wrapper configuration using gtwrap
-function(configure_matlab_gtwrapper )
+function(configure_matlab_gtwrapper gtwrap_interface_var)
   message(STATUS "Configuring MATLAB wrap...")
-  include(MatlabWrap)
+
+  set(_lib_dir "${CMAKE_CURRENT_SOURCE_DIR}/lib")
+  set(_lib_wrap_dir "${_lib_dir}/wrap")
+  include("${_lib_wrap_dir}/cmake/MatlabWrap.cmake")
 
   # Configure MATLAB paths
   message (STATUS "Including MATLAB directories...")
@@ -215,7 +243,7 @@ function(configure_matlab_gtwrapper )
     file(MAKE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/matlab")
   endif()
 
-  # Set up installation paths (#TODO need to review these options)
+  # Set up installation paths
   set(WRAP_MEX_BUILD_STATIC_MODULE OFF) # Defines if the mex module is built as a static module
   #set(WRAP_BUILD_MEX_BINARY_FLAGS ${GTSAM_BUILD_MEX_BINARY_FLAGS})
   set(WRAP_TOOLBOX_INSTALL_PATH "${CMAKE_CURRENT_SOURCE_DIR}/matlab") # Defines the installation path for the MATLAB wrapper files
@@ -223,10 +251,24 @@ function(configure_matlab_gtwrapper )
   set(WRAP_BUILD_TYPE_POSTFIXES OFF) # Determines if post build type postfixes are added to the mex files
 
   # Add the MATLAB wrapper
-  set(_gtwrap_interface_var "${LIB_NAMESPACE}_WRAPPER_INTERFACE_FILES")
-  wrap_and_install_library("${${_gtwrap_interface_var}}" "${project_name}" "" "" "" "" OFF)
+
+  # Final checks
+  if (NOT DEFINED LIBNAME_WRAP_TARGET)
+    message(FATAL_ERROR "LIBNAME_WRAP_TARGET variable is not defined. Cannot proceed with MATLAB wrapper build.")
+  endif()
+
+  if (NOT DEFINED gtwrap_interface_var AND NOT "${gtwrap_interface_var}" STREQUAL "")
+    message(FATAL_ERROR "Wrapper interface files variable is not defined or is empty. Cannot proceed with MATLAB wrapper build.")
+  endif()
+
+  message(STATUS "Using interface files: ${gtwrap_interface_var}")
+
+  # Call wrap cmake function
+  # DEVNOTE: LIBNAME_WRAP_TARGET target is assumed to bring all dependencies required for wrapping!
+  wrap_and_install_library("${gtwrap_interface_var}" "${LIBNAME_WRAP_TARGET}" "" "" "" "" OFF)
 endfunction()
 
+# Entry point function to handle gtwrap wrappers
 function(handle_gtwrappers)
   set(_gtwrap_python_option "${LIB_NAMESPACE}_BUILD_PYTHON_WRAPPER")
   set(_gtwrap_matlab_option "${LIB_NAMESPACE}_BUILD_MATLAB_WRAPPER")
@@ -243,7 +285,7 @@ function(handle_gtwrappers)
     return()
   endif()
 
-  # Configure common gtwrap settings
+  # Configure common gtwrap settings and interface variables
   configure_gtwrappers_common()
 
   # Configure python wrapper if requested
@@ -253,7 +295,9 @@ function(handle_gtwrappers)
 
   # Configure matlab wrapper if requested
   if(${_gtwrap_matlab_option})
-    configure_matlab_gtwrapper()
+    message(STATUS "DEBUG: Using interface files: ${gtwrap_interface_var}")
+
+    configure_matlab_gtwrapper("${gtwrap_interface_var}")
   endif()
 endfunction()
 

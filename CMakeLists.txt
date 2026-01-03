@@ -327,7 +327,8 @@ endif()
 
 ###########################################################################
 ### WRAPPERS CONFIGURATION
-handle_gtwrappers()
+set(LIBNAME_WRAP_TARGET ${project_name})
+handle_gtwrappers() # You may also pass WRAP_INTERFACE_FILES variable to specify interface files, else autofetching is used
 handle_pybind11_wrapper()
 
 # Determine if any wrapper is enabled
