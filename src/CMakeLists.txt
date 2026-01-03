@@ -19,7 +19,10 @@ add_subdirectory(template_src)
 message(STATUS "Adding module: template_src_kernels")
 add_subdirectory(template_src_kernels)
 
-message(STATUS "Adding module: programs")
+message(STATUS "Adding module: wrapped_impl")
+add_subdirectory(wrapped_impl)
+
+message(STATUS "Adding module: bin")
 add_subdirectory(bin)
 
 # Exclude EXCLUDED_LIST from the list of src files
