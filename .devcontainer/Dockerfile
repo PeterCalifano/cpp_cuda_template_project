@@ -25,6 +25,9 @@ RUN chmod +x /tmp/ros-setup.sh \
     && ROS_MODE="${ROS_MODE}" ROS_DISTRO="${ROS_DISTRO}" ROS_PROFILE="${ROS_PROFILE}" /tmp/ros-setup.sh \
     && rm -f /tmp/ros-setup.sh
 
+# Add export for gpg authentication to .bashrc
+RUN export GPG_TTY=$(tty)
+
 # [Optional] Uncomment this section to install additional vcpkg ports.
 # RUN su vscode -c "${VCPKG_ROOT}/vcpkg install <your-port-name-here>"
 

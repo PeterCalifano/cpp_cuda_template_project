@@ -10,10 +10,6 @@
 			"addCondaForge": true,
 			"version": "latest"
 		},
-		"ghcr.io/devcontainers/features/git-lfs:1": {
-			"autoPull": false,
-			"version": "latest"
-		},
 		"ghcr.io/devcontainers/features/nvidia-cuda:2": {
 			"installCudnn": true,
 			"installCudnnDev": true,
