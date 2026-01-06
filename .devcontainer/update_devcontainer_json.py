@@ -11,13 +11,14 @@ def main() -> int:
     ros_profile = os.environ.get("ROS_PROFILE", "ros-base")
 
     # Define default features
+    # LFS feature (commented out for now)
+    # "ghcr.io/devcontainers/features/git-lfs:1": {
+    #       "autoPull": True,
+    #       "version": "latest",
+    #   },
     features = {
         "ghcr.io/devcontainers/features/conda:1": {
             "addCondaForge": True,
-            "version": "latest",
-        },
-        "ghcr.io/devcontainers/features/git-lfs:1": {
-            "autoPull": True,
             "version": "latest",
         },
         "ghcr.io/devcontainers/features/python:1": {
