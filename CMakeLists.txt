@@ -51,6 +51,10 @@ project( ${project_name}
         LANGUAGES ${languages}
         VERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH})
 
+# Write VERSION file to source and build directories
+write_source_VERSION_file()
+write_build_VERSION_file()
+
 # Define variable for build as subproject (compare source dir)
 set(BUILD_AS_MAIN_PROJECT ON)
 if(NOT CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)

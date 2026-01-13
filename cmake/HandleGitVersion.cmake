@@ -45,3 +45,50 @@ function(get_version_from_git)
         message(WARNING "Tag '${CLEAN_TAG}' does not match semver format")
     endif()
 endfunction()
+
+function (compose_version_string OUT_VAR)
+
+    # Compose version string from major, minor, patch
+    set(VERSION_STRING "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}")
+    set(STRING_TO_WRITE "Project version: ${VERSION_STRING}\n")
+
+    # If FULL_VERSION is defined, append it
+    if(DEFINED FULL_VERSION)
+        set(STRING_TO_WRITE "${STRING_TO_WRITE}Full version: ${FULL_VERSION}\n")
+    endif()
+
+    set(${OUT_VAR} "${STRING_TO_WRITE}" PARENT_SCOPE)
+endfunction()
+
+# Function to write VERSION file in binary directory
+function (write_build_VERSION_file)
+    # Set target file name
+    set(VERSION_FILE_PATH "${CMAKE_BINARY_DIR}/VERSION")
+
+    # Get string to write
+    set(STRING_TO_WRITE "")
+    compose_version_string(STRING_TO_WRITE)
+    file(WRITE "${VERSION_FILE_PATH}" "${STRING_TO_WRITE}\n")
+
+endfunction()
+
+# Function to write VERSION file in source directory
+function (write_source_VERSION_file)
+    # Set target file name
+    set(VERSION_FILE_PATH "${CMAKE_SOURCE_DIR}/VERSION")
+    # Get string to write
+    set(STRING_TO_WRITE "")
+    compose_version_string(STRING_TO_WRITE)
+    file(WRITE "${VERSION_FILE_PATH}" "${STRING_TO_WRITE}\n")
+endfunction()
+
+# Function to write VERSION file in install directory
+function (write_install_VERSION_file)
+    # Set target file name
+    set(VERSION_FILE_PATH "${CMAKE_INSTALL_PREFIX}/VERSION")
+    # Get string to write
+    set(STRING_TO_WRITE "")
+    compose_version_string(STRING_TO_WRITE)
+    file(WRITE "${VERSION_FILE_PATH}" "${STRING_TO_WRITE}\n")
+endfunction()
+
