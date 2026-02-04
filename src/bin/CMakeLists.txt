@@ -3,7 +3,7 @@ set(EXAMPLES_PATTERN "*.cpp" "*.cu")
 file(GLOB srcProgramsFiles RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${EXAMPLES_PATTERN})
 
 # Exclude EXCLUDED_LIST from the list of examples
-set(EXCLUDED_LIST "")
+set(EXCLUDED_LIST "excluded.cpp")
 list(REMOVE_ITEM srcProgramsFiles ${EXCLUDED_LIST})
 
 # Get name of current folder
