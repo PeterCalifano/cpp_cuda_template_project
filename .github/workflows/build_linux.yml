@@ -131,7 +131,24 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: cmake-build-tree
-          path: .
+          path: ${{ env.BUILD_DIR }}
+
+      - name: Resolve downloaded build tree
+        run: |
+          if [ -d "${BUILD_DIR}/CMakeFiles" ]; then
+            echo "CTEST_DIR=${BUILD_DIR}" >> "$GITHUB_ENV"
+          elif [ -d "${BUILD_DIR}/${BUILD_DIR}/CMakeFiles" ]; then
+            echo "CTEST_DIR=${BUILD_DIR}/${BUILD_DIR}" >> "$GITHUB_ENV"
+          else
+            echo "Could not find CMakeFiles under '${BUILD_DIR}' after artifact download."
+            find "${BUILD_DIR}" -maxdepth 3 -type d | sort || true
+            exit 1
+          fi
+
+      - name: Restore test executable permissions
+        run: |
+          # GitHub artifact download may drop executable bits from binaries.
+          find "${CTEST_DIR}" -type f -path "*/tests/*" -exec chmod +x {} + || true
 
       - name: Test
-        run: ctest --test-dir "${BUILD_DIR}" --output-on-failure --parallel 2 --no-tests=error
+        run: ctest --test-dir "${CTEST_DIR}" --output-on-failure --parallel 2 --no-tests=error
