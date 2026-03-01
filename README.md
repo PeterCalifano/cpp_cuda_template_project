@@ -11,6 +11,7 @@ A CMake template for building GPU-accelerated C++ shared libraries with optional
 | Eigen3 | ≥ 3.4 | Required |
 | CUDA Toolkit | ≥ 12.0 | Optional (`-DENABLE_CUDA=ON`) |
 | OptiX SDK | any | Optional (`-DENABLE_OPTIX=ON`), requires CUDA |
+| oneTBB | any | Optional (`-DENABLE_TBB=ON`) |
 | Catch2 | 3.x | Auto-fetched from GitHub if not found |
 | Valgrind / perf | any | Optional, for profiling scripts |
 | libgoogle-perftools-dev | any | Optional (`-DENABLE_PROFILING=ON`) |
@@ -31,6 +32,9 @@ git clone <repo-url> my_project && cd my_project
 # Build + install to ./install
 ./build_lib.sh -t release -i
 ```
+
+Optimized builds (`Release`, `RelWithDebInfo`) enable `-march=native -mtune=native` by default.
+Disable this for portable binaries with `-D CPU_ENABLE_NATIVE_TUNING=OFF`.
 
 Run tests manually after a build:
 
@@ -102,11 +106,22 @@ See [`doc/build_script_doc.md`](doc/build_script_doc.md) for a detailed option r
 |---|---|---|
 | `ENABLE_CUDA` | OFF | CUDA GPU acceleration |
 | `ENABLE_OPTIX` | OFF | NVIDIA OptiX (enables CUDA automatically) |
+| `ENABLE_TBB` | OFF | Intel oneTBB support (`find_package(TBB)`) |
 | `ENABLE_OPENGL` | OFF | OpenGL support |
 | `ENABLE_TESTS` | ON | Build and run Catch2 tests |
 | `ENABLE_PROFILING` | OFF | Profiling-friendly flags + optional gperftools |
 | `SANITIZE_BUILD` | OFF | Enable sanitizers (see `SANITIZERS` variable) |
 | `SANITIZERS` | `address,undefined,leak` | Comma-separated sanitizer list |
+| `CPU_ENABLE_NATIVE_TUNING` | ON | Adds `-march=native -mtune=native` for GNU/Clang optimized builds |
+| `CPU_ENABLE_SIMD` | OFF | Adds explicit SIMD ISA flag from `CPU_SIMD_LEVEL` |
+| `CPU_SIMD_LEVEL` | `native` | SIMD target: `native`, `sse4.2`, `avx`, `avx2`, `avx512f` |
+| `CPU_ENABLE_FMA` | OFF | Adds `-mfma` for GNU/Clang optimized builds |
+| `CPU_EXTRA_OPT_FLAGS` | `""` | Extra CPU optimization flags for optimized builds |
+| `CUDA_ENABLE_FMAD` | ON | NVCC fused multiply-add control (`--fmad=true/false`) |
+| `CUDA_ENABLE_EXTRA_DEVICE_VECTORIZATION` | OFF | Adds NVCC `--extra-device-vectorization` |
+| `CUDA_USE_FAST_MATH` | OFF | Adds NVCC `--use_fast_math` to regular CUDA builds |
+| `CUDA_PTX_USE_FAST_MATH` | ON | Adds NVCC `--use_fast_math` to PTX generation path |
+| `CUDA_NVCC_EXTRA_FLAGS` | `""` | Extra NVCC flags for CUDA and PTX compilation |
 | `NO_OPTIMIZATION` | OFF | Force `-O0` regardless of build type |
 | `WARNINGS_ARE_ERRORS` | OFF | Treat all warnings as errors (`-Werror`) |
 
@@ -135,6 +150,33 @@ GPU architecture is auto-detected via `nvidia-smi`. CUDA kernels live in `src/te
 
 - `.cu` files — standard CUDA kernels
 - `.ptx.cu` files — compiled to embedded `const char[]` arrays for OptiX modules
+
+Example with explicit CUDA optimization toggles:
+
+```bash
+./build_lib.sh -D ENABLE_CUDA=ON \
+  -D CUDA_ENABLE_FMAD=ON \
+  -D CUDA_ENABLE_EXTRA_DEVICE_VECTORIZATION=ON \
+  -D CUDA_NVCC_EXTRA_FLAGS="--maxrregcount=128"
+```
+
+### TBB
+
+```bash
+./build_lib.sh -D ENABLE_TBB=ON
+```
+
+### CPU vectorization tuning
+
+`CPU_ENABLE_NATIVE_TUNING` is ON by default for optimized builds.
+
+```bash
+# Disable native tuning for portable binaries
+./build_lib.sh -D CPU_ENABLE_NATIVE_TUNING=OFF
+
+# Enable explicit AVX2 + FMA flags
+./build_lib.sh -D CPU_ENABLE_SIMD=ON -D CPU_SIMD_LEVEL=avx2 -D CPU_ENABLE_FMA=ON
+```
 
 ### Sanitizers
 
