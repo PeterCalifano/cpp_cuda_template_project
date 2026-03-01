@@ -10,9 +10,9 @@ set -euo pipefail
 # @copyright Copyright (C) 2021 DART Lab - Politecnico di Milano. All rights reserved.
 #
 # Supported file formats (searched in order of preference):
-#   *.nsys-rep, *.qdrep  → nsys-ui   (Nsight Systems)
-#   *.ncu-rep             → ncu-ui    (Nsight Compute)
-#   *.nvvp                → nvvp      (NVIDIA Visual Profiler, legacy)
+#   *.nsys-rep, *.qdrep  --> nsys-ui   (Nsight Systems)
+#   *.ncu-rep             --> ncu-ui    (Nsight Compute)
+#   *.nvvp                --> nvvp      (NVIDIA Visual Profiler, legacy)
 #
 # Usage:
 #   ./open_nvidia_profile.sh [dir]          Find and open latest profile file in dir
