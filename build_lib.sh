@@ -23,6 +23,7 @@ install=false
 use_ninja=false
 no_optim=false
 clean_first=false
+profiling=false
 toolchain_file=""
 cmake_defines=()
 
@@ -46,6 +47,7 @@ Options:
   -i, --install               Run "install" target after tests
   -N, --ninja-build           Use Ninja generator (requires `ninja`)
   -n, --no-optim              Set -DNO_OPTIMIZATION=ON in the CMake cache
+      --profile               Enable profiling build (-DENABLE_PROFILING=ON)
       --toolchain <file>      Pass CMake toolchain file (-DCMAKE_TOOLCHAIN_FILE=<file>)
       --clean                 Delete build dir before configuring
   -h, --help                  Show this help and exit
@@ -79,7 +81,7 @@ if ! command -v getopt > /dev/null 2>&1; then
 fi
 
 OPTIONS=B:j:rt:c:f:D:pmhNni
-LONGOPTIONS=buildpath:,jobs:,rebuild-only,type:,type-build:,checks,flagsCXX:,define:,python-wrap,matlab-wrap,help,ninja-build,no-optim,skip-tests,clean,install,toolchain:
+LONGOPTIONS=buildpath:,jobs:,rebuild-only,type:,type-build:,checks,flagsCXX:,define:,python-wrap,matlab-wrap,help,ninja-build,no-optim,skip-tests,clean,install,profile,toolchain:
 PARSED=$(getopt -o "$OPTIONS" -l "$LONGOPTIONS" -- "$@") || { usage; exit 2; }
 eval set -- "$PARSED"
 
@@ -98,6 +100,7 @@ while true; do
     -i|--install)         install=true;    shift ;;
     -N|--ninja-build)     use_ninja=true;  shift ;;
     -n|--no-optim)        no_optim=true;   shift ;;
+        --profile)        profiling=true;  shift ;;
         --toolchain)      toolchain_file="$2"; shift 2 ;;
         --clean)          clean_first=true; shift ;;
     -h|--help)            usage; exit 0 ;;
@@ -146,6 +149,7 @@ info "Extra CMake defines: ${cmake_defines[*]:-<none>}"
 info "Python wrapper     : $python_wrap"
 info "MATLAB wrapper     : $matlab_wrap"
 info "Generator          : $([[ "$use_ninja" == true ]] && echo Ninja || echo 'Unix Makefiles')"
+info "Profiling build    : $profiling"
 info "Toolchain file     : ${toolchain_file:-<none>}"
 info "Run tests          : $run_tests"
 info "Install after build: $install"
@@ -171,6 +175,7 @@ if [[ "$rebuild_only" == false ]]; then
   [[ "$python_wrap" == true ]] && cmake_args+=( -DGTWRAP_BUILD_PYTHON_DEFAULT=ON )
   [[ "$matlab_wrap" == true ]] && cmake_args+=( -DGTWRAP_BUILD_MATLAB_DEFAULT=ON )
   [[ "$no_optim"   == true ]] && cmake_args+=( -DNO_OPTIMIZATION=ON )
+  [[ "$profiling"  == true ]] && cmake_args+=( -DENABLE_PROFILING=ON )
   [[ -n "$toolchain_file" ]] && cmake_args+=( "-DCMAKE_TOOLCHAIN_FILE=$toolchain_file" )
   [[ ${#cmake_defines[@]} -gt 0 ]] && cmake_args+=( "${cmake_defines[@]}" )
 
