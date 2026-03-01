@@ -6,6 +6,7 @@ namespace cpp_playground
 {
 
 #include <wrapped_impl/CWrapperPlaceholder.h>
+#include <utils/wrap_adapters/GtsamAliases.h>
 
     class CWrapperPlaceholder
     {
