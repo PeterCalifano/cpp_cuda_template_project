@@ -44,12 +44,16 @@ set(PROJECT_VERSION_MAJOR 0)
 set(PROJECT_VERSION_MINOR 0)
 set(PROJECT_VERSION_PATCH 0)
 
-# Get version from git if possible
-get_version_from_git()
+# Resolve version: git --> VERSION file --> hardcoded defaults above
+resolve_project_version()
 
 project( ${project_name} 
         LANGUAGES ${languages}
         VERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH})
+
+# Write VERSION file to source and build directories
+write_source_VERSION_file()
+write_build_VERSION_file()
 
 # Define variable for build as subproject (compare source dir)
 set(BUILD_AS_MAIN_PROJECT ON)
