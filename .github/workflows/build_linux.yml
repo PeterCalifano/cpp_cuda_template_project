@@ -145,5 +145,10 @@ jobs:
             exit 1
           fi
 
+      - name: Restore test executable permissions
+        run: |
+          # GitHub artifact download may drop executable bits from binaries.
+          find "${CTEST_DIR}" -type f -path "*/tests/*" -exec chmod +x {} + || true
+
       - name: Test
         run: ctest --test-dir "${CTEST_DIR}" --output-on-failure --parallel 2 --no-tests=error
