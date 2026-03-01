@@ -61,6 +61,7 @@ src/cmake/template_projectConfig.cmake.in  → src/cmake/<your_project>Config.cm
 ```
 
 **CMakeLists.txt** (root, line 11):
+
 ```cmake
 set(project_name "your_project_name")
 ```
@@ -131,6 +132,7 @@ See [`doc/build_script_doc.md`](doc/build_script_doc.md) for a detailed option r
 ```
 
 GPU architecture is auto-detected via `nvidia-smi`. CUDA kernels live in `src/template_src_kernels/`:
+
 - `.cu` files — standard CUDA kernels
 - `.ptx.cu` files — compiled to embedded `const char[]` arrays for OptiX modules
 
