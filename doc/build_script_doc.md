@@ -77,6 +77,11 @@ The script now uses **GNU `getopt`** to support:
   Example: `-f "-march=native"`.
   These are added **before** the auto-appended warnings, so you can still override with `-Wno-...` if needed.
 
+* **`-D, --define <VAR=VAL>`**
+  Pass extra CMake cache definitions (repeatable).
+  Example:
+  `-D ENABLE_CUDA=ON -D CUDA_ENABLE_FMAD=ON -D ENABLE_TBB=ON`.
+
 * **`-n, --no-optim`**
   Sets `-DNO_OPTIMIZATION=ON` in the CMake cache. Your toolchain/CMakeLists can use this to toggle optimizer knobs (e.g., turn off vectorization or special CPU flags independent of `CMAKE_BUILD_TYPE`).
 
@@ -151,6 +156,41 @@ The script now uses **GNU `getopt`** to support:
 
 ---
 
+## 6) New CMake usage patterns (optimization, CUDA, TBB)
+
+These are configured through `-D/--define` and live in CMake (not dedicated `build_lib.sh` flags).
+
+### CPU optimization toggles
+
+* `CPU_ENABLE_NATIVE_TUNING=ON` (default):
+  adds `-march=native -mtune=native` for optimized builds.
+* `CPU_ENABLE_SIMD=ON` + `CPU_SIMD_LEVEL=<native|sse4.2|avx|avx2|avx512f>`:
+  adds explicit SIMD ISA flags.
+* `CPU_ENABLE_FMA=ON`:
+  adds `-mfma`.
+* `CPU_EXTRA_OPT_FLAGS="..."`:
+  appends additional CPU optimization flags.
+
+### CUDA optimization toggles
+
+* `CUDA_ENABLE_FMAD=ON|OFF`:
+  controls NVCC fused multiply-add contraction (`--fmad=true/false`).
+* `CUDA_ENABLE_EXTRA_DEVICE_VECTORIZATION=ON|OFF`:
+  adds `--extra-device-vectorization`.
+* `CUDA_USE_FAST_MATH=ON|OFF`:
+  applies `--use_fast_math` to regular CUDA compilation.
+* `CUDA_PTX_USE_FAST_MATH=ON|OFF`:
+  applies `--use_fast_math` to PTX generation path.
+* `CUDA_NVCC_EXTRA_FLAGS="..."`:
+  appends extra NVCC flags to CUDA/PTX compilation.
+
+### TBB support
+
+* `ENABLE_TBB=ON`:
+  enables oneTBB via `find_package(TBB REQUIRED COMPONENTS tbb)` and links `TBB::tbb`.
+
+---
+
 ## 7) Example workflows
 
 * **Default dev build** (RelWithDebInfo):
@@ -162,7 +202,25 @@ The script now uses **GNU `getopt`** to support:
 * **Debug + Ninja + extra flags + 12 jobs**:
 
   ```bash
-  ./build_lib.sh -t debug -N -j 12 -f "-march=native -g3"
+  ./build_lib.sh -t debug -N -j 12 -f "-g3"
+  ```
+
+* **Portable release build** (disable native tuning):
+
+  ```bash
+  ./build_lib.sh -t release -D CPU_ENABLE_NATIVE_TUNING=OFF
+  ```
+
+* **Enable AVX2 + FMA + TBB**:
+
+  ```bash
+  ./build_lib.sh -D ENABLE_TBB=ON -D CPU_ENABLE_SIMD=ON -D CPU_SIMD_LEVEL=avx2 -D CPU_ENABLE_FMA=ON
+  ```
+
+* **CUDA build with explicit NVCC optimization toggles**:
+
+  ```bash
+  ./build_lib.sh -D ENABLE_CUDA=ON -D CUDA_ENABLE_FMAD=ON -D CUDA_ENABLE_EXTRA_DEVICE_VECTORIZATION=ON
   ```
 
 * **Release + tests + install into system prefix**:
