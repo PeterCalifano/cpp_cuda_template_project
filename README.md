@@ -13,6 +13,7 @@ A CMake template for building GPU-accelerated C++ shared libraries with optional
 | OptiX SDK | any | Optional (`-DENABLE_OPTIX=ON`), requires CUDA |
 | oneTBB | any | Optional (`-DENABLE_TBB=ON`) |
 | Catch2 | 3.x | Auto-fetched from GitHub if not found |
+| pyparsing | latest | Required for gtwrap Python/MATLAB code generation |
 | Valgrind / perf | any | Optional, for profiling scripts |
 | libgoogle-perftools-dev | any | Optional (`-DENABLE_PROFILING=ON`) |
 
@@ -94,6 +95,8 @@ All options are passed via `build_lib.sh` flags or directly as `-D<VAR>=<VAL>` t
 -i, --install             Run install target after tests
 -p, --python-wrap         Enable Python wrappers
 -m, --matlab-wrap         Enable MATLAB wrappers
+    --gtwrap-root <dir>   Path to local wrap checkout root
+    --no-wrap-update      Disable auto-update of local wrap checkout to latest master
     --toolchain <file>    CMake toolchain file
 -h, --help                Show full help
 ```
@@ -185,6 +188,66 @@ Example with explicit CUDA optimization toggles:
 # Custom sanitizer set:
 ./build_lib.sh -t debug -D SANITIZE_BUILD=ON -D SANITIZERS="address,undefined"
 ```
+
+---
+
+## Python and MATLAB Wrappers (gtwrap)
+
+This template supports wrappers via `gtwrap` in two modes:
+
+1. Installed package mode (`find_package(gtwrap)`).
+2. Local checkout mode (`--gtwrap-root /path/to/wrap` or `-D<project>_GTWRAP_ROOT_DIR=...`).
+
+When `-p` and/or `-m` is used, `build_lib.sh` auto-detects local wrap roots
+(`./wrap`, `./lib/wrap`, `../wrap`) and updates them to latest `origin/master`
+by default. This includes detached/tag states by switching/creating local
+`master` from `origin/master`.
+
+### Prerequisites
+
+Install `pyparsing` in the same Python environment used for wrapping:
+
+```bash
+python3 -m pip install pyparsing
+```
+
+`pybind11` is provided by `gtwrap` (installed package or local checkout).
+
+### Build examples
+
+```bash
+# Python wrapper only
+./build_lib.sh -p
+
+# Python + MATLAB wrappers
+./build_lib.sh -p -m
+
+# Force local wrap checkout
+./build_lib.sh -p --gtwrap-root /path/to/wrap
+```
+
+`-p` enables namespaced CMake wrapper options and ensures `<project>_py` is built.
+
+### Generated sources
+
+Wrapper generators produce different C++ files by design:
+
+1. Python (pybind): `<build>/wrap_interface.cpp` (from top-level `wrap_interface.i`).
+2. MATLAB: `<build>/wrap/<project>/<project>_wrapper.cpp`.
+
+### Python package install workflow
+
+Python packaging is `pyproject.toml`-based only (`python/pyproject.toml.in`).
+The old automated `python-install` CMake target was removed.
+
+Install manually from the generated Python package directory:
+
+```bash
+cd build/python
+python -m pip install .
+```
+
+When using Conda, activate the target environment first, then run the same command.
 
 ---
 
