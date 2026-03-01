@@ -174,6 +174,11 @@ handle_openmp()
 include(cmake/HandleSanitizers.cmake)
 handle_sanitizers()
 
+# Handle profiling support
+include(cmake/HandleProfiling.cmake)
+set(PROFILING_COMPILE_TARGET "${LIB_NAMESPACE}_profiling_interface")
+handle_profiling(TARGET ${PROFILING_COMPILE_TARGET})
+
 if (WARNINGS_ARE_ERRORS)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
     message(WARNING "ACHTUNG! Warnings will be treated treated as errors.")

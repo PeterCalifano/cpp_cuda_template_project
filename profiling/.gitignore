@@ -1,0 +1,5 @@
+prof_results/
+*.out*
+*out.*.txt
+perf.data*
+xtmemory*
