@@ -118,7 +118,19 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: cmake-build-tree-cuda
-          path: .
+          path: ${{ env.BUILD_DIR }}
+
+      - name: Resolve downloaded build tree
+        run: |
+          if [ -d "${BUILD_DIR}/CMakeFiles" ]; then
+            echo "CTEST_DIR=${BUILD_DIR}" >> "$GITHUB_ENV"
+          elif [ -d "${BUILD_DIR}/${BUILD_DIR}/CMakeFiles" ]; then
+            echo "CTEST_DIR=${BUILD_DIR}/${BUILD_DIR}" >> "$GITHUB_ENV"
+          else
+            echo "Could not find CMakeFiles under '${BUILD_DIR}' after artifact download."
+            find "${BUILD_DIR}" -maxdepth 3 -type d | sort || true
+            exit 1
+          fi
 
       - name: Test
-        run: ctest --test-dir "${BUILD_DIR}" --output-on-failure --parallel 2 --no-tests=error
+        run: ctest --test-dir "${CTEST_DIR}" --output-on-failure --parallel 2 --no-tests=error
