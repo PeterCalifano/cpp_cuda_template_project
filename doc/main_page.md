@@ -22,6 +22,26 @@ git clone <repo-url> my_project && cd my_project
 ./build_lib.sh -D CPU_ENABLE_NATIVE_TUNING=OFF
 ```
 
+## Wrapper Build
+
+```bash
+# Python wrapper
+./build_lib.sh -p
+
+# Python + MATLAB wrappers
+./build_lib.sh -p -m
+
+# Use a local wrap checkout instead of installed gtwrap
+./build_lib.sh -p --gtwrap-root /path/to/wrap
+```
+
+Install Python package manually from the generated folder:
+
+```bash
+cd build/python
+python -m pip install .
+```
+
 ## Example usage (assuming installation worked)
 
 ```cmake

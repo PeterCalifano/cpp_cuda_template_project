@@ -102,7 +102,9 @@ include(cmake/HandleTBB.cmake)
 
 # Add handle of python
 include(cmake/HandlePython.cmake)
-include(cmake/HandleWrapper.cmake)
+if(BUILD_AS_MAIN_PROJECT)
+  include(cmake/HandleWrapper.cmake)
+endif()
 
 # OPTIONS
 option(ENABLE_TESTS              "Build and run tests" ON)
@@ -118,9 +120,45 @@ endif()
 
 set(GTWRAP_PYTHON_OPTION_NAME "${LIB_NAMESPACE}_BUILD_PYTHON_WRAPPER")
 set(GTWRAP_MATLAB_OPTION_NAME "${LIB_NAMESPACE}_BUILD_MATLAB_WRAPPER")
+set(GTWRAP_INTERFACE_OPTION_NAME "${LIB_NAMESPACE}_WRAPPER_INTERFACE_FILES")
+set(GTWRAP_TOP_NAMESPACE_OPTION_NAME "${LIB_NAMESPACE}_GTWRAP_TOP_NAMESPACE")
+set(GTWRAP_DEPENDENCIES_OPTION_NAME "${LIB_NAMESPACE}_GTWRAP_DEPENDENCY_TARGETS")
+set(GTWRAP_ROOT_OPTION_NAME "${LIB_NAMESPACE}_GTWRAP_ROOT_DIR")
 
 option(${GTWRAP_PYTHON_OPTION_NAME} "Build Python wrapper" ${GTWRAP_BUILD_PYTHON_DEFAULT})
 option(${GTWRAP_MATLAB_OPTION_NAME} "Build MATLAB wrapper" ${GTWRAP_BUILD_MATLAB_DEFAULT})
+
+if (NOT DEFINED ${GTWRAP_INTERFACE_OPTION_NAME})
+  set(${GTWRAP_INTERFACE_OPTION_NAME}
+      "${CMAKE_CURRENT_SOURCE_DIR}/src/wrap_interface.i"
+      CACHE STRING
+      "Ordered list of gtwrap interface files (.i). First entry is the top-level module file."
+      FORCE)
+endif()
+
+if (NOT DEFINED ${GTWRAP_TOP_NAMESPACE_OPTION_NAME})
+  set(${GTWRAP_TOP_NAMESPACE_OPTION_NAME}
+      "cpp_playground"
+      CACHE STRING
+      "Top namespace used for gtwrap code generation."
+      FORCE)
+endif()
+
+if (NOT DEFINED ${GTWRAP_DEPENDENCIES_OPTION_NAME})
+  set(${GTWRAP_DEPENDENCIES_OPTION_NAME}
+      ""
+      CACHE STRING
+      "Additional dependency targets required before wrapping."
+      FORCE)
+endif()
+
+if (NOT DEFINED ${GTWRAP_ROOT_OPTION_NAME})
+  set(${GTWRAP_ROOT_OPTION_NAME}
+      ""
+      CACHE PATH
+      "Optional path to local wrap checkout root (contains cmake/PybindWrap.cmake)."
+      FORCE)
+endif()
 
 option(NO_OPTIMIZATION "Disable optimization flags" OFF)
 option(WARNINGS_ARE_ERRORS "Treat warnings as errors" OFF)
@@ -403,14 +441,16 @@ endif()
 
 ###########################################################################
 ### WRAPPERS CONFIGURATION
-set(LIBNAME_WRAP_TARGET ${project_name})
-handle_gtwrappers() # You may also pass WRAP_INTERFACE_FILES variable to specify interface files, else autofetching is used
-handle_pybind11_wrapper()
-
-# Determine if any wrapper is enabled
 set(ANY_WRAPPER_ENABLED OFF)
-if (${GTWRAP_PYTHON_OPTION_NAME} OR PYBIND11_WRAPPER_ENABLED OR ${GTWRAP_MATLAB_OPTION_NAME})
-  set(ANY_WRAPPER_ENABLED ON)
+if(BUILD_AS_MAIN_PROJECT)
+  set(LIBNAME_WRAP_TARGET ${project_name})
+  handle_gtwrappers() # You may also pass WRAP_INTERFACE_FILES variable to specify interface files, else autofetching is used
+  handle_pybind11_wrapper()
+
+  # Determine if any wrapper is enabled
+  if (${GTWRAP_PYTHON_OPTION_NAME} OR PYBIND11_WRAPPER_ENABLED OR ${GTWRAP_MATLAB_OPTION_NAME})
+    set(ANY_WRAPPER_ENABLED ON)
+  endif()
 endif()
 
 ###########################################################################
@@ -495,6 +535,10 @@ if (ANY_WRAPPER_ENABLED)
   message(STATUS "MATLAB default release                      : ${MATLAB_DEFAULT_RELEASE}")
   message(STATUS "Python executable                           : ${PYTHON_EXECUTABLE}")
   message(STATUS "Python version                              : ${PROJECT_PYTHON_VERSION}")
+  message(STATUS "gtwrap interface option name                : ${GTWRAP_INTERFACE_OPTION_NAME}")
+  message(STATUS "gtwrap interface files                      : ${${GTWRAP_INTERFACE_OPTION_NAME}}")
+  message(STATUS "gtwrap top namespace                        : ${${GTWRAP_TOP_NAMESPACE_OPTION_NAME}}")
+  message(STATUS "gtwrap root override                        : ${${GTWRAP_ROOT_OPTION_NAME}}")
 endif()
 message(STATUS "===============================================================")
 

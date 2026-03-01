@@ -90,10 +90,23 @@ The script now uses **GNU `getopt`** to support:
   Example: `--toolchain cmake/toolchains/clang.cmake`.
 
 * **`-p, --python-wrap`**
-  Adds `-DGTWRAP_BUILD_PYTHON_DEFAULT=ON` to enable wrappers by default for all subprojects.
+  Enables Python wrappers by setting:
+  `-DGTWRAP_BUILD_PYTHON_DEFAULT=ON` and `-D<project>_BUILD_PYTHON_WRAPPER=ON`.
+  After the standard build, it also ensures `<project>_py` is built explicitly.
 
 * **`-m, --matlab-wrap`**
-  Adds `-DGTWRAP_BUILD_MATLAB_DEFAULT=ON` to enable wrappers by default for all subprojects.
+  Enables MATLAB wrappers by setting:
+  `-DGTWRAP_BUILD_MATLAB_DEFAULT=ON` and `-D<project>_BUILD_MATLAB_WRAPPER=ON`.
+
+* **`--gtwrap-root <dir>`**
+  Pins wrapper generation to a local wrap checkout.
+  The script forwards this as:
+  `-DGTWRAP_ROOT_DIR=<dir>` and `-D<project>_GTWRAP_ROOT_DIR=<dir>` when project name is detected.
+
+* **`--no-wrap-update`**
+  Disables automatic update of local wrap checkout. By default, wrapper builds
+  auto-detect `./wrap`, `./lib/wrap`, and `../wrap`, then update to latest
+  `origin/master` (including detached/tag checkouts).
 
 * **`-i, --install`**
   After a successful build (and tests), runs the `install` target.
@@ -223,6 +236,18 @@ These are configured through `-D/--define` and live in CMake (not dedicated `bui
   ./build_lib.sh -D ENABLE_CUDA=ON -D CUDA_ENABLE_FMAD=ON -D CUDA_ENABLE_EXTRA_DEVICE_VECTORIZATION=ON
   ```
 
+* **Python + MATLAB wrappers using installed gtwrap**:
+
+  ```bash
+  ./build_lib.sh -p -m
+  ```
+
+* **Python wrapper with a local wrap checkout**:
+
+  ```bash
+  ./build_lib.sh -p --gtwrap-root /path/to/wrap
+  ```
+
 * **Release + tests + install into system prefix**:
 
   ```bash
@@ -249,7 +274,22 @@ These are configured through `-D/--define` and live in CMake (not dedicated `bui
 
 ---
 
-## 8) Optional future extensions
+## 8) Wrapper packaging notes
+
+* Python wrapper packaging is `pyproject.toml`-based only.
+* Automated CMake `python-install` target is intentionally removed.
+* Manual install path is:
+
+  ```bash
+  cd <build_dir>/python
+  python -m pip install .
+  ```
+
+  In Conda workflows, activate the target env before running `pip install`.
+
+---
+
+## 9) Optional future extensions
 
 * `--preset <name>` → `cmake --preset <name>` / `cmake --build --preset <name>` / `ctest --preset <name>`.
 * Sanitizer toggles for debug: `--asan`, `--ubsan`, `--tsan` that append safe defaults and adjust `LD_PRELOAD`/`ASAN_OPTIONS` for tests.
