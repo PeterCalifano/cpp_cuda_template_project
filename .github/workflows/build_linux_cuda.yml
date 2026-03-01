@@ -12,6 +12,14 @@ on:
         options:
           - "false"
           - "true"
+      enable_tbb:
+        description: "Enable oneTBB (requires TBB on runner)"
+        required: true
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
 
 concurrency:
   group: cuda-ci-${{ github.ref }}
@@ -31,6 +39,7 @@ jobs:
       BUILD_TYPE: RelWithDebInfo
       CTEST_OUTPUT_ON_FAILURE: 1
       ENABLE_OPTIX: ${{ github.event.inputs.enable_optix == 'true' && 'ON' || 'OFF' }}
+      ENABLE_TBB: ${{ github.event.inputs.enable_tbb == 'true' && 'ON' || 'OFF' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -63,7 +72,11 @@ jobs:
             -DENABLE_TESTS=ON \
             -DENABLE_CUDA=ON \
             -DENABLE_OPTIX="${ENABLE_OPTIX}" \
+            -DENABLE_TBB="${ENABLE_TBB}" \
             -DENABLE_OPENGL=OFF \
+            -DCPU_ENABLE_NATIVE_TUNING=ON \
+            -DCUDA_ENABLE_FMAD=ON \
+            -DCUDA_ENABLE_EXTRA_DEVICE_VECTORIZATION=ON \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
