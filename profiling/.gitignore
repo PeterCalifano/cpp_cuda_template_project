@@ -3,3 +3,13 @@ prof_results/
 *out.*.txt
 perf.data*
 xtmemory*
+
+# gperftools
+*.prof
+*.heap
+
+# Nsight Systems / Nsight Compute / nvprof
+*.nsys-rep
+*.qdrep
+*.ncu-rep
+*.nvvp
