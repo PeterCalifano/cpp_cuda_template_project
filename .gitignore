@@ -2,6 +2,7 @@
 /*debug*/
 /*install*/
 
+VERSION
 **/*bak*
 .gitmodules
 CMakeLists.txt.user

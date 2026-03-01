@@ -44,8 +44,8 @@ set(PROJECT_VERSION_MAJOR 0)
 set(PROJECT_VERSION_MINOR 0)
 set(PROJECT_VERSION_PATCH 0)
 
-# Get version from git if possible
-get_version_from_git()
+# Resolve version: git --> VERSION file --> hardcoded defaults above
+resolve_project_version()
 
 project( ${project_name} 
         LANGUAGES ${languages}
