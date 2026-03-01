@@ -76,7 +76,7 @@ endif()
 
 ### Link targets
 # Project include directories
-target_link_libraries(${lib_name} PUBLIC ${project_name}_include)
+target_link_libraries(${lib_name} PUBLIC ${project_name}_include ${LIB_COMPILE_TARGET})
 
 # Link interface target for CUDA
 
@@ -106,7 +106,8 @@ target_link_libraries(${lib_name} PUBLIC
 # Add target to installable list 
 set(installable_targets ${installable_targets} 
                         ${lib_name} 
-                        ${project_name}_include)
+                        ${project_name}_include
+                        ${LIB_COMPILE_TARGET})
                       
 if (ENABLE_CUDA)
   list(APPEND installable_targets ${CUDA_COMPILE_TARGET})

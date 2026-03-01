@@ -86,6 +86,15 @@ if (NOT COMMAND cuda_compile_and_embed)
       set(cuda_cxx_standard_flag "-std=c++${CMAKE_CXX_STANDARD}")
     endif()
 
+    set(_ptx_nvcc_flags)
+    if (CUDA_PTX_USE_FAST_MATH)
+      list(APPEND _ptx_nvcc_flags --use_fast_math)
+    endif()
+    if (DEFINED CUDA_PTX_NVCC_FLAGS AND NOT "${CUDA_PTX_NVCC_FLAGS}" STREQUAL "")
+      list(APPEND _ptx_nvcc_flags ${CUDA_PTX_NVCC_FLAGS})
+    endif()
+    list(REMOVE_DUPLICATES _ptx_nvcc_flags)
+
     # Process each CUDA file to PTX binary and embed as const char string
     list(LENGTH cuda_files cuda_files_count)
     foreach(cuda_file IN LISTS cuda_files)
@@ -106,10 +115,10 @@ if (NOT COMMAND cuda_compile_and_embed)
         COMMAND ${CMAKE_CUDA_COMPILER}
                 --ptx
                 --generate-line-info
-                --use_fast_math
                 --keep
                 ${cuda_cxx_standard_flag}
                 --relocatable-device-code=true
+                ${_ptx_nvcc_flags}
                 -arch=sm_${cuda_arch}
                 ${cuda_file}
                 -o ${ptx_file}
