@@ -230,6 +230,9 @@ python3 -m pip install pyparsing
 
 ### Generated sources
 
+If your wrapper interface uses `gtsam::Vector`/`gtsam::Matrix` without a full GTSAM dependency, include `src/utils/wrap_adapters/GtsamAliases.h` in `src/wrap_interface.i` to alias them to Eigen types.
+
+
 Wrapper generators produce different C++ files by design:
 
 1. Python (pybind): `<build>/wrap_interface.cpp` (from top-level `wrap_interface.i`).

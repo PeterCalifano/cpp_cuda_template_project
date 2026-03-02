@@ -572,6 +572,15 @@ packages = ["@PROJECT_NAME@"]
 
   set(_python_metadata_file "${PROJECT_PYTHON_BUILD_DIRECTORY}/pyproject.toml")
 
+  # Write setup.py so `pip install` from the build python folder behaves as a binary package.
+  set(_setup_py_template "${PROJECT_PYTHON_SOURCE_DIR}/setup.py.in")
+  if(EXISTS "${_setup_py_template}")
+    configure_file(
+      "${_setup_py_template}"
+      "${PROJECT_PYTHON_BUILD_DIRECTORY}/setup.py"
+      @ONLY)
+  endif()
+
   # This is required to avoid an error in modern pybind11 cmake scripts.
   if(POLICY CMP0057)
     cmake_policy(SET CMP0057 NEW)
@@ -691,6 +700,29 @@ namespace py = pybind11;
     "${PROJECT_PYTHON_PACKAGE_DIR}"
     "${PROJECT_PYTHON_BUILD_PACKAGE_DIR}")
 
+  # Resolve Python install directories to support CMake installs directly into active env site-packages.
+  set(_python_install_sitearch "")
+  set(_python_install_sitelib "")
+  execute_process(
+    COMMAND ${PYTHON_EXECUTABLE} -c "import sysconfig; print(sysconfig.get_path('platlib') or '')"
+    OUTPUT_VARIABLE _python_install_sitearch
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    RESULT_VARIABLE _python_install_sitearch_result
+  )
+  execute_process(
+    COMMAND ${PYTHON_EXECUTABLE} -c "import sysconfig; print(sysconfig.get_path('purelib') or '')"
+    OUTPUT_VARIABLE _python_install_sitelib
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    RESULT_VARIABLE _python_install_sitelib_result
+  )
+
+  set(_python_install_root "python")
+  if(_python_install_sitearch_result EQUAL 0 AND NOT "${_python_install_sitearch}" STREQUAL "")
+    set(_python_install_root "${_python_install_sitearch}")
+  elseif(_python_install_sitelib_result EQUAL 0 AND NOT "${_python_install_sitelib}" STREQUAL "")
+    set(_python_install_root "${_python_install_sitelib}")
+  endif()
+
   # Add import test for python module if enabled
   if(ENABLE_TESTS AND BUILD_TESTING)
     set(_python_import_test_name "${LIB_NAMESPACE}_python_import")
@@ -709,16 +741,31 @@ namespace py = pybind11;
 
   install(
     TARGETS ${PROJECT_PYTHON_TARGET_NAME}
-    LIBRARY DESTINATION "python/${PROJECT_NAME}")
+    LIBRARY DESTINATION "${_python_install_root}/${PROJECT_NAME}")
 
   install(
     DIRECTORY "${PROJECT_PYTHON_PACKAGE_DIR}/"
-    DESTINATION "python/${PROJECT_NAME}")
+    DESTINATION "${_python_install_root}/${PROJECT_NAME}")
 
   if(NOT "${_python_metadata_file}" STREQUAL "")
     install(
       FILES "${_python_metadata_file}"
-      DESTINATION "python")
+      DESTINATION "${_python_install_root}")
+  endif()
+
+  # Convenience target aligned with gtsam: install the wrapper with pip from build/python.
+  set(_python_pip_install_target "${LIB_NAMESPACE}_python-install")
+  if(NOT TARGET ${_python_pip_install_target})
+    add_custom_target(
+      ${_python_pip_install_target}
+      COMMAND ${PYTHON_EXECUTABLE} -c "import subprocess, sys; cmd=[sys.executable, '-m', 'pip', 'install', '.']; subprocess.check_call(cmd)"
+      DEPENDS ${PROJECT_PYTHON_TARGET_NAME}
+      WORKING_DIRECTORY "${PROJECT_PYTHON_BUILD_DIRECTORY}"
+      VERBATIM)
+  endif()
+
+  if(BUILD_AS_MAIN_PROJECT AND NOT TARGET python-install)
+    add_custom_target(python-install DEPENDS ${_python_pip_install_target})
   endif()
 
   # Set python stubs generation target using pybind11-stubgen
