@@ -112,7 +112,7 @@ HAVE_PPROF=false
 if command -v pprof >/dev/null 2>&1; then
     HAVE_PPROF=true
 else
-    echo -e "\033[38;5;208m[WARN] pprof not found — raw profile files will be written but no reports generated.\033[0m" >&2
+    echo -e "\033[38;5;208m[WARN] pprof not found - raw profile files will be written but no reports generated.\033[0m" >&2
     echo -e "\033[38;5;208m       Install with: sudo apt install google-perftools\033[0m" >&2
 fi
 
@@ -165,7 +165,7 @@ for ((j=CURRENT_INDEX; j<CURRENT_INDEX+TRIALS_NUM; j++)); do
                 pprof --callgrind "${EXEC_CMD_ARRAY[0]}" "${local_heap_files[@]}" \
                     > "./$OUTPUT_FOLDER/gperf_heap_callgrind.$j.out" 2>&1 || true
             else
-                echo -e "\033[38;5;208m[WARN] No .heap files found — executable may have exited before heap data was flushed.\033[0m" >&2
+                echo -e "\033[38;5;208m[WARN] No .heap files found - executable may have exited before heap data was flushed.\033[0m" >&2
             fi
         fi
     fi
@@ -190,7 +190,7 @@ if [[ "$AUTO_OPEN" == true ]]; then
             echo -e "\033[1;34m[INFO] Auto-opening KCachegrind...\033[0m"
             "$OPEN_SCRIPT" "$OUTPUT_FOLDER"
         else
-            echo -e "\033[38;5;208m[WARN] open_kcachegrind.sh not found — open manually:\033[0m" >&2
+            echo -e "\033[38;5;208m[WARN] open_kcachegrind.sh not found - open manually:\033[0m" >&2
             echo -e "\033[38;5;208m       kcachegrind ./$OUTPUT_FOLDER/gperf_cpu_callgrind.${CURRENT_INDEX}.out\033[0m" >&2
         fi
     fi

@@ -10,11 +10,11 @@ set -euo pipefail
 # @copyright Copyright (C) 2021 DART Lab - Politecnico di Milano. All rights reserved.
 #
 # Tool selection (auto-detected or forced via --mode):
-#   nsys   — Nsight Systems: system-level CPU+GPU timeline, API traces, memory transfers.
+#   nsys   - Nsight Systems: system-level CPU+GPU timeline, API traces, memory transfers.
 #             Output: .nsys-rep  --> open with: nsys-ui / open_nvidia_profile.sh
-#   ncu    — Nsight Compute: per-kernel metrics (occupancy, memory BW, warp efficiency).
+#   ncu    - Nsight Compute: per-kernel metrics (occupancy, memory BW, warp efficiency).
 #             Output: .ncu-rep   --> open with: ncu-ui / open_nvidia_profile.sh
-#   nvprof — Legacy profiler (deprecated in CUDA 12+, kept for backwards compatibility).
+#   nvprof - Legacy profiler (deprecated in CUDA 12+, kept for backwards compatibility).
 #             Output: .nvvp      --> open with: nvvp
 #
 # Install Nsight tools: https://developer.nvidia.com/nsight-systems
@@ -314,6 +314,6 @@ if [[ "$AUTO_OPEN" == true ]]; then
             "$OPEN_SCRIPT" "$OUTPUT_FOLDER"
         fi
     else
-        echo -e "\033[38;5;208m[WARN] open_nvidia_profile.sh not found — open the result manually.\033[0m" >&2
+        echo -e "\033[38;5;208m[WARN] open_nvidia_profile.sh not found - open the result manually.\033[0m" >&2
     fi
 fi

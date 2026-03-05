@@ -60,9 +60,9 @@ To start a new project from this template, rename the following (all in one pass
 **Files/directories to rename:**
 
 ```
-src/template_src/            → src/<your_lib>/
-src/template_src_kernels/    → src/<your_lib>_kernels/    (if using CUDA)
-src/cmake/template_projectConfig.cmake.in  → src/cmake/<your_project>Config.cmake.in
+src/template_src/            --> src/<your_lib>/
+src/template_src_kernels/    --> src/<your_lib>_kernels/    (if using CUDA)
+src/cmake/template_projectConfig.cmake.in  --> src/cmake/<your_project>Config.cmake.in
 ```
 
 **CMakeLists.txt** (root, line 11):
@@ -71,7 +71,7 @@ src/cmake/template_projectConfig.cmake.in  → src/cmake/<your_project>Config.cm
 set(project_name "your_project_name")
 ```
 
-**What to keep as-is:** the entire `cmake/` module system, `build_lib.sh`, `configure_devcontainer.sh`, `generate_version.sh`, and the `profiling/` scripts — these are project-agnostic.
+**What to keep as-is:** the entire `cmake/` module system, `build_lib.sh`, `configure_devcontainer.sh`, `generate_version.sh`, and the `profiling/` scripts - these are project-agnostic.
 
 ---
 
@@ -151,8 +151,8 @@ See [`doc/build_script_doc.md`](doc/build_script_doc.md) for a detailed option r
 
 GPU architecture is auto-detected via `nvidia-smi`. CUDA kernels live in `src/template_src_kernels/`:
 
-- `.cu` files — standard CUDA kernels
-- `.ptx.cu` files — compiled to embedded `const char[]` arrays for OptiX modules
+- `.cu` files - standard CUDA kernels
+- `.ptx.cu` files - compiled to embedded `const char[]` arrays for OptiX modules
 
 Example with explicit CUDA optimization toggles:
 
@@ -258,9 +258,9 @@ When using Conda, activate the target environment first, then run the same comma
 
 Version is resolved in order:
 
-1. **Git tags** — tag format `vMAJOR.MINOR.PATCH` (e.g. `v1.2.0`)
-2. **`VERSION` file** — parsed from `Project version: X.Y.Z` if git is unavailable
-3. **CMake defaults** — `0.0.0` if neither source is available
+1. **Git tags** - tag format `vMAJOR.MINOR.PATCH` (e.g. `v1.2.0`)
+2. **`VERSION` file** - parsed from `Project version: X.Y.Z` if git is unavailable
+3. **CMake defaults** - `0.0.0` if neither source is available
 
 The `VERSION` file is always written to the source and build directories during CMake configure. To write it without building:
 
@@ -314,7 +314,7 @@ See [`examples/template_consumer_project/`](examples/template_consumer_project/)
 
 ### Profiling-friendly build
 
-`--profile` adds `-fno-omit-frame-pointer -fno-inline-functions` to all build types — required for `perf` and `callgrind` to produce accurate call stacks even in optimized builds. Optionally links `gperftools` if found.
+`--profile` adds `-fno-omit-frame-pointer -fno-inline-functions` to all build types - required for `perf` and `callgrind` to produce accurate call stacks even in optimized builds. Optionally links `gperftools` if found.
 
 ```bash
 ./build_lib.sh --profile -t relwithdebinfo

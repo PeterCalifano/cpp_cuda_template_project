@@ -37,21 +37,21 @@ cmake --build build -j$(nproc)
 
 The CMake system is highly modular. Each optional dependency has a dedicated handler module (`Handle*.cmake`) that creates INTERFACE targets with proper namespacing via `LIB_NAMESPACE`. Key modules:
 
-- `HandleGitVersion.cmake` — Extracts semver from git tags, writes VERSION file, populates `config.h`
-- `HandleCUDA.cmake` — GPU architecture auto-detection, compiler flags
-- `HandleOptiX.cmake` — OptiX SDK integration, PTX compilation pipeline
-- `cmake_utils.cmake` — `add_tests()` and `add_examples()` convenience macros
-- `cmake_cuda_ptx_tools.cmake` — Compiles `.ptx.cu` files into embedded const char arrays
+- `HandleGitVersion.cmake` - Extracts semver from git tags, writes VERSION file, populates `config.h`
+- `HandleCUDA.cmake` - GPU architecture auto-detection, compiler flags
+- `HandleOptiX.cmake` - OptiX SDK integration, PTX compilation pipeline
+- `cmake_utils.cmake` - `add_tests()` and `add_examples()` convenience macros
+- `cmake_cuda_ptx_tools.cmake` - Compiles `.ptx.cu` files into embedded const char arrays
 
 All optional features default to OFF: `ENABLE_CUDA`, `ENABLE_OPTIX`, `ENABLE_OPENGL`, `ENABLE_TESTS` (ON by default).
 
 ### Source Layout
 
-- `src/template_src/` — Core C++ library implementation
-- `src/template_src_kernels/` — CUDA kernel code (`.cu`) and PTX kernels (`.ptx.cu`)
-- `src/wrapped_impl/` — C wrapper layer for Python/MATLAB bindings
-- `src/config.h.in` — CMake-configured header (version macros, feature flags)
-- `src/global_includes.h` — Shared utilities (ANSI colors, precision constants)
+- `src/template_src/` - Core C++ library implementation
+- `src/template_src_kernels/` - CUDA kernel code (`.cu`) and PTX kernels (`.ptx.cu`)
+- `src/wrapped_impl/` - C wrapper layer for Python/MATLAB bindings
+- `src/config.h.in` - CMake-configured header (version macros, feature flags)
+- `src/global_includes.h` - Shared utilities (ANSI colors, precision constants)
 
 ### Testing
 
