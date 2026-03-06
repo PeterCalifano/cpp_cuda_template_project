@@ -61,13 +61,13 @@ for ((j=CURRENT_INDEX; j<CURRENT_INDEX+TRIALS_NUM; j++)); do
             --xtree-memory=full \
             --time-unit=ms \
             --max-snapshots=500 \
-            --massif-out-file="./$OUTPUT_FOLDER/massif.out.$j" \
+            --massif-out-file="$OUTPUT_FOLDER/massif.out.$j" \
             -v \
-            --log-file="./$OUTPUT_FOLDER/valg_mem_out.$j.txt" \
+            --log-file="$OUTPUT_FOLDER/valg_mem_out.$j.txt" \
             "${EXEC_CMD_ARRAY[@]}"
 
     echo -e "\033[1;32m[INFO] Generating massif report for iteration $((j-CURRENT_INDEX+1))...\033[0m"
-    ms_print "./$OUTPUT_FOLDER/massif.out.$j" > "./$OUTPUT_FOLDER/massif_report.$j.txt"
+    ms_print "$OUTPUT_FOLDER/massif.out.$j" > "$OUTPUT_FOLDER/massif_report.$j.txt"
 
     # Clean up xtree memory files if they were generated
     if compgen -G "xtmemory*" > /dev/null 2>&1; then

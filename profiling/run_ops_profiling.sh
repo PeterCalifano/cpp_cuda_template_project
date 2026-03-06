@@ -56,7 +56,7 @@ echo -e "\033[1;36m[INFO] - Execution command: '${EXEC_CMD_ARRAY[*]}'\033[0m"
 for ((j=CURRENT_INDEX; j<CURRENT_INDEX+TRIALS_NUM; j++)); do
     echo -e "\033[1;33m[INFO] Running profiling iteration $((j-CURRENT_INDEX+1)) of $TRIALS_NUM...\033[0m"
 
-    PERF_DATA="./$OUTPUT_FOLDER/perf.data.$j"
+    PERF_DATA="$OUTPUT_FOLDER/perf.data.$j"
 
     "${_sudo[@]}" perf record \
             -o "$PERF_DATA" \
@@ -64,7 +64,7 @@ for ((j=CURRENT_INDEX; j<CURRENT_INDEX+TRIALS_NUM; j++)); do
             "${EXEC_CMD_ARRAY[@]}"
 
     echo -e "\033[1;32m[INFO] Generating perf report for iteration $((j-CURRENT_INDEX+1))...\033[0m"
-    "${_sudo[@]}" perf report -i "$PERF_DATA" --stdio > "./$OUTPUT_FOLDER/perf_report.$j.txt"
+    "${_sudo[@]}" perf report -i "$PERF_DATA" --stdio > "$OUTPUT_FOLDER/perf_report.$j.txt"
 done
 
 echo -e "\033[1;34m[INFO] C++ operations profiling tool completed.\033[0m"

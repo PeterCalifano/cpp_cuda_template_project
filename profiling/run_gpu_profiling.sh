@@ -216,7 +216,7 @@ for ((j=CURRENT_INDEX; j<CURRENT_INDEX+TRIALS_NUM; j++)); do
 
     case "$ACTIVE_TOOL" in
         nsys)
-            OUTPUT_BASE="./$OUTPUT_FOLDER/nsys_profile.$j"
+            OUTPUT_BASE="$OUTPUT_FOLDER/nsys_profile.$j"
 
             # Build nsys args array (only append optional flags when non-default)
             _nsys_args=(
@@ -236,14 +236,14 @@ for ((j=CURRENT_INDEX; j<CURRENT_INDEX+TRIALS_NUM; j++)); do
 
             echo -e "\033[1;32m[INFO] Generating nsys text report...\033[0m"
             if   [[ -f "${OUTPUT_BASE}.nsys-rep" ]]; then
-                nsys stats "${OUTPUT_BASE}.nsys-rep" > "./$OUTPUT_FOLDER/nsys_report.$j.txt" 2>&1 || true
+                nsys stats "${OUTPUT_BASE}.nsys-rep" > "$OUTPUT_FOLDER/nsys_report.$j.txt" 2>&1 || true
             elif [[ -f "${OUTPUT_BASE}.qdrep" ]]; then
-                nsys stats "${OUTPUT_BASE}.qdrep"    > "./$OUTPUT_FOLDER/nsys_report.$j.txt" 2>&1 || true
+                nsys stats "${OUTPUT_BASE}.qdrep"    > "$OUTPUT_FOLDER/nsys_report.$j.txt" 2>&1 || true
             fi
             ;;
 
         ncu)
-            OUTPUT_BASE="./$OUTPUT_FOLDER/ncu_profile.$j"
+            OUTPUT_BASE="$OUTPUT_FOLDER/ncu_profile.$j"
 
             # Build ncu args array
             _ncu_args=(
@@ -261,13 +261,13 @@ for ((j=CURRENT_INDEX; j<CURRENT_INDEX+TRIALS_NUM; j++)); do
                 "${EXEC_CMD_ARRAY[@]}"
 
             echo -e "\033[1;32m[INFO] Generating ncu text report...\033[0m"
-            ncu --import "${OUTPUT_BASE}.ncu-rep" > "./$OUTPUT_FOLDER/ncu_report.$j.txt" 2>&1 || true
+            ncu --import "${OUTPUT_BASE}.ncu-rep" > "$OUTPUT_FOLDER/ncu_report.$j.txt" 2>&1 || true
             ;;
 
         nvprof)
             _nvprof_args=(
-                "--log-file"       "./$OUTPUT_FOLDER/nvprof_report.$j.txt"
-                "--output-profile" "./$OUTPUT_FOLDER/nvprof_profile.$j.nvvp"
+                "--log-file"       "$OUTPUT_FOLDER/nvprof_report.$j.txt"
+                "--output-profile" "$OUTPUT_FOLDER/nvprof_profile.$j.nvvp"
             )
             [[ -n "$NVPROF_METRICS" ]] && _nvprof_args+=( "--metrics" "$NVPROF_METRICS" )
 
@@ -279,11 +279,11 @@ for ((j=CURRENT_INDEX; j<CURRENT_INDEX+TRIALS_NUM; j++)); do
 done
 
 echo -e "\033[1;34m[INFO] GPU profiling completed.\033[0m"
-echo -e "\033[1;36m[INFO] Results written to: ./$OUTPUT_FOLDER/\033[0m"
+echo -e "\033[1;36m[INFO] Results written to: $OUTPUT_FOLDER/\033[0m"
 case "$ACTIVE_TOOL" in
-    nsys)   echo -e "\033[1;36m[INFO] Open .nsys-rep with: $(dirname "$0")/open_nvidia_profile.sh ./$OUTPUT_FOLDER\033[0m" ;;
-    ncu)    echo -e "\033[1;36m[INFO] Open .ncu-rep  with: $(dirname "$0")/open_nvidia_profile.sh ./$OUTPUT_FOLDER\033[0m" ;;
-    nvprof) echo -e "\033[1;36m[INFO] Open .nvvp     with: nvvp ./$OUTPUT_FOLDER/nvprof_profile.${CURRENT_INDEX}.nvvp\033[0m" ;;
+    nsys)   echo -e "\033[1;36m[INFO] Open .nsys-rep with: $(dirname "$0")/open_nvidia_profile.sh $OUTPUT_FOLDER\033[0m" ;;
+    ncu)    echo -e "\033[1;36m[INFO] Open .ncu-rep  with: $(dirname "$0")/open_nvidia_profile.sh $OUTPUT_FOLDER\033[0m" ;;
+    nvprof) echo -e "\033[1;36m[INFO] Open .nvvp     with: nvvp $OUTPUT_FOLDER/nvprof_profile.${CURRENT_INDEX}.nvvp\033[0m" ;;
 esac
 
 # Auto-open viewer if requested
@@ -295,17 +295,17 @@ if [[ "$AUTO_OPEN" == true ]]; then
         FIRST_FILE=""
         case "$ACTIVE_TOOL" in
             nsys)
-                if   [[ -f "./$OUTPUT_FOLDER/nsys_profile.${CURRENT_INDEX}.nsys-rep" ]]; then
-                    FIRST_FILE="./$OUTPUT_FOLDER/nsys_profile.${CURRENT_INDEX}.nsys-rep"
-                elif [[ -f "./$OUTPUT_FOLDER/nsys_profile.${CURRENT_INDEX}.qdrep" ]]; then
-                    FIRST_FILE="./$OUTPUT_FOLDER/nsys_profile.${CURRENT_INDEX}.qdrep"
+                if   [[ -f "$OUTPUT_FOLDER/nsys_profile.${CURRENT_INDEX}.nsys-rep" ]]; then
+                    FIRST_FILE="$OUTPUT_FOLDER/nsys_profile.${CURRENT_INDEX}.nsys-rep"
+                elif [[ -f "$OUTPUT_FOLDER/nsys_profile.${CURRENT_INDEX}.qdrep" ]]; then
+                    FIRST_FILE="$OUTPUT_FOLDER/nsys_profile.${CURRENT_INDEX}.qdrep"
                 fi ;;
             ncu)
-                [[ -f "./$OUTPUT_FOLDER/ncu_profile.${CURRENT_INDEX}.ncu-rep" ]] && \
-                    FIRST_FILE="./$OUTPUT_FOLDER/ncu_profile.${CURRENT_INDEX}.ncu-rep" ;;
+                [[ -f "$OUTPUT_FOLDER/ncu_profile.${CURRENT_INDEX}.ncu-rep" ]] && \
+                    FIRST_FILE="$OUTPUT_FOLDER/ncu_profile.${CURRENT_INDEX}.ncu-rep" ;;
             nvprof)
-                [[ -f "./$OUTPUT_FOLDER/nvprof_profile.${CURRENT_INDEX}.nvvp" ]] && \
-                    FIRST_FILE="./$OUTPUT_FOLDER/nvprof_profile.${CURRENT_INDEX}.nvvp" ;;
+                [[ -f "$OUTPUT_FOLDER/nvprof_profile.${CURRENT_INDEX}.nvvp" ]] && \
+                    FIRST_FILE="$OUTPUT_FOLDER/nvprof_profile.${CURRENT_INDEX}.nvvp" ;;
         esac
 
         if [[ -n "$FIRST_FILE" ]]; then

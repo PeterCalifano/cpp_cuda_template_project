@@ -58,13 +58,13 @@ for ((j=CURRENT_INDEX; j<CURRENT_INDEX+TRIALS_NUM; j++)); do
     echo -e "\033[1;33m[INFO] Running profiling iteration $((j-CURRENT_INDEX+1)) of $TRIALS_NUM...\033[0m"
     "${_sudo[@]}" valgrind --tool=callgrind \
             --collect-systime=msec \
-            --callgrind-out-file="./$OUTPUT_FOLDER/callgrind.out.$j" \
+            --callgrind-out-file="$OUTPUT_FOLDER/callgrind.out.$j" \
             -v \
-            --log-file="./$OUTPUT_FOLDER/valg_call_out.$j.txt" \
+            --log-file="$OUTPUT_FOLDER/valg_call_out.$j.txt" \
             "${EXEC_CMD_ARRAY[@]}"
 
     echo -e "\033[1;32m[INFO] Generating callgrind report for iteration $((j-CURRENT_INDEX+1))...\033[0m"
-    callgrind_annotate --auto=yes "./$OUTPUT_FOLDER/callgrind.out.$j" > "./$OUTPUT_FOLDER/callgrind_report.$j.txt"
+    callgrind_annotate --auto=yes "$OUTPUT_FOLDER/callgrind.out.$j" > "$OUTPUT_FOLDER/callgrind_report.$j.txt"
 done
 
 echo -e "\033[1;34m[INFO] C++ call profiling tool completed.\033[0m"

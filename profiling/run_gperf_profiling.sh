@@ -129,7 +129,7 @@ for ((j=CURRENT_INDEX; j<CURRENT_INDEX+TRIALS_NUM; j++)); do
     echo -e "\033[1;33m[INFO] Running profiling iteration $((j-CURRENT_INDEX+1)) of $TRIALS_NUM...\033[0m"
 
     if [[ "$GPERF_MODE" == "cpu" || "$GPERF_MODE" == "both" ]]; then
-        CPU_PROF="./$OUTPUT_FOLDER/cpu.$j.prof"
+        CPU_PROF="$OUTPUT_FOLDER/cpu.$j.prof"
         echo -e "\033[1;36m[INFO] CPU profiling --> $CPU_PROF\033[0m"
 
         # Build env for the profiler run
@@ -140,16 +140,16 @@ for ((j=CURRENT_INDEX; j<CURRENT_INDEX+TRIALS_NUM; j++)); do
         if [[ "$HAVE_PPROF" == true ]]; then
             echo -e "\033[1;32m[INFO] Generating CPU pprof text report...\033[0m"
             pprof --text     "${EXEC_CMD_ARRAY[0]}" "$CPU_PROF" \
-                > "./$OUTPUT_FOLDER/gperf_cpu_report.$j.txt" 2>&1 || true
+                > "$OUTPUT_FOLDER/gperf_cpu_report.$j.txt" 2>&1 || true
 
             echo -e "\033[1;32m[INFO] Generating CPU callgrind report (KCachegrind-compatible)...\033[0m"
             pprof --callgrind "${EXEC_CMD_ARRAY[0]}" "$CPU_PROF" \
-                > "./$OUTPUT_FOLDER/gperf_cpu_callgrind.$j.out" 2>&1 || true
+                > "$OUTPUT_FOLDER/gperf_cpu_callgrind.$j.out" 2>&1 || true
         fi
     fi
 
     if [[ "$GPERF_MODE" == "heap" || "$GPERF_MODE" == "both" ]]; then
-        HEAP_BASE="./$OUTPUT_FOLDER/heap.$j"
+        HEAP_BASE="$OUTPUT_FOLDER/heap.$j"
         echo -e "\033[1;36m[INFO] Heap profiling --> ${HEAP_BASE}.*.heap\033[0m"
         HEAPPROFILE="$HEAP_BASE" LD_PRELOAD="$LIBPROFILER" "${EXEC_CMD_ARRAY[@]}"
 
@@ -159,11 +159,11 @@ for ((j=CURRENT_INDEX; j<CURRENT_INDEX+TRIALS_NUM; j++)); do
             if [[ ${#local_heap_files[@]} -gt 0 && -f "${local_heap_files[0]}" ]]; then
                 echo -e "\033[1;32m[INFO] Generating heap pprof text report...\033[0m"
                 pprof --text     "${EXEC_CMD_ARRAY[0]}" "${local_heap_files[@]}" \
-                    > "./$OUTPUT_FOLDER/gperf_heap_report.$j.txt" 2>&1 || true
+                    > "$OUTPUT_FOLDER/gperf_heap_report.$j.txt" 2>&1 || true
 
                 echo -e "\033[1;32m[INFO] Generating heap callgrind report (KCachegrind-compatible)...\033[0m"
                 pprof --callgrind "${EXEC_CMD_ARRAY[0]}" "${local_heap_files[@]}" \
-                    > "./$OUTPUT_FOLDER/gperf_heap_callgrind.$j.out" 2>&1 || true
+                    > "$OUTPUT_FOLDER/gperf_heap_callgrind.$j.out" 2>&1 || true
             else
                 echo -e "\033[38;5;208m[WARN] No .heap files found - executable may have exited before heap data was flushed.\033[0m" >&2
             fi
@@ -173,9 +173,9 @@ done
 
 echo -e "\033[1;34m[INFO] gperftools profiling completed.\033[0m"
 if [[ "$HAVE_PPROF" == true ]]; then
-    echo -e "\033[1;36m[INFO] Text reports:      ./$OUTPUT_FOLDER/gperf_*_report.*.txt\033[0m"
-    echo -e "\033[1;36m[INFO] Callgrind output:  ./$OUTPUT_FOLDER/gperf_*_callgrind.*.out\033[0m"
-    echo -e "\033[1;36m[INFO] Visualize with:    $(dirname "$0")/open_kcachegrind.sh ./$OUTPUT_FOLDER\033[0m"
+    echo -e "\033[1;36m[INFO] Text reports:      $OUTPUT_FOLDER/gperf_*_report.*.txt\033[0m"
+    echo -e "\033[1;36m[INFO] Callgrind output:  $OUTPUT_FOLDER/gperf_*_callgrind.*.out\033[0m"
+    echo -e "\033[1;36m[INFO] Visualize with:    $(dirname "$0")/open_kcachegrind.sh $OUTPUT_FOLDER\033[0m"
 fi
 
 # Auto-open KCachegrind if requested and CPU profiling was done
@@ -191,7 +191,7 @@ if [[ "$AUTO_OPEN" == true ]]; then
             "$OPEN_SCRIPT" "$OUTPUT_FOLDER"
         else
             echo -e "\033[38;5;208m[WARN] open_kcachegrind.sh not found - open manually:\033[0m" >&2
-            echo -e "\033[38;5;208m       kcachegrind ./$OUTPUT_FOLDER/gperf_cpu_callgrind.${CURRENT_INDEX}.out\033[0m" >&2
+            echo -e "\033[38;5;208m       kcachegrind $OUTPUT_FOLDER/gperf_cpu_callgrind.${CURRENT_INDEX}.out\033[0m" >&2
         fi
     fi
 fi
