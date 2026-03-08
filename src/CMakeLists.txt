@@ -93,6 +93,12 @@ if (ENABLE_OPENGL)
   target_link_libraries(${lib_name} PUBLIC ${OPENGL_COMPILE_TARGET})
 endif()
 
+# Link profiling interface: gperftools always when found, compile flags only with ENABLE_PROFILING.
+# PRIVATE: profiling is a build-time concern; not propagated to consumers and not exported.
+if(TARGET ${PROFILING_COMPILE_TARGET})
+  target_link_libraries(${lib_name} PRIVATE ${PROFILING_COMPILE_TARGET})
+endif()
+
 #target_include_directories(${lib_name} INTERFACE ${interface_INCLUDE_DIRS} ) 
 # TIP: INTERFACE ensures that the consumer target does not need to include manually the include directories the library target depends on, because they are automagically propagated to the target, even if the target does not need thme. The same happens with PUBLIC, but this time the includes are used by the target library itself.
 
