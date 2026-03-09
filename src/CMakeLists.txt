@@ -43,6 +43,12 @@ unset(installable_headers)
 add_library(${lib_name} SHARED
             ${srcLibFiles})
 
+if(SPDLOG_ENABLED)
+  target_compile_definitions(${lib_name} PRIVATE SPDLOG_UTILS_ENABLED=1)
+else()
+  target_compile_definitions(${lib_name} PRIVATE SPDLOG_UTILS_ENABLED=0)
+endif()
+
 # Link sanitizer target only for in-tree builds to avoid export/install deps.
 if (ENABLE_SANITIZERS AND SANITIZER_TARGET AND TARGET ${SANITIZER_TARGET})
   target_link_libraries(${lib_name} PRIVATE ${SANITIZER_TARGET})
@@ -76,7 +82,7 @@ endif()
 
 ### Link targets
 # Project include directories
-target_link_libraries(${lib_name} PUBLIC ${project_name}_include ${LIB_COMPILE_TARGET})
+target_link_libraries(${lib_name} PUBLIC ${project_name}_include ${LIB_COMPILE_TARGET} ${SPDLOG_COMPILE_TARGET})
 
 # Link interface target for CUDA
 
@@ -113,7 +119,8 @@ target_link_libraries(${lib_name} PUBLIC
 set(installable_targets ${installable_targets} 
                         ${lib_name} 
                         ${project_name}_include
-                        ${LIB_COMPILE_TARGET})
+                        ${LIB_COMPILE_TARGET}
+                        ${SPDLOG_COMPILE_TARGET})
                       
 if (ENABLE_CUDA)
   list(APPEND installable_targets ${CUDA_COMPILE_TARGET})
