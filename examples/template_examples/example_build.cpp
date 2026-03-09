@@ -7,7 +7,7 @@
 #endif
 
 #if SPDLOG_UTILS_ENABLED
-#include <template_src/SpdlogUtils.h>
+#include <utils/logging/SpdlogUtils.h>
 #endif
 
 int main()
