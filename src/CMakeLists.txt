@@ -40,30 +40,26 @@ install(FILES ${installable_headers}
 # Delete installable_headers
 unset(installable_headers)
 
-# Select library type (header only or compiled) based on presence of source files
 list(LENGTH srcLibFiles src_lib_files_count)
 if (src_lib_files_count EQUAL 0)
-
   set(lib_is_header_only TRUE)
   set(lib_link_scope INTERFACE)
   add_library(${lib_name} INTERFACE)
-
-  else()
+else()
   set(lib_is_header_only FALSE)
   set(lib_link_scope PUBLIC)
   add_library(${lib_name} SHARED
               ${srcLibFiles})
-
 endif()
 
-if(SPDLOG_ENABLED)
-  target_compile_definitions(${lib_name} PRIVATE SPDLOG_UTILS_ENABLED=1)
+if (SPDLOG_ENABLED)
+  target_compile_definitions(${lib_name} ${lib_link_scope} SPDLOG_UTILS_ENABLED=1)
 else()
-  target_compile_definitions(${lib_name} PRIVATE SPDLOG_UTILS_ENABLED=0)
+  target_compile_definitions(${lib_name} ${lib_link_scope} SPDLOG_UTILS_ENABLED=0)
 endif()
 
 # Link sanitizer target only for in-tree builds to avoid export/install deps.
-if (ENABLE_SANITIZERS AND SANITIZER_TARGET AND TARGET ${SANITIZER_TARGET})
+if (NOT lib_is_header_only AND ENABLE_SANITIZERS AND SANITIZER_TARGET AND TARGET ${SANITIZER_TARGET})
   target_link_libraries(${lib_name} PRIVATE ${SANITIZER_TARGET})
 endif()
 
@@ -71,6 +67,10 @@ endif()
 #target_sources(${lib_name} SHARED ${srcLibFiles})
 
 if ( ENABLE_OPTIX )
+  if (lib_is_header_only)
+    message(FATAL_ERROR "ENABLE_OPTIX requires at least one compilable source file in src/ to embed PTX code into ${lib_name}.")
+  endif()
+
   message("Library .cu kernels files to compile as PTX: ${srcCudaFilesToPTX}")
 
   # Build CUDA to PTX code and const char
@@ -95,33 +95,33 @@ endif()
 
 ### Link targets
 # Project include directories
-target_link_libraries(${lib_name} PUBLIC ${project_name}_include ${LIB_COMPILE_TARGET} ${SPDLOG_COMPILE_TARGET})
+target_link_libraries(${lib_name} ${lib_link_scope} ${project_name}_include ${LIB_COMPILE_TARGET} ${SPDLOG_COMPILE_TARGET})
 
 # Link interface target for CUDA
 
 if (ENABLE_CUDA)
-  target_link_libraries(${lib_name} PUBLIC ${CUDA_COMPILE_TARGET})
+  target_link_libraries(${lib_name} ${lib_link_scope} ${CUDA_COMPILE_TARGET})
 endif()
 
 # Link OptiX interface target
 if(ENABLE_OPTIX)
-  target_link_libraries(${lib_name} PUBLIC ${OPTIX_COMPILE_TARGET})
+  target_link_libraries(${lib_name} ${lib_link_scope} ${OPTIX_COMPILE_TARGET})
 endif()
 
 if (ENABLE_OPENGL)
-  target_link_libraries(${lib_name} PUBLIC ${OPENGL_COMPILE_TARGET})
+  target_link_libraries(${lib_name} ${lib_link_scope} ${OPENGL_COMPILE_TARGET})
 endif()
 
 # Link profiling interface: gperftools always when found, compile flags only with ENABLE_PROFILING.
 # PRIVATE: profiling is a build-time concern; not propagated to consumers and not exported.
-if(TARGET ${PROFILING_COMPILE_TARGET})
+if (NOT lib_is_header_only AND TARGET ${PROFILING_COMPILE_TARGET})
   target_link_libraries(${lib_name} PRIVATE ${PROFILING_COMPILE_TARGET})
 endif()
 
 #target_include_directories(${lib_name} INTERFACE ${interface_INCLUDE_DIRS} ) 
 # TIP: INTERFACE ensures that the consumer target does not need to include manually the include directories the library target depends on, because they are automagically propagated to the target, even if the target does not need thme. The same happens with PUBLIC, but this time the includes are used by the target library itself.
 
-target_link_libraries(${lib_name} PUBLIC 
+target_link_libraries(${lib_name} ${lib_link_scope} 
                       Eigen3::Eigen 
                       #gdt
                       #glfw 
