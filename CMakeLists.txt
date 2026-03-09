@@ -70,6 +70,7 @@ set(CUDA_COMPILE_TARGET "${LIB_NAMESPACE}_cuda_compile_interface")
 set(OPTIX_COMPILE_TARGET "${LIB_NAMESPACE}_optix_compile_interface")
 set(OPENGL_COMPILE_TARGET "${LIB_NAMESPACE}_opengl_compile_interface")
 set(LIB_COMPILE_TARGET "${LIB_NAMESPACE}_lib_compile_interface")
+set(SPDLOG_COMPILE_TARGET "${LIB_NAMESPACE}_spdlog_interface")
 set(SANITIZER_TARGET "${LIB_NAMESPACE}_sanitizer_target_interface")
 
 # Handle toolchain settings (after project so compiler/system vars are populated)
@@ -109,6 +110,8 @@ endif()
 # OPTIONS
 option(ENABLE_TESTS              "Build and run tests" ON)
 option(ENABLE_FETCH_CATCH2 "Fetch Catch2 from GitHub if not found" ON)
+option(ENABLE_SPDLOG "Enable spdlog logging support" ON)
+option(ENABLE_FETCH_SPDLOG "Fetch spdlog from GitHub if not found" ON)
 option(VERBOSE "Verbose output" OFF) # Defines VERBOSE flag in code if set to ON
 
 if (NOT DEFINED GTWRAP_BUILD_PYTHON_DEFAULT)
@@ -286,6 +289,8 @@ find_package( Doxygen QUIET)
 
 # Handle Catch2 tools
 include(cmake/HandleCatch2.cmake)
+include(cmake/HandleSpdlog.cmake)
+handle_spdlog(TARGET ${SPDLOG_COMPILE_TARGET})
 
 # Include cmake tools (depends on Catch2)
 include(cmake/cmake_utils.cmake)
@@ -320,6 +325,9 @@ if (ENABLE_OPENGL)
 endif()
 if(ENABLE_TBB)
   list(APPEND EXPORT_TARGET_DEPS TBB)
+endif()
+if(SPDLOG_ENABLED)
+  list(APPEND EXPORT_TARGET_DEPS spdlog)
 endif()
 
 message(STATUS "Target dependencies: ${EXPORT_TARGET_DEPS}")
