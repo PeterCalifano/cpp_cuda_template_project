@@ -1,5 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
-#include <template_src/SpdlogUtils.h>
+#include <utils/logging/SpdlogUtils.h>
 
 #include <cstdlib>
 #include <optional>
