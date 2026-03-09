@@ -40,8 +40,21 @@ install(FILES ${installable_headers}
 # Delete installable_headers
 unset(installable_headers)
 
-add_library(${lib_name} SHARED
-            ${srcLibFiles})
+# Select library type (header only or compiled) based on presence of source files
+list(LENGTH srcLibFiles src_lib_files_count)
+if (src_lib_files_count EQUAL 0)
+
+  set(lib_is_header_only TRUE)
+  set(lib_link_scope INTERFACE)
+  add_library(${lib_name} INTERFACE)
+
+  else()
+  set(lib_is_header_only FALSE)
+  set(lib_link_scope PUBLIC)
+  add_library(${lib_name} SHARED
+              ${srcLibFiles})
+
+endif()
 
 if(SPDLOG_ENABLED)
   target_compile_definitions(${lib_name} PRIVATE SPDLOG_UTILS_ENABLED=1)
