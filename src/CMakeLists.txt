@@ -13,6 +13,9 @@ get_filename_component(CURRENT_FOLDER_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
 message(STATUS "Library src files found in ${CURRENT_FOLDER_NAME}: ${srcLibFiles}")
 
 # Add subdirectories with src files
+message(STATUS "Adding module: utils")
+add_subdirectory(utils)
+
 message(STATUS "Adding module: template_src")
 add_subdirectory(template_src)
 
@@ -21,6 +24,8 @@ add_subdirectory(template_src_kernels)
 
 message(STATUS "Adding module: wrapped_impl")
 add_subdirectory(wrapped_impl)
+
+
 
 if (BUILD_AS_MAIN_PROJECT)
   message(STATUS "Adding module: bin")
