@@ -49,13 +49,24 @@ list(LENGTH srcLibFiles src_lib_files_count)
 if (src_lib_files_count EQUAL 0)
   set(lib_is_header_only TRUE)
   set(lib_link_scope INTERFACE)
+  set(lib_target_type "INTERFACE")
   add_library(${lib_name} INTERFACE)
 else()
   set(lib_is_header_only FALSE)
   set(lib_link_scope PUBLIC)
-  add_library(${lib_name} SHARED
+  if (BUILD_SHARED_LIBS)
+    set(lib_target_type "SHARED")
+  else()
+    set(lib_target_type "STATIC")
+  endif()
+
+  add_library(${lib_name} ${lib_target_type}
               ${srcLibFiles})
+  set_target_properties(${lib_name} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 endif()
+
+message(STATUS "Configured ${lib_name} as a ${lib_target_type} library target")
+set(PROJECT_LIBRARY_KIND "${lib_target_type}" PARENT_SCOPE)
 
 if (SPDLOG_ENABLED)
   target_compile_definitions(${lib_name} ${lib_link_scope} SPDLOG_UTILS_ENABLED=1)
@@ -139,6 +150,10 @@ set(installable_targets ${installable_targets}
                         ${project_name}_include
                         ${LIB_COMPILE_TARGET}
                         ${SPDLOG_COMPILE_TARGET})
+
+if (TARGET ${PROFILING_COMPILE_TARGET})
+  list(APPEND installable_targets ${PROFILING_COMPILE_TARGET})
+endif()
                       
 if (ENABLE_CUDA)
   list(APPEND installable_targets ${CUDA_COMPILE_TARGET})
