@@ -111,7 +111,11 @@ endif()
 
 ### Link targets
 # Project include directories
-target_link_libraries(${lib_name} ${lib_link_scope} ${project_name}_include ${LIB_COMPILE_TARGET} ${SPDLOG_COMPILE_TARGET})
+target_link_libraries(${lib_name} ${lib_link_scope} ${project_name}_include ${LIB_COMPILE_TARGET})
+
+if (SPDLOG_ENABLED AND SPDLOG_LINK_TARGET)
+  target_link_libraries(${lib_name} ${lib_link_scope} ${SPDLOG_LINK_TARGET})
+endif()
 
 # Link interface target for CUDA
 
@@ -148,8 +152,11 @@ target_link_libraries(${lib_name} ${lib_link_scope}
 set(installable_targets ${installable_targets} 
                         ${lib_name} 
                         ${project_name}_include
-                        ${LIB_COMPILE_TARGET}
-                        ${SPDLOG_COMPILE_TARGET})
+                        ${LIB_COMPILE_TARGET})
+
+if (SPDLOG_ENABLED AND SPDLOG_LINK_TARGET AND NOT SPDLOG_EXTERNAL_PACKAGE)
+  list(APPEND installable_targets ${SPDLOG_LINK_TARGET})
+endif()
 
 if (TARGET ${PROFILING_COMPILE_TARGET})
   list(APPEND installable_targets ${PROFILING_COMPILE_TARGET})
