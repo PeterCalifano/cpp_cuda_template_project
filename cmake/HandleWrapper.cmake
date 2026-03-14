@@ -304,6 +304,16 @@ function(configure_gtwrappers_common)
     endif()
     message(STATUS "Using local wrap checkout: ${_local_wrap_root}")
 
+    if(EXISTS "${_local_wrap_root}/templates/matlab_wrapper.tpl.in")
+      get_filename_component(_local_wrap_include_name "${_local_wrap_root}" NAME)
+      file(READ "${_local_wrap_root}/templates/matlab_wrapper.tpl.in"
+           _local_matlab_wrapper_template)
+      string(REPLACE "\${GTWRAP_INCLUDE_NAME}" "${_local_wrap_include_name}"
+             _local_matlab_wrapper_template "${_local_matlab_wrapper_template}")
+      file(WRITE "${_local_wrap_root}/gtwrap/matlab_wrapper/matlab_wrapper.tpl"
+           "${_local_matlab_wrapper_template}")
+    endif()
+
     list(APPEND CMAKE_MODULE_PATH "${_local_wrap_root}/cmake")
     set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" PARENT_SCOPE)
 
