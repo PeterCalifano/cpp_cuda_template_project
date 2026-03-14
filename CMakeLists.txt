@@ -273,6 +273,7 @@ handle_sanitizers()
 
 # Handle profiling support
 include(cmake/HandleProfiling.cmake)
+option(PROFILING_PROPAGATES_TO_CONSUMERS "Propagate profiling interface flags/definitions to targets consuming the project library" OFF)
 set(PROFILING_COMPILE_TARGET "${LIB_NAMESPACE}_profiling_interface")
 handle_profiling(TARGET ${PROFILING_COMPILE_TARGET})
 

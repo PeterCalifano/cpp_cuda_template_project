@@ -133,9 +133,14 @@ if (ENABLE_OPENGL)
 endif()
 
 # Link profiling interface: gperftools always when found, compile flags only with ENABLE_PROFILING.
-# PRIVATE: profiling is a build-time concern; not propagated to consumers and not exported.
+# Default is PRIVATE to keep profiling a build-time concern. Set
+# PROFILING_PROPAGATES_TO_CONSUMERS=ON to make profiling usage requirements PUBLIC.
 if (NOT lib_is_header_only AND TARGET ${PROFILING_COMPILE_TARGET})
-  target_link_libraries(${lib_name} PRIVATE ${PROFILING_COMPILE_TARGET})
+  if (PROFILING_PROPAGATES_TO_CONSUMERS)
+    target_link_libraries(${lib_name} PUBLIC ${PROFILING_COMPILE_TARGET})
+  else()
+    target_link_libraries(${lib_name} PRIVATE ${PROFILING_COMPILE_TARGET})
+  endif()
 endif()
 
 #target_include_directories(${lib_name} INTERFACE ${interface_INCLUDE_DIRS} ) 
