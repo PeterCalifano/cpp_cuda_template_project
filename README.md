@@ -244,14 +244,28 @@ Wrapper generators produce different C++ files by design:
 
 ### Python package install workflow
 
-Python packaging is `pyproject.toml`-based only (`python/pyproject.toml.in`).
-The old automated `python-install` CMake target was removed.
+Python package metadata is owned by `python/pyproject.toml.in`.
+The optional `setup.py.in` only marks the generated wheel as binary and does not
+duplicate package name/version metadata.
 
-Install manually from the generated Python package directory:
+The checked-in `python/<project>/__init__.py` is the public package entrypoint:
+
+- `import <project>` is the supported import path.
+- `HAS_WRAPPER` is `True` when the compiled wrapper imports successfully.
+- `HAS_WRAPPER` is `False` when the pure-Python package imports without the wrapper.
+- `WRAPPER_IMPORT_ERROR` stores the wrapper import exception when fallback is active.
+
+Install from the generated Python package directory:
 
 ```bash
 cd build/python
 python -m pip install .
+```
+
+For convenience, the main project also provides:
+
+```bash
+cmake --build build --target python-install
 ```
 
 When using Conda, activate the target environment first, then run the same command.
