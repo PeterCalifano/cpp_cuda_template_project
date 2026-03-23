@@ -84,7 +84,15 @@ endif()
 
 if ( ENABLE_OPTIX )
   if (lib_is_header_only)
-    message(FATAL_ERROR "ENABLE_OPTIX requires at least one compilable source file in src/ to embed PTX code into ${lib_name}.")
+    message(FATAL_ERROR
+      "Internal configuration error: ENABLE_OPTIX passed the root preflight, "
+      "but ${lib_name} resolved to a header-only target in src/CMakeLists.txt.")
+  endif()
+
+  if (NOT srcCudaFilesToPTX)
+    message(FATAL_ERROR
+      "Internal configuration error: ENABLE_OPTIX passed the root preflight, "
+      "but no PTX kernel sources reached src/CMakeLists.txt.")
   endif()
 
   message("Library .cu kernels files to compile as PTX: ${srcCudaFilesToPTX}")
