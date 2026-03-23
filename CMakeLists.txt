@@ -297,6 +297,28 @@ handle_spdlog(TARGET ${SPDLOG_COMPILE_TARGET})
 # Include cmake tools (depends on Catch2)
 include(cmake/cmake_utils.cmake)
 
+collect_project_source_inventory(
+  ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src"
+  COMPILED_SOURCES_OUT PROJECT_LIBRARY_COMPILED_SOURCES
+  PTX_SOURCES_OUT PROJECT_LIBRARY_PTX_SOURCES
+  HAS_COMPILED_SOURCES_OUT PROJECT_HAS_COMPILED_SOURCES
+  HAS_PTX_SOURCES_OUT PROJECT_HAS_PTX_SOURCES)
+
+if(ENABLE_OPTIX)
+  if(NOT PROJECT_HAS_COMPILED_SOURCES)
+    message(FATAL_ERROR
+      "ENABLE_OPTIX=ON is not supported for header-only library layouts. "
+      "No compilable library sources (*.cpp or *.cu excluding *.ptx.cu) were found under src/ outside src/bin. "
+      "Add a compiled source file or disable ENABLE_OPTIX.")
+  endif()
+
+  if(NOT PROJECT_HAS_PTX_SOURCES)
+    message(FATAL_ERROR
+      "ENABLE_OPTIX=ON requires at least one PTX kernel source (*.ptx.cu) under src/ outside src/bin. "
+      "Add a PTX kernel file or disable ENABLE_OPTIX.")
+  endif()
+endif()
+
 # Configure CUDA/OptiX (creates interface targets even when disabled)
 handle_cuda(TARGET ${CUDA_COMPILE_TARGET} 
             MIN_VERSION 12.0)
