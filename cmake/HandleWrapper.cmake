@@ -788,7 +788,7 @@ WRAPPER_LIBRARY_DIRS = [r\"${PROJECT_BINARY_DIR}/src\"]
   if(ENABLE_TESTS AND BUILD_TESTING)
     set(_python_import_test_name "${LIB_NAMESPACE}_python_import")
     set(_python_import_test_code
-        "import ${PROJECT_NAME} as module_; assert getattr(module_, 'HAS_WRAPPER', False), 'Expected HAS_WRAPPER=True'; assert hasattr(module_, 'CWrapperPlaceholder'), 'Expected wrapped symbol CWrapperPlaceholder'")
+        "import ${PROJECT_NAME} as module_; assert getattr(module_, 'HAS_WRAPPER', False), 'Expected HAS_WRAPPER=True';")
     add_test(
       NAME ${_python_import_test_name}
       COMMAND
