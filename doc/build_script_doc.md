@@ -66,6 +66,7 @@ The script now uses **GNU `getopt`** to support:
 * **`-r, --rebuild-only`**
   Skip CMake configure; just build an already-configured tree.
   Useful when you’ve only changed sources and not CMake options.
+  Wrapper requests passed together with `-r` only work if that build directory was already configured with wrappers enabled.
 
 * **`-t, --type <t> | --type-build <t>`**
   Set CMake build type (`Debug`, `Release`, `RelWithDebInfo`, `MinSizeRel`). Input is case-insensitive.
@@ -92,7 +93,8 @@ The script now uses **GNU `getopt`** to support:
 * **`-p, --python-wrap`**
   Enables Python wrappers by setting:
   `-DGTWRAP_BUILD_PYTHON_DEFAULT=ON` and `-D<project>_BUILD_PYTHON_WRAPPER=ON`.
-  After the standard build, it also ensures `<project>_py` is built explicitly.
+  After the standard build, it also ensures the resolved Python wrapper target is built explicitly when that target exists in the configured cache.
+  If `src/wrap_interface.i` is missing, or if the configured `*_WRAPPER_INTERFACE_FILES` list is invalid, CMake auto-disables wrappers and the script emits a warning instead of failing the whole build.
 
 * **`-m, --matlab-wrap`**
   Enables MATLAB wrappers by setting:
@@ -101,7 +103,7 @@ The script now uses **GNU `getopt`** to support:
 * **`--gtwrap-root <dir>`**
   Pins wrapper generation to a local wrap checkout.
   The script forwards this as:
-  `-DGTWRAP_ROOT_DIR=<dir>` and `-D<project>_GTWRAP_ROOT_DIR=<dir>` when project name is detected.
+  `-D<project>_GTWRAP_ROOT_DIR=<dir>` when the project name is detected, otherwise `-DGTWRAP_ROOT_DIR=<dir>`.
 
 * **`--no-wrap-update`**
   Disables automatic update of local wrap checkout. By default, wrapper builds
@@ -166,6 +168,8 @@ The script now uses **GNU `getopt`** to support:
 10. **Case‑insensitive build types**: `debug`, `Debug`, `DEBUG` all map to `Debug`.
 11. **Automatic warnings**: `-Wall -Wextra -Wpedantic` are appended for common build types. If you pass your own `-W...` flags, they’ll be respected.
 12. **Environment override for jobs**: set `JOBS=64` in CI to change default parallelism without touching scripts.
+13. **Pipefail-safe wrapper probe**: the post-build Python wrapper target check no longer uses a `cmake --build ... --target help | rg -q ...` pipeline, so `-p` does not emit a false missing-target warning after a successful wrapper build.
+14. **Cache-aware wrapper diagnostics**: when Python wrappers are requested but absent, the script now reports whether `--rebuild-only` reused a non-wrapper cache, whether CMake ended up with `<project>_BUILD_PYTHON_WRAPPER=OFF`, and whether wrappers were auto-disabled because interface files were missing or invalid.
 
 ---
 
@@ -196,6 +200,26 @@ These are configured through `-D/--define` and live in CMake (not dedicated `bui
   applies `--use_fast_math` to PTX generation path.
 * `CUDA_NVCC_EXTRA_FLAGS="..."`:
   appends extra NVCC flags to CUDA/PTX compilation.
+
+### CUDA architecture detection
+
+* If `CUDA_ARCHITECTURES` is set, the template uses it directly.
+* Else if `CMAKE_CUDA_ARCHITECTURES` is set, the template uses it directly.
+* Else on `x86_64`/`amd64`, the template requires a working `nvidia-smi` and fails fast if it is missing, fails, or returns malformed data.
+* Else on `aarch64`/`arm64`, the template tries `nvidia-smi` first and then falls back to native Jetson/Tegra markers:
+  * Xavier / `tegra194` -> `72`
+  * Orin / `tegra234` -> `87`
+  * Thor / `tegra264` -> `101`
+* If auto-detection is unavailable or ambiguous, configure fails with guidance to set `CUDA_ARCHITECTURES` or `CMAKE_CUDA_ARCHITECTURES` explicitly.
+
+### OptiX preflight
+
+When `ENABLE_OPTIX=ON`, configure now fails before CUDA/OptiX SDK setup unless both of these are true under `src/` outside `src/bin/`:
+
+* at least one compilable library source exists (`*.cpp` or `*.cu`, excluding `*.ptx.cu`)
+* at least one PTX kernel exists (`*.ptx.cu`)
+
+This keeps the template strict and avoids misleading downstream OptiX/CUDA errors for header-only layouts or missing PTX kernels.
 
 ### TBB support
 
@@ -248,6 +272,12 @@ These are configured through `-D/--define` and live in CMake (not dedicated `bui
   ./build_lib.sh -p --gtwrap-root /path/to/wrap
   ```
 
+* **Rebuild only on a cache that already has Python wrapping enabled**:
+
+  ```bash
+  ./build_lib.sh -r -p
+  ```
+
 * **Release + tests + install into system prefix**:
 
   ```bash
@@ -276,13 +306,20 @@ These are configured through `-D/--define` and live in CMake (not dedicated `bui
 
 ## 8) Wrapper packaging notes
 
-* Python wrapper packaging is `pyproject.toml`-based only.
-* Automated CMake `python-install` target is intentionally removed.
-* Manual install path is:
+* Python package metadata is owned by `python/pyproject.toml.in` and configured into `python/pyproject.toml` when Python wrapping is enabled.
+* The optional `python/setup.py.in` augments source-package installation behavior without duplicating package metadata.
+* `python/<project>/__init__.py` is the public entrypoint and exports `HAS_WRAPPER`.
+* CMake updates `python/<project>/_wrapper_build.py` so the source package can resolve the latest requested wrapper build.
+* Missing `python/<project>/__init__.py` or `python/pyproject.toml.in` no longer blocks wrapper builds in the template: CMake generates minimal fallbacks when needed.
+* Supported install paths are:
 
   ```bash
-  cd <build_dir>/python
+  cd python
   python -m pip install .
+  ```
+
+  ```bash
+  cmake --build <build_dir> --target python-install
   ```
 
   In Conda workflows, activate the target env before running `pip install`.

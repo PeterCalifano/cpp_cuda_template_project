@@ -14,6 +14,9 @@
 		},
 		{
 			"path": "../../codeRepoPeterC"
+		},
+		{
+			"path": "../cpp_cuda_template_testfield"
 		}
 	],
 	"settings": {
