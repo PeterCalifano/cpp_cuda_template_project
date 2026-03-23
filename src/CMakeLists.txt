@@ -84,7 +84,15 @@ endif()
 
 if ( ENABLE_OPTIX )
   if (lib_is_header_only)
-    message(FATAL_ERROR "ENABLE_OPTIX requires at least one compilable source file in src/ to embed PTX code into ${lib_name}.")
+    message(FATAL_ERROR
+      "Internal configuration error: ENABLE_OPTIX passed the root preflight, "
+      "but ${lib_name} resolved to a header-only target in src/CMakeLists.txt.")
+  endif()
+
+  if (NOT srcCudaFilesToPTX)
+    message(FATAL_ERROR
+      "Internal configuration error: ENABLE_OPTIX passed the root preflight, "
+      "but no PTX kernel sources reached src/CMakeLists.txt.")
   endif()
 
   message("Library .cu kernels files to compile as PTX: ${srcCudaFilesToPTX}")
@@ -133,9 +141,14 @@ if (ENABLE_OPENGL)
 endif()
 
 # Link profiling interface: gperftools always when found, compile flags only with ENABLE_PROFILING.
-# PRIVATE: profiling is a build-time concern; not propagated to consumers and not exported.
+# Default is PRIVATE to keep profiling a build-time concern. Set
+# PROFILING_PROPAGATES_TO_CONSUMERS=ON to make profiling usage requirements PUBLIC.
 if (NOT lib_is_header_only AND TARGET ${PROFILING_COMPILE_TARGET})
-  target_link_libraries(${lib_name} PRIVATE ${PROFILING_COMPILE_TARGET})
+  if (PROFILING_PROPAGATES_TO_CONSUMERS)
+    target_link_libraries(${lib_name} PUBLIC ${PROFILING_COMPILE_TARGET})
+  else()
+    target_link_libraries(${lib_name} PRIVATE ${PROFILING_COMPILE_TARGET})
+  endif()
 endif()
 
 #target_include_directories(${lib_name} INTERFACE ${interface_INCLUDE_DIRS} ) 

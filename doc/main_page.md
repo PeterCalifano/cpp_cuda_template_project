@@ -35,10 +35,10 @@ git clone <repo-url> my_project && cd my_project
 ./build_lib.sh -p --gtwrap-root /path/to/wrap
 ```
 
-Install Python package manually from the generated folder:
+Install Python package manually from the source Python package:
 
 ```bash
-cd build/python
+cd python
 python -m pip install .
 ```
 

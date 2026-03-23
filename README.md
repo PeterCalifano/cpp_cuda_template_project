@@ -158,14 +158,28 @@ GPU architecture is auto-detected via `nvidia-smi`. CUDA kernels live in `src/te
 - `.cu` files - standard CUDA kernels
 - `.ptx.cu` files - compiled to embedded `const char[]` arrays for OptiX modules
 
+Auto-detection is intentionally strict:
+
+- On `x86_64`/`amd64`, a working `nvidia-smi` is required unless you set `CUDA_ARCHITECTURES` or `CMAKE_CUDA_ARCHITECTURES` explicitly.
+- On `aarch64`/`arm64`, the template first tries `nvidia-smi`, then falls back to native Jetson/Tegra markers for Xavier (`72`), Orin (`87`), and Thor (`101`).
+- If detection is unavailable or ambiguous, configure fails with guidance to set `CUDA_ARCHITECTURES` or `CMAKE_CUDA_ARCHITECTURES` explicitly.
+
 Example with explicit CUDA optimization toggles:
 
 ```bash
 ./build_lib.sh -D ENABLE_CUDA=ON \
+  -D CUDA_ARCHITECTURES=87 \
   -D CUDA_ENABLE_FMAD=ON \
   -D CUDA_ENABLE_EXTRA_DEVICE_VECTORIZATION=ON \
   -D CUDA_NVCC_EXTRA_FLAGS="--maxrregcount=128"
 ```
+
+When `ENABLE_OPTIX=ON`, configuration also fails fast unless the project contains:
+
+- at least one compilable library source under `src/` (`*.cpp` or `*.cu`, excluding `*.ptx.cu`, and excluding `src/bin/`)
+- at least one PTX kernel source (`*.ptx.cu`)
+
+This template treats OptiX on a header-only library as a configuration error.
 
 ### TBB
 
@@ -217,6 +231,8 @@ python3 -m pip install pyparsing
 
 `pybind11` is provided by `gtwrap` (installed package or local checkout).
 
+The default wrapper entrypoint is `src/wrap_interface.i`. If it is missing or the configured interface list is invalid, wrapper generation is auto-disabled during configure.
+
 ### Build examples
 
 ```bash
@@ -228,9 +244,14 @@ python3 -m pip install pyparsing
 
 # Force local wrap checkout
 ./build_lib.sh -p --gtwrap-root /path/to/wrap
+
+# Rebuild an already-configured wrapper build
+./build_lib.sh -r -p
 ```
 
-`-p` enables namespaced CMake wrapper options and ensures `<project>_py` is built.
+`-p` enables namespaced CMake wrapper options and ensures the resolved Python wrapper target is built when that target exists in the configured cache.
+
+`--rebuild-only` does not reconfigure CMake. If you use `./build_lib.sh -r -p`, the existing build directory must already have been configured with Python wrapping enabled.
 
 ### Generated sources
 
@@ -244,14 +265,36 @@ Wrapper generators produce different C++ files by design:
 
 ### Python package install workflow
 
-Python packaging is `pyproject.toml`-based only (`python/pyproject.toml.in`).
-The old automated `python-install` CMake target was removed.
+Python package metadata is owned by `python/pyproject.toml.in` and configured
+into `python/pyproject.toml` when Python wrapping is requested.
+The optional `setup.py.in` augments installation behavior without duplicating
+package name/version metadata.
 
-Install manually from the generated Python package directory:
+The checked-in `python/<project>/__init__.py` is the public package entrypoint:
+
+- `import <project>` is the supported import path.
+- `HAS_WRAPPER` is `True` when the compiled wrapper imports successfully.
+- `HAS_WRAPPER` is `False` when the pure-Python package imports without the wrapper.
+- `WRAPPER_IMPORT_ERROR` stores the wrapper import exception when fallback is active.
+
+When Python wrapping is requested, the source package becomes the public install
+entrypoint. CMake updates it with:
+
+- generated `python/pyproject.toml`
+- generated `python/setup.py`
+- generated `python/<project>/_wrapper_build.py` linking the latest wrapper build
+
+Install from the source Python package directory:
 
 ```bash
-cd build/python
+cd python
 python -m pip install .
+```
+
+For convenience, the main project also provides:
+
+```bash
+cmake --build build --target python-install
 ```
 
 When using Conda, activate the target environment first, then run the same command.
