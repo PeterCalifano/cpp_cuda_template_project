@@ -464,11 +464,13 @@ if (ENABLE_TESTS AND Catch2_FOUND AND BUILD_AS_MAIN_PROJECT)
 endif()
 
 # Add documentation
-set(DOC_SUBDIRS "${CMAKE_SOURCE_DIR}/src")
-if (DOXYGEN_FOUND)
-    add_subdirectory( "doc" )
-else()
-    message(STATUS "Doxygen not found. Skipping building documentation.") 
+if (BUILD_AS_MAIN_PROJECT)
+  set(DOC_SUBDIRS "${CMAKE_SOURCE_DIR}/src")
+  if (DOXYGEN_FOUND)
+      add_subdirectory( "doc" )
+  else()
+      message(STATUS "Doxygen not found. Skipping building documentation.") 
+  endif()
 endif()
 
 ###########################################################################
