@@ -107,8 +107,17 @@ The script now uses **GNU `getopt`** to support:
 
 * **`--no-wrap-update`**
   Disables automatic update of local wrap checkout. By default, wrapper builds
-  auto-detect `./wrap`, `./lib/wrap`, and `../wrap`, then update to latest
+  first resolve an explicit `--gtwrap-root` or auto-detect `./wrap`,
+  `./lib/wrap`, and `../wrap`, then update the resolved local checkout to latest
   `origin/master` (including detached/tag checkouts).
+
+* **`--no-wrap-submodule-init`**
+  Disables the final fallback that initializes a declared `wrap`/`lib/wrap`
+  git submodule.
+  By default, wrapper resolution order is:
+  1. explicit or auto-detected local checkout;
+  2. installed `gtwrap` via `find_package(gtwrap)`;
+  3. declared git submodule initialization.
 
 * **`-i, --install`**
   After a successful build (and tests), runs the `install` target.

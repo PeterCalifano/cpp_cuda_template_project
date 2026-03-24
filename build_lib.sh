@@ -27,6 +27,7 @@ profiling=false
 toolchain_file=""
 gtwrap_root=""
 wrap_update=true
+wrap_submodule_init=true
 wrap_branch="master"
 cmake_defines=()
 
@@ -113,35 +114,6 @@ detect_wrap_root() {
   return 1
 }
 
-init_wrap_submodule_if_needed() {
-  local _project_root="$1"
-  local _wrap_rel=""
-
-  if [[ ! -f "${_project_root}/.gitmodules" ]]; then
-    return 0
-  fi
-  if ! git -C "${_project_root}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-    return 0
-  fi
-
-  if grep -Eq '^[[:space:]]*path[[:space:]]*=[[:space:]]*lib/wrap[[:space:]]*$' "${_project_root}/.gitmodules"; then
-    _wrap_rel="lib/wrap"
-  elif grep -Eq '^[[:space:]]*path[[:space:]]*=[[:space:]]*wrap[[:space:]]*$' "${_project_root}/.gitmodules"; then
-    _wrap_rel="wrap"
-  fi
-
-  if [[ -z "${_wrap_rel}" ]]; then
-    return 0
-  fi
-  if [[ -f "${_project_root}/${_wrap_rel}/cmake/PybindWrap.cmake" ]]; then
-    return 0
-  fi
-
-  info "Initializing wrap submodule (${_wrap_rel})..."
-  git -C "${_project_root}" submodule sync --recursive
-  git -C "${_project_root}" submodule update --init --recursive "${_wrap_rel}"
-}
-
 update_wrap_checkout() {
   local _root="$1"
   local _branch="$2"
@@ -210,6 +182,8 @@ Options:
       --gtwrap-root <dir>     Path to wrap checkout root for gtwrap
                               (maps to -D<project>_GTWRAP_ROOT_DIR=<dir>)
       --no-wrap-update        Disable auto-update of local wrap checkout to latest master
+      --no-wrap-submodule-init
+                              Disable wrap submodule initialization fallback
   -i, --install               Run "install" target after tests
   -N, --ninja-build           Use Ninja generator (requires `ninja`)
   -n, --no-optim              Set -DNO_OPTIMIZATION=ON in the CMake cache
@@ -237,6 +211,8 @@ Notes:
   * The default wrapper interface file is "src/wrap_interface.i". If it is
     missing, wrapper generation is auto-disabled unless you pass a valid
     *_WRAPPER_INTERFACE_FILES or *_WRAPPER_AUTODISCOVER_INTERFACE_FILES option.
+  * If no local wrap checkout is found, CMake tries find_package(gtwrap)
+    before optionally initializing a declared wrap submodule.
   * This script requires GNU getopt (standard on Debian/Ubuntu).
 USAGE
 }
@@ -253,7 +229,7 @@ if ! command -v getopt > /dev/null 2>&1; then
 fi
 
 OPTIONS=B:j:rt:c:f:D:pmhNni
-LONGOPTIONS=buildpath:,jobs:,rebuild-only,type:,type-build:,checks,flagsCXX:,define:,python-wrap,matlab-wrap,gtwrap-root:,no-wrap-update,help,ninja-build,no-optim,skip-tests,clean,install,profile,toolchain:
+LONGOPTIONS=buildpath:,jobs:,rebuild-only,type:,type-build:,checks,flagsCXX:,define:,python-wrap,matlab-wrap,gtwrap-root:,no-wrap-update,no-wrap-submodule-init,help,ninja-build,no-optim,skip-tests,clean,install,profile,toolchain:
 PARSED=$(getopt -o "$OPTIONS" -l "$LONGOPTIONS" -- "$@") || { usage; exit 2; }
 eval set -- "$PARSED"
 
@@ -271,6 +247,7 @@ while true; do
     -m|--matlab-wrap)     matlab_wrap=true; shift ;;
         --gtwrap-root)    gtwrap_root="$2"; shift 2 ;;
         --no-wrap-update) wrap_update=false; shift ;;
+        --no-wrap-submodule-init) wrap_submodule_init=false; shift ;;
     -i|--install)         install=true;    shift ;;
     -N|--ninja-build)     use_ninja=true;  shift ;;
     -n|--no-optim)        no_optim=true;   shift ;;
@@ -331,7 +308,6 @@ if [[ "$rebuild_only" == false && ( "$python_wrap" == true || "$matlab_wrap" == 
 fi
 
 if [[ "$rebuild_only" == false && "$prepare_wrap_checkout" == true ]]; then
-  init_wrap_submodule_if_needed "$PWD"
   if [[ -z "$gtwrap_root" ]]; then
     gtwrap_root="$(detect_wrap_root || true)"
   fi
@@ -357,6 +333,7 @@ info "MATLAB wrapper     : $matlab_wrap"
 info "Detected project   : ${project_name:-<unknown>}"
 info "GTWRAP root        : ${gtwrap_root:-<auto>}"
 info "GTWRAP auto-update : $wrap_update (branch: $wrap_branch)"
+info "GTWRAP submodule   : $wrap_submodule_init"
 info "Generator          : $([[ "$use_ninja" == true ]] && echo Ninja || echo 'Unix Makefiles')"
 info "Profiling build    : $profiling"
 info "Toolchain file     : ${toolchain_file:-<none>}"
@@ -402,11 +379,16 @@ if [[ "$rebuild_only" == false ]]; then
       cmake_args+=( "-DGTWRAP_ROOT_DIR=$gtwrap_root" )
     fi
   fi
-  if [[ "$prepare_wrap_checkout" == true && -n "$gtwrap_root" ]]; then
+  if [[ "$prepare_wrap_checkout" == true ]]; then
     if [[ "$wrap_update" == true ]]; then
       cmake_args+=( "-DGTWRAP_BRANCH=$wrap_branch" -DGTWRAP_SYNC_TO_MASTER=ON )
     else
       cmake_args+=( -DGTWRAP_SYNC_TO_MASTER=OFF )
+    fi
+    if [[ "$wrap_submodule_init" == true ]]; then
+      cmake_args+=( -DGTWRAP_INIT_SUBMODULE_IF_MISSING=ON )
+    else
+      cmake_args+=( -DGTWRAP_INIT_SUBMODULE_IF_MISSING=OFF )
     fi
   fi
   [[ "$no_optim"   == true ]] && cmake_args+=( -DNO_OPTIMIZATION=ON )

@@ -226,6 +226,11 @@ function(configure_gtwrappers_common)
   if(NOT DEFINED GTWRAP_SYNC_TO_MASTER)
     option(GTWRAP_SYNC_TO_MASTER "Sync local wrap checkout to latest origin/<GTWRAP_BRANCH>" ON)
   endif()
+  if(NOT DEFINED GTWRAP_INIT_SUBMODULE_IF_MISSING)
+    option(GTWRAP_INIT_SUBMODULE_IF_MISSING
+           "Initialize the wrap git submodule only after local search and find_package(gtwrap) both fail."
+           ON)
+  endif()
 
   if(NOT DEFINED ${_gtwrap_root_var_name})
     set(${_gtwrap_root_var_name} "" CACHE PATH
@@ -305,7 +310,10 @@ function(configure_gtwrappers_common)
 
   resolve_local_wrap_root(_local_wrap_root "${_configured_wrap_root}")
   if(NOT _local_wrap_root)
-    maybe_init_wrap_submodule(_local_wrap_root)
+    find_package(gtwrap QUIET)
+    if(NOT gtwrap_FOUND AND GTWRAP_INIT_SUBMODULE_IF_MISSING)
+      maybe_init_wrap_submodule(_local_wrap_root)
+    endif()
   endif()
   if(_local_wrap_root)
     if(GTWRAP_SYNC_TO_MASTER)
@@ -365,7 +373,6 @@ function(configure_gtwrappers_common)
 
     set(GTWRAP_ROOT_DIR "${_local_wrap_root}" PARENT_SCOPE)
   else()
-    find_package(gtwrap QUIET)
     if(gtwrap_FOUND)
       message(STATUS "Using installed gtwrap package discovered by find_package(gtwrap).")
 
@@ -450,7 +457,8 @@ function(configure_gtwrappers_common)
     else()
       message(FATAL_ERROR
         "Could not locate wrap/gtwrap. Provide a local checkout at 'wrap/' or 'lib/wrap/', "
-        "or set ${_gtwrap_root_var_name}=<path>, or install gtwrap so find_package(gtwrap) succeeds.")
+        "or set ${_gtwrap_root_var_name}=<path>, or install gtwrap so find_package(gtwrap) succeeds. "
+        "Set GTWRAP_INIT_SUBMODULE_IF_MISSING=ON to allow submodule initialization when declared in .gitmodules.")
     endif()
   endif()
 

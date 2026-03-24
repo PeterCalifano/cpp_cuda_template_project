@@ -100,6 +100,8 @@ All options are passed via `build_lib.sh` flags or directly as `-D<VAR>=<VAL>` t
 -m, --matlab-wrap         Enable MATLAB wrappers
     --gtwrap-root <dir>   Path to local wrap checkout root
     --no-wrap-update      Disable auto-update of local wrap checkout to latest master
+    --no-wrap-submodule-init
+                          Disable wrap submodule initialization fallback
     --toolchain <file>    CMake toolchain file
 -h, --help                Show full help
 ```
@@ -216,10 +218,18 @@ This template supports wrappers via `gtwrap` in two modes:
 1. Installed package mode (`find_package(gtwrap)`).
 2. Local checkout mode (`--gtwrap-root /path/to/wrap` or `-D<project>_GTWRAP_ROOT_DIR=...`).
 
-When `-p` and/or `-m` is used, `build_lib.sh` auto-detects local wrap roots
-(`./wrap`, `./lib/wrap`, `../wrap`) and updates them to latest `origin/master`
-by default. This includes detached/tag states by switching/creating local
-`master` from `origin/master`.
+When `-p` and/or `-m` is used, wrapper resolution now follows this order:
+
+1. Use an explicit `--gtwrap-root` or an existing local checkout at `./wrap`,
+   `./lib/wrap`, or `../wrap`.
+2. Fall back to an installed `gtwrap` package discoverable via `find_package(gtwrap)`.
+3. If still unresolved and `GTWRAP_INIT_SUBMODULE_IF_MISSING=ON`, initialize a
+   declared `wrap` or `lib/wrap` git submodule and use that checkout.
+
+Existing local wrap roots are updated to latest `origin/master` by default. This
+includes detached/tag states by switching/creating local `master` from
+`origin/master`. Pass `--no-wrap-update` to disable that update step, or
+`--no-wrap-submodule-init` to disable the submodule fallback entirely.
 
 ### Prerequisites
 
