@@ -7,8 +7,23 @@ option(OPTIX_AUTO_INSTALL "Auto-install OptiX SDK submodule in lib/optix-sdk" ON
 
 # Default paths to OptiX SDK (empty)
 set(OPTIX_ROOT "" CACHE PATH "OptiX SDK root (contains include/)")
+set(OptiX_ROOT "" CACHE PATH "Case-preserved alias of OPTIX_ROOT for CMake package lookups")
+set(OptiX_INSTALL_DIR "" CACHE PATH "OptiX SDK install directory used by vendored helper modules")
 set(SEARCH_ROOT_LIST_DIR "${CMAKE_CURRENT_LIST_DIR}" CACHE PATH "Root directory to search for OptiX SDK if OPTIX_ROOT not set, defined when defining function.")
 set(OPTIX_SDK_REPO "git@github.com:PeterCalifano/optix-dev.git" CACHE STRING "OptiX SDK repo for auto-install")
+
+if(OptiX_ROOT AND NOT OPTIX_ROOT)
+    set(OPTIX_ROOT "${OptiX_ROOT}" CACHE PATH "OptiX SDK root (contains include/)" FORCE)
+elseif(OPTIX_ROOT AND NOT OptiX_ROOT)
+    set(OptiX_ROOT "${OPTIX_ROOT}" CACHE PATH "Case-preserved alias of OPTIX_ROOT for CMake package lookups" FORCE)
+endif()
+
+if(OptiX_INSTALL_DIR AND NOT OPTIX_ROOT)
+    set(OPTIX_ROOT "${OptiX_INSTALL_DIR}" CACHE PATH "OptiX SDK root (contains include/)" FORCE)
+    set(OptiX_ROOT "${OptiX_INSTALL_DIR}" CACHE PATH "Case-preserved alias of OPTIX_ROOT for CMake package lookups" FORCE)
+elseif(OPTIX_ROOT AND NOT OptiX_INSTALL_DIR)
+    set(OptiX_INSTALL_DIR "${OPTIX_ROOT}" CACHE PATH "OptiX SDK install directory used by vendored helper modules" FORCE)
+endif()
 
 function(handle_optix)
 
@@ -113,9 +128,9 @@ function(handle_optix)
         message(FATAL_ERROR "OptiX SDK not found. Set OPTIX_ROOT or OPTIX_HOME.")
     endif()
 
-    if(NOT OPTIX_ROOT)
-        set(OPTIX_ROOT "${_optix_root}" CACHE PATH "OptiX SDK root")
-    endif()
+    set(OPTIX_ROOT "${_optix_root}" CACHE PATH "OptiX SDK root" FORCE)
+    set(OptiX_ROOT "${_optix_root}" CACHE PATH "Case-preserved alias of OPTIX_ROOT for CMake package lookups" FORCE)
+    set(OptiX_INSTALL_DIR "${_optix_root}" CACHE PATH "OptiX SDK install directory used by vendored helper modules" FORCE)
 
     # Include SDK directories (typically used) TBC
     # TODO improve this, only select what's needed and without duplicates
@@ -168,6 +183,7 @@ function(handle_optix)
     message(STATUS "OptiX_INCLUDE_DIRS: ${_optix_includes}")
 
     set(OPTIX_ROOT "${_optix_root}" PARENT_SCOPE)
+    set(OptiX_ROOT "${_optix_root}" PARENT_SCOPE)
     set(OPTIX_HOME "${_optix_root}" PARENT_SCOPE)
     set(OptiX_INSTALL_DIR "${_optix_root}" PARENT_SCOPE)
     set(OptiX_INCLUDE_DIRS "${_optix_includes}" PARENT_SCOPE)

@@ -190,6 +190,7 @@ Options:
       --profile               Enable profiling build (-DENABLE_PROFILING=ON)
       --toolchain <file>      Pass CMake toolchain file (-DCMAKE_TOOLCHAIN_FILE=<file>)
       --clean                 Delete build dir before configuring
+                              (recommended for cross-machine/cache portability checks)
   -h, --help                  Show this help and exit
 
 Examples:
@@ -321,8 +322,11 @@ command -v cmake >/dev/null 2>&1 || die "cmake not found"
 if [[ "$use_ninja" == true ]]; then
   command -v ninja >/dev/null 2>&1 || die "Requested Ninja but 'ninja' not found"
 fi
+cmake_version_line="$(cmake --version | head -n1)"
+cmake_version="${cmake_version_line#cmake version }"
 
 # Print info
+info "CMake version      : ${cmake_version}"
 info "Buildpath          : $buildpath"
 info "Jobs               : $jobs"
 info "Build Type         : $cmake_bt"
@@ -340,6 +344,10 @@ info "Toolchain file     : ${toolchain_file:-<none>}"
 info "Run tests          : $run_tests"
 info "Install after build: $install"
 
+if [[ "$rebuild_only" == false && -d "$buildpath" && "$clean_first" == false ]]; then
+  warn "Reusing existing build dir '$buildpath'. Use --clean for cross-machine/config portability checks."
+fi
+
 sleep 0.2
 
 # --- Configure ---
@@ -353,8 +361,8 @@ if [[ "$rebuild_only" == false ]]; then
     -S .
     -B "$buildpath"
     "-DCMAKE_BUILD_TYPE=$cmake_bt"
-    "-DCMAKE_CXX_FLAGS=$CXX_FLAGS"
-    "-DCMAKE_C_FLAGS=$CXX_FLAGS"
+    "-DTEMPLATE_PROJECT_EXTRA_CXX_FLAGS=$CXX_FLAGS"
+    "-DTEMPLATE_PROJECT_EXTRA_C_FLAGS=$CXX_FLAGS"
     -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
   )
   [[ "$use_ninja"  == true ]] && cmake_args+=( -G Ninja )

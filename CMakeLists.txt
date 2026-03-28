@@ -1,5 +1,8 @@
 # VERSION CONTROL 
 cmake_minimum_required(VERSION 3.15 FATAL_ERROR)
+if(POLICY CMP0144)
+  cmake_policy(SET CMP0144 NEW)
+endif()
 set(PROJECT_PYTHON_VERSION 3.12)
 set(MATLAB_DEFAULT_RELEASE "R2023b")
 
@@ -181,6 +184,8 @@ option(CUDA_ENABLE_EXTRA_DEVICE_VECTORIZATION "Enable NVCC extra device vectoriz
 option(CUDA_USE_FAST_MATH "Enable NVCC fast math in regular CUDA compilation" OFF)
 option(CUDA_PTX_USE_FAST_MATH "Enable NVCC fast math when compiling PTX kernels" ON)
 set(CUDA_NVCC_EXTRA_FLAGS "" CACHE STRING "Extra flags passed to NVCC for CUDA/PTX compilation")
+(TEMPLATE_PROJECT_EXTRA_C_FLAGS "" CACHE STRING "Extra C compiler flags appended to project-managed flags")
+set(TEMPLATE_PROJECT_EXTRA_CXX_FLAGS "" CACHE STRING "Extra C++ compiler flags appended to project-managed flags")
 set(PYTHON_EXECUTABLE "python3") # Specify the Python executable to use
 
 # Set C++ standard
@@ -189,6 +194,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # TIP: if different options need to be specified for different targets of the build, use INTERFACE targets
+
+set(_initial_c_flags "${CMAKE_C_FLAGS}")
+set(_initial_cxx_flags "${CMAKE_CXX_FLAGS}")
 
 # COMPILER FLAGS
 set(_common_c_warnings -Wall -Wextra)
@@ -254,6 +262,38 @@ list(APPEND _release_c_flags ${_cpu_opt_flags})
 list(APPEND _release_cxx_flags ${_cpu_opt_flags})
 list(APPEND _relwithdebinfo_c_flags ${_cpu_opt_flags})
 list(APPEND _relwithdebinfo_cxx_flags ${_cpu_opt_flags})
+
+set(_user_c_flags)
+if (NOT "${_initial_c_flags}" STREQUAL "")
+  separate_arguments(_initial_c_flags_list UNIX_COMMAND "${_initial_c_flags}")
+  list(APPEND _user_c_flags ${_initial_c_flags_list})
+endif()
+if (NOT "${TEMPLATE_PROJECT_EXTRA_C_FLAGS}" STREQUAL "")
+  separate_arguments(_template_project_extra_c_flags_list UNIX_COMMAND "${TEMPLATE_PROJECT_EXTRA_C_FLAGS}")
+  list(APPEND _user_c_flags ${_template_project_extra_c_flags_list})
+endif()
+list(REMOVE_DUPLICATES _user_c_flags)
+
+set(_user_cxx_flags)
+if (NOT "${_initial_cxx_flags}" STREQUAL "")
+  separate_arguments(_initial_cxx_flags_list UNIX_COMMAND "${_initial_cxx_flags}")
+  list(APPEND _user_cxx_flags ${_initial_cxx_flags_list})
+endif()
+if (NOT "${TEMPLATE_PROJECT_EXTRA_CXX_FLAGS}" STREQUAL "")
+  separate_arguments(_template_project_extra_cxx_flags_list UNIX_COMMAND "${TEMPLATE_PROJECT_EXTRA_CXX_FLAGS}")
+  list(APPEND _user_cxx_flags ${_template_project_extra_cxx_flags_list})
+endif()
+list(REMOVE_DUPLICATES _user_cxx_flags)
+
+list(APPEND _debug_c_flags ${_user_c_flags})
+list(APPEND _release_c_flags ${_user_c_flags})
+list(APPEND _relwithdebinfo_c_flags ${_user_c_flags})
+list(APPEND _noptim_c_flags ${_user_c_flags})
+
+list(APPEND _debug_cxx_flags ${_user_cxx_flags})
+list(APPEND _release_cxx_flags ${_user_cxx_flags})
+list(APPEND _relwithdebinfo_cxx_flags ${_user_cxx_flags})
+list(APPEND _noptim_cxx_flags ${_user_cxx_flags})
 
 string(JOIN " " CMAKE_C_FLAGS_DEBUG ${_debug_c_flags})
 string(JOIN " " CMAKE_CXX_FLAGS_DEBUG ${_debug_cxx_flags})
@@ -373,8 +413,8 @@ handle_tbb(TARGET ${LIB_COMPILE_TARGET})
 
 if (CMAKE_BUILD_TYPE_LOWER MATCHES "debug")
   # Set compile flags
-  set(CMAKE_C_FLAGS ${CMAKE_CXX_FLAGS_DEBUG})
-  set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS_DEBUG})
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS_DEBUG}")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_DEBUG}")
 
   # Set compile options for the interface target
   set(_sanitizer_flags)
@@ -393,17 +433,17 @@ if (CMAKE_BUILD_TYPE_LOWER MATCHES "debug")
 
 elseif (CMAKE_BUILD_TYPE_LOWER MATCHES "release" AND NOT NO_OPTIMIZATION)
   # Set compile flags
-  set(CMAKE_C_FLAGS ${CMAKE_CXX_FLAGS_RELEASE})
-  set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS_RELEASE})
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS_RELEASE}")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_RELEASE}")
 
 elseif (CMAKE_BUILD_TYPE_LOWER MATCHES "relwithdebinfo" AND NOT NO_OPTIMIZATION) 
   # Set compile flags
-  set(CMAKE_C_FLAGS ${CMAKE_CXX_FLAGS_RELWITHDEBINFO})
-  set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS_RELWITHDEBINFO})
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 
 elseif (NO_OPTIMIZATION)
-  set(CMAKE_C_FLAGS ${CMAKE_CXX_FLAGS_NOPTIM})
-  set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS_NOPTIM})
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS_NOPTIM}")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_NOPTIM}")
   target_compile_definitions(${LIB_COMPILE_TARGET} INTERFACE NDEBUG)
 
 else()
@@ -495,6 +535,7 @@ endif()
 message(STATUS "===============================================================")
 message(STATUS "================  Configuration Options  ======================")
 # Project info
+message(STATUS "CMAKE_VERSION                             : ${CMAKE_VERSION}")
 message(STATUS "LIBRARY NAME                              : ${project_name}")
 message(STATUS "LIBRARY TARGET TYPE                       : ${PROJECT_LIBRARY_KIND}")
 message(STATUS "CROSS COMPILING                           : ${CMAKE_CROSSCOMPILING}")
@@ -533,6 +574,9 @@ message(STATUS "CPU SIMD enabled                         : ${CPU_ENABLE_SIMD}")
 message(STATUS "CPU SIMD level                           : ${CPU_SIMD_LEVEL}")
 message(STATUS "CPU FMA                                  : ${CPU_ENABLE_FMA}")
 message(STATUS "CPU extra optimization flags             : ${CPU_EXTRA_OPT_FLAGS}")
+message(STATUS "Project extra C flags                    : ${TEMPLATE_PROJECT_EXTRA_C_FLAGS}")
+message(STATUS "Project extra C++ flags                  : ${TEMPLATE_PROJECT_EXTRA_CXX_FLAGS}")
+message(STATUS "OpenCV found                             : ${OpenCV_FOUND}")
 
 # Installation
 message(STATUS "CMAKE_INSTALL_PREFIX                      : ${CMAKE_INSTALL_PREFIX}")
@@ -547,17 +591,17 @@ if(NOT MSVC AND NOT XCODE_VERSION)
   message(STATUS "Optimization override:                    : ${NO_OPTIMIZATION}")  
 
   if(CMAKE_BUILD_TYPE MATCHES Debug)
-    message(STATUS "  C compilation flags                     : ${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_DEBUG}")
-    message(STATUS "  C++ compilation flags                   : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG}")
+    message(STATUS "  C compilation flags                     : ${CMAKE_C_FLAGS}")
+    message(STATUS "  C++ compilation flags                   : ${CMAKE_CXX_FLAGS}")
   elseif (CMAKE_BUILD_TYPE MATCHES Release)
-    message(STATUS "  C compilation flags                     : ${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_RELEASE}")
-    message(STATUS "  C++ compilation flags                   : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE}")
+    message(STATUS "  C compilation flags                     : ${CMAKE_C_FLAGS}")
+    message(STATUS "  C++ compilation flags                   : ${CMAKE_CXX_FLAGS}")
   elseif (CMAKE_BUILD_TYPE MATCHES RelWithDebInfo)
-    message(STATUS "  C compilation flags                     : ${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_RELWITHDEBINFO}")
-    message(STATUS "  C++ compilation flags                   : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+    message(STATUS "  C compilation flags                     : ${CMAKE_C_FLAGS}")
+    message(STATUS "  C++ compilation flags                   : ${CMAKE_CXX_FLAGS}")
   elseif (NO_OPTIMIZATION)
-    message(STATUS "  C compilation flags                     : ${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_NOPTIM}")
-    message(STATUS "  C++ compilation flags                   : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_NOPTIM}")
+    message(STATUS "  C compilation flags                     : ${CMAKE_C_FLAGS}")
+    message(STATUS "  C++ compilation flags                   : ${CMAKE_CXX_FLAGS}")
   else()
     message(STATUS "  C compilation flags                     : ${CMAKE_C_FLAGS}")
     message(STATUS "  C++ compilation flags                   : ${CMAKE_CXX_FLAGS}")
