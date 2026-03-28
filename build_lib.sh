@@ -361,8 +361,8 @@ if [[ "$rebuild_only" == false ]]; then
     -S .
     -B "$buildpath"
     "-DCMAKE_BUILD_TYPE=$cmake_bt"
-    "-DTEMPLATE_PROJECT_EXTRA_CXX_FLAGS=$CXX_FLAGS"
-    "-DTEMPLATE_PROJECT_EXTRA_C_FLAGS=$CXX_FLAGS"
+    "-DEXTRA_CXX_FLAGS=$CXX_FLAGS"
+    "-DEXTRA_C_FLAGS=$CXX_FLAGS"
     -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
   )
   [[ "$use_ninja"  == true ]] && cmake_args+=( -G Ninja )
