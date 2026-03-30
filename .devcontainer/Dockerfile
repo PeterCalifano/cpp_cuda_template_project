@@ -1,6 +1,7 @@
 FROM mcr.microsoft.com/devcontainers/cpp:1-ubuntu-24.04
 
-ARG REINSTALL_CMAKE_VERSION_FROM_SOURCE="3.22.2"
+ARG REINSTALL_CMAKE_VERSION_FROM_SOURCE="none"
+#"3.28.1"
 ARG ROS_MODE="none"
 ARG ROS_DISTRO=""
 ARG ROS_PROFILE="ros-base"
