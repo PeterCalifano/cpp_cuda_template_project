@@ -140,7 +140,7 @@ if (ENABLE_OPENGL)
   target_link_libraries(${lib_name} ${lib_link_scope} ${OPENGL_COMPILE_TARGET})
 endif()
 
-# Link profiling interface: gperftools always when found, compile flags only with ENABLE_PROFILING.
+# Link profiling interface: profiling flags and gperftools/tcmalloc are opt-in.
 # Default is PRIVATE to keep profiling a build-time concern. Set
 # PROFILING_PROPAGATES_TO_CONSUMERS=ON to make profiling usage requirements PUBLIC.
 if (NOT lib_is_header_only AND TARGET ${PROFILING_COMPILE_TARGET})

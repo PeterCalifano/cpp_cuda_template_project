@@ -530,6 +530,9 @@ if(BUILD_AS_MAIN_PROJECT)
   if (${GTWRAP_PYTHON_OPTION_NAME} OR PYBIND11_WRAPPER_ENABLED OR ${GTWRAP_MATLAB_OPTION_NAME})
     set(ANY_WRAPPER_ENABLED ON)
   endif()
+
+  include("${CMAKE_CURRENT_SOURCE_DIR}/tests/cmake/AddMatlabWrapperRegressionTests.cmake")
+  add_template_matlab_wrapper_regression_tests()
 endif()
 
 ###########################################################################
