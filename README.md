@@ -15,7 +15,7 @@ A CMake template for building GPU-accelerated C++ libraries with optional CUDA/O
 | Catch2 | 3.x | Auto-fetched from GitHub if not found |
 | pyparsing | latest | Required for gtwrap Python/MATLAB code generation |
 | Valgrind / perf | any | Optional, for profiling scripts |
-| libgoogle-perftools-dev | any | Optional (`-DENABLE_PROFILING=ON`) |
+| libgoogle-perftools-dev | any | Optional (`-DENABLE_PROFILING=ON` / `-DENABLE_TCMALLOC=ON`) |
 
 ---
 
@@ -117,7 +117,9 @@ See [`doc/build_script_doc.md`](doc/build_script_doc.md) for a detailed option r
 | `ENABLE_TBB` | OFF | Intel oneTBB support (`find_package(TBB)`) |
 | `ENABLE_OPENGL` | OFF | OpenGL support |
 | `ENABLE_TESTS` | ON | Build and run Catch2 tests |
-| `ENABLE_PROFILING` | OFF | Profiling-friendly flags + optional gperftools |
+| `ENABLE_PROFILING` | OFF | Profiling-friendly flags; enables `ENABLE_GPERFTOOLS` by default |
+| `ENABLE_GPERFTOOLS` | `ENABLE_PROFILING` | Link gperftools `libprofiler` when found |
+| `ENABLE_TCMALLOC` | OFF | Explicitly link gperftools `libtcmalloc`; keep OFF for normal MATLAB MEX builds |
 | `BUILD_SHARED_LIBS` | ON | Build compiled libraries as shared (`OFF` builds static archives) |
 | `SANITIZE_BUILD` | OFF | Enable sanitizers (see `SANITIZERS` variable) |
 | `SANITIZERS` | `address,undefined,leak` | Comma-separated sanitizer list |
