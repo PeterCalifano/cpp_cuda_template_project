@@ -17,6 +17,9 @@
 		},
 		{
 			"path": "../cpp_cuda_template_testfield"
+		},
+		{
+			"path": "../wrap"
 		}
 	],
 	"settings": {
