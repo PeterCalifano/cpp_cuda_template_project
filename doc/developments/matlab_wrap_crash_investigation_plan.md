@@ -187,6 +187,58 @@ into the testfield harness. Normal wrapper builds do not link `libtcmalloc`;
 - [x] Testfield Python package CTests passed:
   Python 3.12 install/import succeeds and Python 3.11 install is rejected.
 
+### Stage 8 - critical follow-up fixes
+
+- [x] Fixed `wrap` MATLAB test collection from the repo root by appending the
+  repo root to `sys.path` before importing `gtwrap`.
+- [x] Regenerated committed MATLAB expected fixtures from the actual generator
+  output so `tests/test_matlab_wrapper.py` is self-contained.
+- [x] Kept runtime and generated MEX error-path changes together:
+  generated code now depends on `gtwrap::CoutRedirect` and `gtwrap::MexErrMsg*`
+  helpers from `/home/peterc/devDir/dev-tools/wrap/matlab.h`.
+- [x] Made `CoutRedirect` nested/reentrant safe with a previous-pointer stack
+  model instead of a single active redirect pointer.
+- [x] Restored every active stdout redirect before `mexErrMsg*` longjmp paths.
+- [x] Genericized user-facing generated diagnostics:
+  `Exception from wrapped C++ code` replaces `Exception from gtsam`.
+- [x] Genericized user-facing RTTI errors from `gtsam wrap:` to `wrap:`.
+- [x] Genericized generated MATLAB comments away from hard-coded
+  `https://gtsam.org/doxygen/`.
+- [x] Replaced old `FindPythonInterp` / `FindPythonLibs` usage in
+  `wrap/cmake/MatlabWrap.cmake` with modern `find_package(Python ... COMPONENTS
+  Interpreter)`.
+- [x] Re-verified Python wrapper generation after MATLAB changes:
+  `pytest -q tests/test_pybind_wrapper.py -p no:cacheprovider` passed.
+
+### Stage 9 - downstream experiments with fixed local `wrap`
+
+- [x] Built `/home/peterc/devDir/rendering-sw/spectral_raytracer_dev` against
+  `/home/peterc/devDir/dev-tools/wrap` with MATLAB wrapper enabled and wrap
+  auto-update disabled.
+- [x] Confirmed generated spectral MEX uses scalar paths:
+  `unwrap< std::string >` for by-value strings,
+  `unwrap< uint32_t >` for `uint32_t`, and MATLAB proxy `isa(...,'uint32')`.
+- [x] Confirmed spectral generated MEX no longer emits
+  `Exception from gtsam`.
+- [x] Ran spectral MATLAB smoke with `LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libOpenEXR-3_1.so.30`:
+  const-ref string setters passed, by-value string setter passed,
+  `uint32_t` overload gate passed, bad C++ call was catchable, and valid calls
+  still worked after catch.
+- [x] Recorded spectral environmental blocker without preload:
+  MATLAB loads OpenEXR from its own runtime before `/usr/local/lib` OpenCV,
+  causing an unresolved OpenEXR symbol in `libopencv_imgcodecs.so.410`.
+- [x] Added minimal torchAutoForge wrapper probe in
+  `/home/peterc/devDir/ML-repos/torchAutoForge-deploy/src/wrap_interface.i`
+  for existing `placeholder::placeholder_fcn()`.
+- [x] Built torchAutoForge Python wrapper against fixed local `wrap` with
+  `autoforge_deploy_GTWRAP_TOP_NAMESPACE=placeholder`.
+- [x] Ran torchAutoForge Python smoke with Python 3.11 and called the wrapped
+  C++ placeholder function.
+- [x] Built torchAutoForge MATLAB wrapper against fixed local `wrap` with
+  `autoforge_deploy_GTWRAP_TOP_NAMESPACE=placeholder`.
+- [x] Ran torchAutoForge MATLAB smoke and called
+  `placeholder.placeholder_fcn()` through MEX.
+
 ### Remaining to do / suggested follow-ups
 
 - [ ] Decide whether probe methods stay in `CWrapperPlaceholder` or move to a
@@ -198,7 +250,8 @@ into the testfield harness. Normal wrapper builds do not link `libtcmalloc`;
 - [ ] Add an installed-package Python smoke test in the template itself, matching
   the current testfield package-install regression.
 - [ ] Parameterize generated wrapper diagnostics so user-facing MEX/Python errors
-  name the generated module or project instead of a legacy upstream project.
+  can optionally name the generated module or project. The current fix uses
+  generic wording, not module-specific wording.
 - [ ] Split user-facing diagnostic text from runtime compatibility symbols:
   changing messages should be cheap, while changing registry/global names must
   preserve existing wrapper compatibility.
@@ -210,17 +263,19 @@ into the testfield harness. Normal wrapper builds do not link `libtcmalloc`;
   such as redirected `print` / `repr` helpers and serialization utilities.
 - [ ] Keep backward aliases or migration gates for existing wrappers that depend
   on legacy runtime names.
-- [ ] Add regression checks that generated MATLAB and Python wrappers for generic
-  modules do not emit unrelated project names in user-facing errors.
+- [x] Add regression checks that generated MATLAB wrappers for generic modules
+  do not emit unrelated project names in user-facing errors.
+- [ ] Add matching Python generated-output checks for unrelated project names
+  where Python generator support is expected to be generic.
 - [ ] Upstream or vendor-sync the fixed local `/home/peterc/devDir/dev-tools/wrap`
   changes after review.
-- [ ] Run affected downstream repositories against the fixed local `wrap`.
+- [x] Run affected downstream repositories against the fixed local `wrap`.
 - [ ] For stateful downstream objects, add no-throw idempotent cleanup on delete
   and MATLAB unload paths.
 - [ ] Run a narrow MATLAB C++ MEX API spike only after the hardened C API backend
   is stable.
 
-## Probe details
+## Historical baseline probe details
 
 The probe declarations in `src/wrap_interface.i`:
 
