@@ -16,6 +16,7 @@
 - Nested consumers can override the concrete library target name with `LIB_TARGET_NAME_OVERRIDE`, while the exported/imported target remains `<namespace>::template_project`.
 - `NO_OPTIMIZATION=ON` now overrides config-specific CMake flags so it produces profiler-friendly `-O0 -g3`, keeps assertions enabled, preserves frame pointers, disables inlining/sibling-call optimization, and omits `-O2`, `-O3`, and host-native CPU flags.
 - `Release` and `RelWithDebInfo` now explicitly include `-DNDEBUG` and are guarded against profiler/debug-only flags such as `-O0`, `-Og`, `-g3`, frame-pointer forcing, no-inline flags, and sanitizer flags.
+- Compiler flag policy now lives in `cmake/HandleCompilerFlags.cmake` instead of the root `CMakeLists.txt`.
 - The build-type branch around `${LIB_COMPILE_TARGET}` was cleaned up: only no-optimization, debug sanitizer/frame-pointer handling, and invalid-build-type validation remain active.
 - Main repo added `tests/cmake/VerifyTemplateProjectCrossCompile.cmake` and CTest coverage for:
   - configure flags for aarch64;
