@@ -88,6 +88,18 @@
 
 - Testfield still calls `write_source_VERSION_file()` in its root `CMakeLists.txt`, which mutates tracked source state during configure. This is the main remaining issue for using testfield as a robust CI/sandbox harness.
 
+### 2026-05-22 CI illegal-instruction blocker
+
+- GitHub Actions Linux and CUDA workflows were forcing `-DCPU_ENABLE_NATIVE_TUNING=ON`.
+- Those workflows upload the build tree from a build job and execute downloaded test binaries in a separate test job, so host-native CPU tuning can produce non-portable binaries and fail as `Illegal`/`SIGILL` on a different runner CPU.
+- Both `.github/workflows/build_linux.yml` and `.github/workflows/build_linux_cuda.yml` now force `-DCPU_ENABLE_NATIVE_TUNING=OFF`.
+- Added CTest guard `template_project_ci_workflow_cpu_flags` through `tests/cmake/VerifyTemplateProjectCiWorkflowFlags.cmake` so future workflow edits fail if CI re-enables native CPU tuning.
+- Validation completed in `/tmp/cpp_cuda_template_ci_blocker`:
+  - CI-style configure with `RelWithDebInfo`, tests enabled, CUDA/OptiX/OpenGL off, and `CPU_ENABLE_NATIVE_TUNING=OFF`;
+  - `cmake --build /tmp/cpp_cuda_template_ci_blocker --parallel 4`;
+  - `ctest --test-dir /tmp/cpp_cuda_template_ci_blocker --output-on-failure --parallel 2 --no-tests=error`: 11/11 passed, including the logging and template Catch2 tests that failed as `Illegal` in CI;
+  - generated `build.ninja` has no `-march=native` or `-mtune=native` compile flags; `CMakeCache.txt` keeps `CPU_ENABLE_NATIVE_TUNING:BOOL=OFF`.
+
 ## 2026-05-10 MATLAB wrap lifecycle work
 
 - Active implementation spans:

@@ -39,6 +39,19 @@ set_tests_properties(
     TIMEOUT 180
 )
 
+add_test(
+    NAME template_project_ci_workflow_cpu_flags
+    COMMAND ${CMAKE_COMMAND}
+        -DTEST_TEMPLATE_SOURCE_DIR=${PROJECT_SOURCE_DIR}
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyTemplateProjectCiWorkflowFlags.cmake
+)
+set_tests_properties(
+    template_project_ci_workflow_cpu_flags
+    PROPERTIES
+    LABELS "flags;ci"
+    TIMEOUT 60
+)
+
 find_program(TEMPLATE_AARCH64_GCC_EXECUTABLE NAMES aarch64-linux-gnu-gcc)
 find_program(TEMPLATE_AARCH64_GXX_EXECUTABLE NAMES aarch64-linux-gnu-g++)
 set(TEMPLATE_AARCH64_TOOLCHAIN_FILE "${PROJECT_SOURCE_DIR}/cmake/toolchains/defaults/aarch64-linux-gnu.cmake")
