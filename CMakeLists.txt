@@ -89,6 +89,15 @@ endif()
 set(BUILD_PROGRAMS_OPTION_NAME "${LIB_NAMESPACE}_BUILD_PROGRAMS")
 set(BUILD_EXAMPLES_OPTION_NAME "${LIB_NAMESPACE}_BUILD_EXAMPLES")
 
+# Set library target name (without namespace)
+set(LIB_TARGET_NAME "${project_name}")
+if (DEFINED LIB_TARGET_NAME_OVERRIDE)
+  # Handle override of library target name for consumers
+  set(LIB_TARGET_NAME "${LIB_TARGET_NAME_OVERRIDE}")
+endif()
+set(BUILD_PROGRAMS_OPTION_NAME "${LIB_NAMESPACE}_BUILD_PROGRAMS")
+set(BUILD_EXAMPLES_OPTION_NAME "${LIB_NAMESPACE}_BUILD_EXAMPLES")
+
 # Handle toolchain settings (after project so compiler/system vars are populated)
 include(cmake/toolchains/HandleToolchain.cmake)
 
@@ -132,7 +141,15 @@ option(ENABLE_FETCH_SPDLOG "Fetch spdlog from GitHub if not found" ON)
 option(${BUILD_PROGRAMS_OPTION_NAME} "Build project program targets when this project is the main project" ON)
 option(${BUILD_EXAMPLES_OPTION_NAME} "Build project example targets when this project is the main project" ON)
 
+
+option(${BUILD_PROGRAMS_OPTION_NAME} "Build project program targets when this project is the main project" ON)
+option(${BUILD_EXAMPLES_OPTION_NAME} "Build project example targets when this project is the main project" ON)
+
 option(VERBOSE "Verbose output" OFF) # Defines VERBOSE flag in code if set to ON
+
+if(BUILD_AS_MAIN_PROJECT AND ENABLE_TESTS)
+  include(CTest)
+endif()
 
 if(BUILD_AS_MAIN_PROJECT AND ENABLE_TESTS)
   include(CTest)
@@ -207,6 +224,19 @@ set(CUDA_NVCC_EXTRA_FLAGS "" CACHE STRING "Extra flags passed to NVCC for CUDA/P
 set(EXTRA_C_FLAGS "" CACHE STRING "Extra C compiler flags appended to project-managed flags")
 set(EXTRA_CXX_FLAGS "" CACHE STRING "Extra C++ compiler flags appended to project-managed flags")
 set(PYTHON_EXECUTABLE "python3") # Specify the Python executable to use
+
+# Host-native CPU flags are not portable across toolchains; target flags must be explicit.
+if(CMAKE_CROSSCOMPILING AND CPU_ENABLE_NATIVE_TUNING)
+  message(STATUS "Disabling CPU_ENABLE_NATIVE_TUNING for cross-compiling. Use CPU_EXTRA_OPT_FLAGS for target-specific CPU flags.")
+  set(CPU_ENABLE_NATIVE_TUNING OFF CACHE BOOL "Enable -march=native -mtune=native for GNU/Clang in optimized builds" FORCE)
+endif()
+
+if(CMAKE_CROSSCOMPILING AND CPU_ENABLE_SIMD)
+  string(TOLOWER "${CPU_SIMD_LEVEL}" _cross_cpu_simd_level)
+  if(_cross_cpu_simd_level STREQUAL "native")
+    message(FATAL_ERROR "CPU_SIMD_LEVEL=native is not valid while cross-compiling. Set CPU_ENABLE_SIMD=OFF or pass target-specific flags through CPU_EXTRA_OPT_FLAGS.")
+  endif()
+endif()
 
 # Host-native CPU flags are not portable across toolchains; target flags must be explicit.
 if(CMAKE_CROSSCOMPILING AND CPU_ENABLE_NATIVE_TUNING)
@@ -457,6 +487,7 @@ message(STATUS "Target dependencies: ${EXPORT_TARGET_DEPS}")
 # Interface target for C++ flags
 add_library(${LIB_COMPILE_TARGET} INTERFACE)
 handle_toolchain(TARGET ${LIB_COMPILE_TARGET})
+handle_toolchain(TARGET ${LIB_COMPILE_TARGET})
 handle_tbb(TARGET ${LIB_COMPILE_TARGET})
 
 if (NO_OPTIMIZATION)
@@ -528,10 +559,12 @@ add_subdirectory( src )
 
 # Add examples to build
 if (BUILD_AS_MAIN_PROJECT AND ${${BUILD_EXAMPLES_OPTION_NAME}})
+if (BUILD_AS_MAIN_PROJECT AND ${${BUILD_EXAMPLES_OPTION_NAME}})
   add_subdirectory( examples )
 endif()
 
 # Add tests to build
+if (ENABLE_TESTS AND BUILD_AS_MAIN_PROJECT)
 if (ENABLE_TESTS AND BUILD_AS_MAIN_PROJECT)
   add_subdirectory( tests )
 endif()
@@ -620,6 +653,8 @@ message(STATUS "CMAKE_INSTALL_BINDIR                      : ${CMAKE_INSTALL_BIND
 message(STATUS "BUILD_SHARED_LIBS                         : ${BUILD_SHARED_LIBS}")
 message(STATUS "${BUILD_PROGRAMS_OPTION_NAME}                  : ${${BUILD_PROGRAMS_OPTION_NAME}}")
 message(STATUS "${BUILD_EXAMPLES_OPTION_NAME}                  : ${${BUILD_EXAMPLES_OPTION_NAME}}")
+message(STATUS "${BUILD_PROGRAMS_OPTION_NAME}                  : ${${BUILD_PROGRAMS_OPTION_NAME}}")
+message(STATUS "${BUILD_EXAMPLES_OPTION_NAME}                  : ${${BUILD_EXAMPLES_OPTION_NAME}}")
 
 # Build type
 if(NOT MSVC AND NOT XCODE_VERSION)
@@ -641,6 +676,10 @@ if(NOT MSVC AND NOT XCODE_VERSION)
     set(_display_c_flags "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_RELWITHDEBINFO}")
     set(_display_cxx_flags "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
   endif()
+  string(STRIP "${_display_c_flags}" _display_c_flags)
+  string(STRIP "${_display_cxx_flags}" _display_cxx_flags)
+  message(STATUS "  C compilation flags                     : ${_display_c_flags}")
+  message(STATUS "  C++ compilation flags                   : ${_display_cxx_flags}")
   string(STRIP "${_display_c_flags}" _display_c_flags)
   string(STRIP "${_display_cxx_flags}" _display_cxx_flags)
   message(STATUS "  C compilation flags                     : ${_display_c_flags}")
