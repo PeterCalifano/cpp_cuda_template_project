@@ -84,11 +84,11 @@ The script now uses **GNU `getopt`** to support:
   `-D ENABLE_CUDA=ON -D CUDA_ENABLE_FMAD=ON -D ENABLE_TBB=ON`.
 
 * **`-n, --no-optim`**
-  Sets `-DNO_OPTIMIZATION=ON` in the CMake cache. Your toolchain/CMakeLists can use this to toggle optimizer knobs (e.g., turn off vectorization or special CPU flags independent of `CMAKE_BUILD_TYPE`).
+  Sets `-DNO_OPTIMIZATION=ON` in the CMake cache. Project CMake then forces `-O0 -g` for the selected build type and omits CPU-specific optimization flags like `-march=native`.
 
 * **`--toolchain <file>`**
   Pass a CMake toolchain file: `-DCMAKE_TOOLCHAIN_FILE=<file>`.
-  Example: `--toolchain cmake/toolchains/clang.cmake`.
+  Example: `--toolchain cmake/toolchains/defaults/aarch64-linux-gnu.cmake`.
 
 * **`-p, --python-wrap`**
   Enables Python wrappers by setting:
@@ -188,14 +188,16 @@ These are configured through `-D/--define` and live in CMake (not dedicated `bui
 
 ### CPU optimization toggles
 
-* `CPU_ENABLE_NATIVE_TUNING=ON` (default):
-  adds `-march=native -mtune=native` for optimized builds.
+* `CPU_ENABLE_NATIVE_TUNING=ON` (default for native builds, auto-disabled for cross builds):
+  adds `-march=native -mtune=native` for optimized native builds.
 * `CPU_ENABLE_SIMD=ON` + `CPU_SIMD_LEVEL=<native|sse4.2|avx|avx2|avx512f>`:
   adds explicit SIMD ISA flags.
 * `CPU_ENABLE_FMA=ON`:
   adds `-mfma`.
 * `CPU_EXTRA_OPT_FLAGS="..."`:
   appends additional CPU optimization flags.
+* `template_project_BUILD_PROGRAMS=OFF` and `template_project_BUILD_EXAMPLES=OFF`:
+  skip root binaries/examples for configure/build smoke tests and cross builds that should only produce libraries.
 
 ### CUDA optimization toggles
 
@@ -305,10 +307,11 @@ This keeps the template strict and avoids misleading downstream OptiX/CUDA error
   ./build_lib.sh -r -j 8
   ```
 
-* **Clang toolchain build**:
+* **AArch64 toolchain build**:
 
   ```bash
-  ./build_lib.sh --toolchain cmake/toolchains/clang.cmake
+  ./build_lib.sh --toolchain cmake/toolchains/defaults/aarch64-linux-gnu.cmake --clean \
+    -D template_project_BUILD_PROGRAMS=OFF -D template_project_BUILD_EXAMPLES=OFF
   ```
 
 ---
