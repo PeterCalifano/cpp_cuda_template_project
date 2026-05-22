@@ -2,7 +2,43 @@
 
 - Main repo: `/home/peterc/devDir/dev-tools/cpp_cuda_template_project`
 - Test harness repo: `/home/peterc/devDir/dev-tools/cpp_cuda_template_testfield`
-- Date: 2026-03-18
+- Date: 2026-05-22
+
+### 2026-05-22 cross-compilation and nested-library work
+
+- Active branch in both repos: `feature/improve-cross-compiling`.
+- Main repo now disables `CPU_ENABLE_NATIVE_TUNING` automatically under `CMAKE_CROSSCOMPILING`.
+- `CPU_SIMD_LEVEL=native` now fails configure when cross-compiling with explicit SIMD enabled.
+- Toolchain metadata is applied to the project compile interface target, so downstream compiles receive `CROSS_COMPILED`, architecture, and target-OS defines.
+- Root-only program/example toggles are namespace-derived:
+  - default names: `template_project_BUILD_PROGRAMS`, `template_project_BUILD_EXAMPLES`;
+  - nested override examples: `nested_template_BUILD_PROGRAMS`, `nested_testfield_BUILD_PROGRAMS`.
+- Nested consumers can override the concrete library target name with `LIB_TARGET_NAME_OVERRIDE`, while the exported/imported target remains `<namespace>::template_project`.
+- `NO_OPTIMIZATION=ON` now overrides config-specific CMake flags so it produces profiler-friendly `-O0 -g3`, keeps assertions enabled, preserves frame pointers, disables inlining/sibling-call optimization, and omits `-O2`, `-O3`, and host-native CPU flags.
+- `Release` and `RelWithDebInfo` now explicitly include `-DNDEBUG` and are guarded against profiler/debug-only flags such as `-O0`, `-Og`, `-g3`, frame-pointer forcing, no-inline flags, and sanitizer flags.
+- Compiler flag policy now lives in `cmake/HandleCompilerFlags.cmake` instead of the root `CMakeLists.txt`.
+- The build-type branch around `${LIB_COMPILE_TARGET}` was cleaned up: only no-optimization, debug sanitizer/frame-pointer handling, and invalid-build-type validation remain active.
+- Main repo added `tests/cmake/VerifyTemplateProjectCrossCompile.cmake` and CTest coverage for:
+  - configure flags for aarch64;
+  - install + consume through `find_package(template_project)`;
+  - nested `add_subdirectory` consume with namespace/target-name override.
+- Main repo added `tests/cmake/VerifyTemplateProjectNoOptimization.cmake` to guard `NO_OPTIMIZATION=ON`.
+- Main repo added `tests/cmake/VerifyTemplateProjectOptimizedFlags.cmake` to guard Release/RelWithDebInfo flags.
+- Testfield repo mirrors the cross/nesting changes and added `tests/cmake/VerifyTestfieldCrossCompile.cmake`.
+- Testfield repo added `tests/cmake/VerifyTestfieldNoOptimization.cmake` to guard its `NO_OPTIMIZATION=ON` path.
+- Testfield repo added `tests/cmake/VerifyTestfieldOptimizedFlags.cmake` to guard Release/RelWithDebInfo flags.
+- Validation completed:
+  - main repo `ctest --test-dir /tmp/cpp_cuda_template_stage_check --output-on-failure -R "template_project_(optimized_config_flags|no_optimization_flags|aarch64_cross)"`: 5/5 passed;
+  - testfield `ctest --test-dir /tmp/cpp_cuda_template_testfield_stage --output-on-failure -R "testfield_(optimized_config_flags|no_optimization_flags|aarch64_cross)|template_project_builds_(shared|static)_and_is_consumable"`: 7/7 passed;
+  - main repo `build_lib.sh` aarch64 smoke built `/tmp/cpp_cuda_template_buildlib_aarch64/src/libtemplate_project.so`;
+  - testfield `build_lib.sh` aarch64 smoke built `/tmp/cpp_cuda_template_testfield_aarch64_buildlib/src/libtemplate_project.so`;
+  - main repo `build_lib.sh --no-optim` smoke built `/tmp/cpp_cuda_template_buildlib_noopt/src/libtemplate_project.so`;
+  - testfield `build_lib.sh --no-optim` smoke built `/tmp/cpp_cuda_template_testfield_buildlib_noopt/src/libtemplate_project.so`;
+  - both produced shared libraries are `ELF 64-bit ... ARM aarch64`;
+  - both compile command databases have no `-march=native` or `-mtune=native`;
+  - both no-optimization compile command databases contain `-O0`, `-g3`, `-fno-omit-frame-pointer`, `-fno-inline`, and `-fno-optimize-sibling-calls`, with no `-O2`, `-O3`, `-march=native`, `-mtune=native`, or `-DNDEBUG`;
+  - optimized config compile command databases contain `-O3 -DNDEBUG` for Release and `-O2 -g -DNDEBUG` for RelWithDebInfo, with no no-optimization/profiler/sanitizer flags;
+  - stale `BUILD_TEMPLATE_PROGRAMS` / `BUILD_TEMPLATE_EXAMPLES` names were removed from both repos.
 
 ### Unified Python package/wrapper work
 
@@ -51,6 +87,21 @@
 ### Remaining known risk
 
 - Testfield still calls `write_source_VERSION_file()` in its root `CMakeLists.txt`, which mutates tracked source state during configure. This is the main remaining issue for using testfield as a robust CI/sandbox harness.
+
+### 2026-05-22 CI illegal-instruction blocker
+
+- GitHub Actions Linux and CUDA workflows were forcing `-DCPU_ENABLE_NATIVE_TUNING=ON`.
+- Those workflows upload the build tree from a build job and execute downloaded test binaries in a separate test job, so host-native CPU tuning can produce non-portable binaries and fail as `Illegal`/`SIGILL` on a different runner CPU.
+- Both `.github/workflows/build_linux.yml` and `.github/workflows/build_linux_cuda.yml` now force `-DCPU_ENABLE_NATIVE_TUNING=OFF`.
+- Added CTest guard `template_project_ci_workflow_cpu_flags` through `tests/cmake/VerifyTemplateProjectCiWorkflowFlags.cmake` so future workflow edits fail if CI re-enables native CPU tuning.
+- Mirrored the same workflow policy and guard in testfield as `testfield_ci_workflow_cpu_flags`; the pre-existing testfield `lib/wrap` submodule pointer change was left untouched.
+- Validation completed in `/tmp/cpp_cuda_template_ci_blocker`:
+  - CI-style configure with `RelWithDebInfo`, tests enabled, CUDA/OptiX/OpenGL off, and `CPU_ENABLE_NATIVE_TUNING=OFF`;
+  - `cmake --build /tmp/cpp_cuda_template_ci_blocker --parallel 4`;
+  - `ctest --test-dir /tmp/cpp_cuda_template_ci_blocker --output-on-failure --parallel 2 --no-tests=error`: 11/11 passed, including the logging and template Catch2 tests that failed as `Illegal` in CI;
+  - generated `build.ninja` has no `-march=native` or `-mtune=native` compile flags; `CMakeCache.txt` keeps `CPU_ENABLE_NATIVE_TUNING:BOOL=OFF`.
+- Testfield guard validation used direct CMake script execution to avoid its known source-`VERSION` configure mutation:
+  - `cmake -DTEST_SOURCE_DIR=/home/peterc/devDir/dev-tools/cpp_cuda_template_testfield -P tests/cmake/VerifyTestfieldCiWorkflowFlags.cmake`.
 
 ## 2026-05-10 MATLAB wrap lifecycle work
 

@@ -67,6 +67,7 @@ jobs:
 
       - name: Configure
         run: |
+          # Build artifacts are tested in a separate job, so keep CPU flags portable.
           cmake -S . -B "${BUILD_DIR}" -GNinja \
             -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
             -DENABLE_TESTS=ON \
@@ -74,7 +75,7 @@ jobs:
             -DENABLE_OPTIX="${ENABLE_OPTIX}" \
             -DENABLE_TBB="${ENABLE_TBB}" \
             -DENABLE_OPENGL=OFF \
-            -DCPU_ENABLE_NATIVE_TUNING=ON \
+            -DCPU_ENABLE_NATIVE_TUNING=OFF \
             -DCUDA_ENABLE_FMAD=ON \
             -DCUDA_ENABLE_EXTRA_DEVICE_VECTORIZATION=ON \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \

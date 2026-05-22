@@ -37,8 +37,8 @@ git clone <repo-url> my_project && cd my_project
 ./build_lib.sh -t release -i
 ```
 
-Optimized builds (`Release`, `RelWithDebInfo`) enable `-march=native -mtune=native` by default.
-Disable this for portable binaries with `-D CPU_ENABLE_NATIVE_TUNING=OFF`.
+Optimized native builds (`Release`, `RelWithDebInfo`) enable `-march=native -mtune=native` by default.
+Cross builds disable native tuning automatically; use `CPU_EXTRA_OPT_FLAGS` for target-specific CPU flags.
 
 Run tests manually after a build:
 
@@ -121,9 +121,11 @@ See [`doc/build_script_doc.md`](doc/build_script_doc.md) for a detailed option r
 | `ENABLE_GPERFTOOLS` | `ENABLE_PROFILING` | Link gperftools `libprofiler` when found |
 | `ENABLE_TCMALLOC` | OFF | Explicitly link gperftools `libtcmalloc`; keep OFF for normal MATLAB MEX builds |
 | `BUILD_SHARED_LIBS` | ON | Build compiled libraries as shared (`OFF` builds static archives) |
+| `template_project_BUILD_PROGRAMS` | ON | Build root program targets when this project is the main project |
+| `template_project_BUILD_EXAMPLES` | ON | Build example targets when this project is the main project |
 | `SANITIZE_BUILD` | OFF | Enable sanitizers (see `SANITIZERS` variable) |
 | `SANITIZERS` | `address,undefined,leak` | Comma-separated sanitizer list |
-| `CPU_ENABLE_NATIVE_TUNING` | ON | Adds `-march=native -mtune=native` for GNU/Clang optimized builds |
+| `CPU_ENABLE_NATIVE_TUNING` | ON for native, OFF for cross | Adds `-march=native -mtune=native` for GNU/Clang optimized native builds |
 | `CPU_ENABLE_SIMD` | OFF | Adds explicit SIMD ISA flag from `CPU_SIMD_LEVEL` |
 | `CPU_SIMD_LEVEL` | `native` | SIMD target: `native`, `sse4.2`, `avx`, `avx2`, `avx512f` |
 | `CPU_ENABLE_FMA` | OFF | Adds `-mfma` for GNU/Clang optimized builds |
@@ -133,7 +135,7 @@ See [`doc/build_script_doc.md`](doc/build_script_doc.md) for a detailed option r
 | `CUDA_USE_FAST_MATH` | OFF | Adds NVCC `--use_fast_math` to regular CUDA builds |
 | `CUDA_PTX_USE_FAST_MATH` | ON | Adds NVCC `--use_fast_math` to PTX generation path |
 | `CUDA_NVCC_EXTRA_FLAGS` | `""` | Extra NVCC flags for CUDA and PTX compilation |
-| `NO_OPTIMIZATION` | OFF | Force `-O0` regardless of build type |
+| `NO_OPTIMIZATION` | OFF | Force profiler-friendly `-O0 -g3`, frame pointers, and assertions regardless of build type |
 | `WARNINGS_ARE_ERRORS` | OFF | Treat all warnings as errors (`-Werror`) |
 
 ### Build type compiler flags
@@ -141,10 +143,10 @@ See [`doc/build_script_doc.md`](doc/build_script_doc.md) for a detailed option r
 | Build type | Flags | Notes |
 |---|---|---|
 | `Debug` | `-Og -g` + sanitizers | Max debug info |
-| `RelWithDebInfo` | `-O2 -g` + stricter warnings | **Default** |
-| `Release` | `-O3` | Tests forced on |
+| `RelWithDebInfo` | `-O2 -g -DNDEBUG` + stricter warnings | **Default** |
+| `Release` | `-O3 -DNDEBUG` | Tests forced on |
 | `MinSizeRel` | `-Os` | |
-| `NOPTIM` | `-O0 -g` | Stricter warnings, no optimization |
+| `NOPTIM` | `-O0 -g3` | Stricter warnings, frame pointers, no inlining/sibling-call optimization |
 
 ---
 
@@ -193,11 +195,15 @@ This template treats OptiX on a header-only library as a configuration error.
 
 ### CPU vectorization tuning
 
-`CPU_ENABLE_NATIVE_TUNING` is ON by default for optimized builds.
+`CPU_ENABLE_NATIVE_TUNING` is ON by default for optimized native builds and disabled automatically while cross-compiling.
 
 ```bash
 # Disable native tuning for portable binaries
 ./build_lib.sh -D CPU_ENABLE_NATIVE_TUNING=OFF
+
+# AArch64 cross build using bundled toolchain defaults
+./build_lib.sh --toolchain cmake/toolchains/defaults/aarch64-linux-gnu.cmake --clean \
+  -D template_project_BUILD_PROGRAMS=OFF -D template_project_BUILD_EXAMPLES=OFF
 
 # Enable explicit AVX2 + FMA flags
 ./build_lib.sh -D CPU_ENABLE_SIMD=ON -D CPU_SIMD_LEVEL=avx2 -D CPU_ENABLE_FMA=ON

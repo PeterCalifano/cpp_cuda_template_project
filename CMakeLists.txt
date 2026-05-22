@@ -80,6 +80,15 @@ set(LIB_COMPILE_TARGET "${LIB_NAMESPACE}_lib_compile_interface")
 set(SPDLOG_COMPILE_TARGET "${LIB_NAMESPACE}_spdlog_interface")
 set(SANITIZER_TARGET "${LIB_NAMESPACE}_sanitizer_target_interface")
 
+# Set library target name (without namespace)
+set(LIB_TARGET_NAME "${project_name}")
+if (DEFINED LIB_TARGET_NAME_OVERRIDE)
+  # Handle override of library target name for consumers
+  set(LIB_TARGET_NAME "${LIB_TARGET_NAME_OVERRIDE}")
+endif()
+set(BUILD_PROGRAMS_OPTION_NAME "${LIB_NAMESPACE}_BUILD_PROGRAMS")
+set(BUILD_EXAMPLES_OPTION_NAME "${LIB_NAMESPACE}_BUILD_EXAMPLES")
+
 # Handle toolchain settings (after project so compiler/system vars are populated)
 include(cmake/toolchains/HandleToolchain.cmake)
 
@@ -119,7 +128,15 @@ option(ENABLE_TESTS              "Build and run tests" ON)
 option(ENABLE_FETCH_CATCH2 "Fetch Catch2 from GitHub if not found" ON)
 option(ENABLE_SPDLOG "Enable spdlog logging support" ON)
 option(ENABLE_FETCH_SPDLOG "Fetch spdlog from GitHub if not found" ON)
+
+option(${BUILD_PROGRAMS_OPTION_NAME} "Build project program targets when this project is the main project" ON)
+option(${BUILD_EXAMPLES_OPTION_NAME} "Build project example targets when this project is the main project" ON)
+
 option(VERBOSE "Verbose output" OFF) # Defines VERBOSE flag in code if set to ON
+
+if(BUILD_AS_MAIN_PROJECT AND ENABLE_TESTS)
+  include(CTest)
+endif()
 
 if (NOT DEFINED GTWRAP_BUILD_PYTHON_DEFAULT)
   set(GTWRAP_BUILD_PYTHON_DEFAULT OFF CACHE BOOL "Default Python wrapper setting for all subprojects")
@@ -191,121 +208,8 @@ set(EXTRA_C_FLAGS "" CACHE STRING "Extra C compiler flags appended to project-ma
 set(EXTRA_CXX_FLAGS "" CACHE STRING "Extra C++ compiler flags appended to project-managed flags")
 set(PYTHON_EXECUTABLE "python3") # Specify the Python executable to use
 
-# Set C++ standard
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
-
-# TIP: if different options need to be specified for different targets of the build, use INTERFACE targets
-
-set(_initial_c_flags "${CMAKE_C_FLAGS}")
-set(_initial_cxx_flags "${CMAKE_CXX_FLAGS}")
-
-# COMPILER FLAGS
-set(_common_c_warnings -Wall -Wextra)
-set(_common_cxx_warnings ${_common_c_warnings} -Wsuggest-override)
-
-set(_debug_flags -Og -g -fmax-errors=3)
-set(_debug_sanitizers)
-if(SANITIZE_BUILD AND SANITIZERS)
-  set(_debug_sanitizers -fsanitize=${SANITIZERS})
-endif()
-set(_release_flags -O3 -fmax-errors=1)
-set(_relwithdebinfo_flags -O2 -g)
-set(_noptim_flags -O0 -g)
-set(_safety_warnings -Wnull-dereference -Wfloat-equal -fdelete-null-pointer-checks -Wconversion)
-
-set(_cpu_opt_flags)
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  if(CPU_ENABLE_NATIVE_TUNING)
-    list(APPEND _cpu_opt_flags -march=native -mtune=native)
-  endif()
-
-  if(CPU_ENABLE_FMA)
-    list(APPEND _cpu_opt_flags -mfma)
-  endif()
-
-  if(CPU_ENABLE_SIMD)
-    string(TOLOWER "${CPU_SIMD_LEVEL}" _cpu_simd_level)
-    if(_cpu_simd_level STREQUAL "native")
-      list(APPEND _cpu_opt_flags -march=native -mtune=native)
-    elseif(_cpu_simd_level STREQUAL "sse4.2" OR _cpu_simd_level STREQUAL "sse4_2")
-      list(APPEND _cpu_opt_flags -msse4.2)
-    elseif(_cpu_simd_level STREQUAL "avx")
-      list(APPEND _cpu_opt_flags -mavx)
-    elseif(_cpu_simd_level STREQUAL "avx2")
-      list(APPEND _cpu_opt_flags -mavx2)
-    elseif(_cpu_simd_level STREQUAL "avx512f")
-      list(APPEND _cpu_opt_flags -mavx512f)
-    else()
-      message(FATAL_ERROR "Unsupported CPU_SIMD_LEVEL='${CPU_SIMD_LEVEL}'. Supported values: native,sse4.2,avx,avx2,avx512f")
-    endif()
-  endif()
-
-  if(NOT "${CPU_EXTRA_OPT_FLAGS}" STREQUAL "")
-    separate_arguments(_cpu_extra_opt_flags UNIX_COMMAND "${CPU_EXTRA_OPT_FLAGS}")
-    list(APPEND _cpu_opt_flags ${_cpu_extra_opt_flags})
-  endif()
-
-  list(REMOVE_DUPLICATES _cpu_opt_flags)
-elseif(CPU_ENABLE_NATIVE_TUNING OR CPU_ENABLE_FMA OR CPU_ENABLE_SIMD OR NOT "${CPU_EXTRA_OPT_FLAGS}" STREQUAL "")
-  message(WARNING "CPU optimization toggles are intended for GNU/Clang compilers. Current compiler is '${CMAKE_CXX_COMPILER_ID}'.")
-endif()
-
-set(_debug_c_flags ${_debug_flags} ${_common_c_warnings} ${_debug_sanitizers})
-set(_debug_cxx_flags ${_debug_flags} ${_common_cxx_warnings} ${_debug_sanitizers})
-set(_release_c_flags ${_release_flags} ${_common_c_warnings})
-set(_release_cxx_flags ${_release_flags} ${_common_cxx_warnings})
-set(_relwithdebinfo_c_flags ${_relwithdebinfo_flags} ${_common_c_warnings} ${_safety_warnings})
-set(_relwithdebinfo_cxx_flags ${_relwithdebinfo_flags} ${_common_cxx_warnings} ${_safety_warnings} -Wnon-virtual-dtor)
-set(_noptim_c_flags ${_noptim_flags} ${_common_c_warnings} ${_safety_warnings})
-set(_noptim_cxx_flags ${_noptim_flags} ${_common_cxx_warnings} ${_safety_warnings} -Wnon-virtual-dtor)
-
-list(APPEND _release_c_flags ${_cpu_opt_flags})
-list(APPEND _release_cxx_flags ${_cpu_opt_flags})
-list(APPEND _relwithdebinfo_c_flags ${_cpu_opt_flags})
-list(APPEND _relwithdebinfo_cxx_flags ${_cpu_opt_flags})
-
-set(_user_c_flags)
-if (NOT "${_initial_c_flags}" STREQUAL "")
-  separate_arguments(_initial_c_flags_list UNIX_COMMAND "${_initial_c_flags}")
-  list(APPEND _user_c_flags ${_initial_c_flags_list})
-endif()
-if (NOT "${EXTRA_C_FLAGS}" STREQUAL "")
-  separate_arguments(_extra_c_flags_list UNIX_COMMAND "${EXTRA_C_FLAGS}")
-  list(APPEND _user_c_flags ${_extra_c_flags_list})
-endif()
-list(REMOVE_DUPLICATES _user_c_flags)
-
-set(_user_cxx_flags)
-if (NOT "${_initial_cxx_flags}" STREQUAL "")
-  separate_arguments(_initial_cxx_flags_list UNIX_COMMAND "${_initial_cxx_flags}")
-  list(APPEND _user_cxx_flags ${_initial_cxx_flags_list})
-endif()
-if (NOT "${EXTRA_CXX_FLAGS}" STREQUAL "")
-  separate_arguments(_extra_cxx_flags_list UNIX_COMMAND "${EXTRA_CXX_FLAGS}")
-  list(APPEND _user_cxx_flags ${_extra_cxx_flags_list})
-endif()
-list(REMOVE_DUPLICATES _user_cxx_flags)
-
-list(APPEND _debug_c_flags ${_user_c_flags})
-list(APPEND _release_c_flags ${_user_c_flags})
-list(APPEND _relwithdebinfo_c_flags ${_user_c_flags})
-list(APPEND _noptim_c_flags ${_user_c_flags})
-
-list(APPEND _debug_cxx_flags ${_user_cxx_flags})
-list(APPEND _release_cxx_flags ${_user_cxx_flags})
-list(APPEND _relwithdebinfo_cxx_flags ${_user_cxx_flags})
-list(APPEND _noptim_cxx_flags ${_user_cxx_flags})
-
-string(JOIN " " CMAKE_C_FLAGS_DEBUG ${_debug_c_flags})
-string(JOIN " " CMAKE_CXX_FLAGS_DEBUG ${_debug_cxx_flags})
-string(JOIN " " CMAKE_C_FLAGS_RELEASE ${_release_c_flags})
-string(JOIN " " CMAKE_CXX_FLAGS_RELEASE ${_release_cxx_flags})
-string(JOIN " " CMAKE_C_FLAGS_RELWITHDEBINFO ${_relwithdebinfo_c_flags})
-string(JOIN " " CMAKE_CXX_FLAGS_RELWITHDEBINFO ${_relwithdebinfo_cxx_flags})
-string(JOIN " " CMAKE_C_FLAGS_NOPTIM ${_noptim_c_flags})
-string(JOIN " " CMAKE_CXX_FLAGS_NOPTIM ${_noptim_cxx_flags})
+include(cmake/HandleCompilerFlags.cmake)
+handle_compiler_flags(CXX_STANDARD 20)
 
 # Handle OpenMP
 handle_openmp()
@@ -412,47 +316,9 @@ message(STATUS "Target dependencies: ${EXPORT_TARGET_DEPS}")
 
 # Interface target for C++ flags
 add_library(${LIB_COMPILE_TARGET} INTERFACE)
+handle_toolchain(TARGET ${LIB_COMPILE_TARGET})
 handle_tbb(TARGET ${LIB_COMPILE_TARGET})
-
-if (CMAKE_BUILD_TYPE_LOWER MATCHES "debug")
-  # Set compile flags
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS_DEBUG}")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_DEBUG}")
-
-  # Set compile options for the interface target
-  set(_sanitizer_flags)
-  if(SANITIZE_BUILD AND SANITIZERS)
-    set(_sanitizer_flags -fsanitize=${SANITIZERS})
-  endif()
-  target_compile_options(${LIB_COMPILE_TARGET} INTERFACE
-                      ${_sanitizer_flags}
-                      -fno-omit-frame-pointer
-  )
-
-  target_link_options(${LIB_COMPILE_TARGET} INTERFACE
-                      ${_sanitizer_flags}
-                      -fno-omit-frame-pointer
-  )
-
-elseif (CMAKE_BUILD_TYPE_LOWER MATCHES "release" AND NOT NO_OPTIMIZATION)
-  # Set compile flags
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS_RELEASE}")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_RELEASE}")
-
-elseif (CMAKE_BUILD_TYPE_LOWER MATCHES "relwithdebinfo" AND NOT NO_OPTIMIZATION) 
-  # Set compile flags
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
-
-elseif (NO_OPTIMIZATION)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS_NOPTIM}")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_NOPTIM}")
-  target_compile_definitions(${LIB_COMPILE_TARGET} INTERFACE NDEBUG)
-
-else()
-  # Stop build
-  message(FATAL_ERROR "Unknown build type: ${CMAKE_BUILD_TYPE}. Stopping build.")
-endif()
+handle_compiler_flags_interface(TARGET ${LIB_COMPILE_TARGET})
 
 # Add catch2 for unit testing
 find_package(OpenCV QUIET)
@@ -499,12 +365,12 @@ message(STATUS "====================  Library composition  =====================
 add_subdirectory( src )
 
 # Add examples to build
-if (BUILD_AS_MAIN_PROJECT)
+if (BUILD_AS_MAIN_PROJECT AND ${${BUILD_EXAMPLES_OPTION_NAME}})
   add_subdirectory( examples )
 endif()
 
 # Add tests to build
-if (ENABLE_TESTS AND Catch2_FOUND AND BUILD_AS_MAIN_PROJECT)
+if (ENABLE_TESTS AND BUILD_AS_MAIN_PROJECT)
   add_subdirectory( tests )
 endif()
 
@@ -590,30 +456,10 @@ message(STATUS "CMAKE_INSTALL_LIBDIR                      : ${CMAKE_INSTALL_LIBD
 message(STATUS "CMAKE_INSTALL_INCLUDEDIR                  : ${CMAKE_INSTALL_INCLUDEDIR}")
 message(STATUS "CMAKE_INSTALL_BINDIR                      : ${CMAKE_INSTALL_BINDIR}")
 message(STATUS "BUILD_SHARED_LIBS                         : ${BUILD_SHARED_LIBS}")
+message(STATUS "${BUILD_PROGRAMS_OPTION_NAME}                  : ${${BUILD_PROGRAMS_OPTION_NAME}}")
+message(STATUS "${BUILD_EXAMPLES_OPTION_NAME}                  : ${${BUILD_EXAMPLES_OPTION_NAME}}")
 
-# Build type
-if(NOT MSVC AND NOT XCODE_VERSION)
-  message(STATUS "Build type                                : ${CMAKE_BUILD_TYPE}")  
-  message(STATUS "Optimization override:                    : ${NO_OPTIMIZATION}")  
-
-  if(CMAKE_BUILD_TYPE MATCHES Debug)
-    message(STATUS "  C compilation flags                     : ${CMAKE_C_FLAGS}")
-    message(STATUS "  C++ compilation flags                   : ${CMAKE_CXX_FLAGS}")
-  elseif (CMAKE_BUILD_TYPE MATCHES Release)
-    message(STATUS "  C compilation flags                     : ${CMAKE_C_FLAGS}")
-    message(STATUS "  C++ compilation flags                   : ${CMAKE_CXX_FLAGS}")
-  elseif (CMAKE_BUILD_TYPE MATCHES RelWithDebInfo)
-    message(STATUS "  C compilation flags                     : ${CMAKE_C_FLAGS}")
-    message(STATUS "  C++ compilation flags                   : ${CMAKE_CXX_FLAGS}")
-  elseif (NO_OPTIMIZATION)
-    message(STATUS "  C compilation flags                     : ${CMAKE_C_FLAGS}")
-    message(STATUS "  C++ compilation flags                   : ${CMAKE_CXX_FLAGS}")
-  else()
-    message(STATUS "  C compilation flags                     : ${CMAKE_C_FLAGS}")
-    message(STATUS "  C++ compilation flags                   : ${CMAKE_CXX_FLAGS}")
-  endif()
-
-endif()
+print_compiler_flags_summary()
 # Print info about wrappers if any
 if (ANY_WRAPPER_ENABLED)
   message(STATUS "================  Wrappers Configuration  ======================")

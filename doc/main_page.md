@@ -18,8 +18,8 @@ git clone <repo-url> my_project && cd my_project
 # Enable oneTBB and explicit SIMD/FMA
 ./build_lib.sh -D ENABLE_TBB=ON -D CPU_ENABLE_SIMD=ON -D CPU_SIMD_LEVEL=avx2 -D CPU_ENABLE_FMA=ON
 
-# Disable native tuning for portable binaries
-./build_lib.sh -D CPU_ENABLE_NATIVE_TUNING=OFF
+# Native tuning is disabled automatically for cross builds
+./build_lib.sh --toolchain cmake/toolchains/defaults/aarch64-linux-gnu.cmake --clean
 ```
 
 ## Wrapper Build

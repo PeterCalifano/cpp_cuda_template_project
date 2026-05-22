@@ -1,4 +1,4 @@
-set(lib_name ${project_name}) # Default name for the library is project_name
+set(lib_name ${LIB_TARGET_NAME}) # Override lets nested consumers avoid target name collisions.
 
 # Add config.h file to build
 configure_file(config.h.in config.h)
@@ -27,7 +27,7 @@ add_subdirectory(wrapped_impl)
 
 
 
-if (BUILD_AS_MAIN_PROJECT)
+if (BUILD_AS_MAIN_PROJECT AND ${${BUILD_PROGRAMS_OPTION_NAME}})
   message(STATUS "Adding module: bin")
   add_subdirectory(bin)
 endif()
@@ -65,8 +65,15 @@ else()
   set_target_properties(${lib_name} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 endif()
 
+set_target_properties(${lib_name} PROPERTIES EXPORT_NAME ${project_name})
+
 message(STATUS "Configured ${lib_name} as a ${lib_target_type} library target")
 set(PROJECT_LIBRARY_KIND "${lib_target_type}" PARENT_SCOPE)
+
+# Add alias target for consumer usage
+if(NOT TARGET ${LIB_NAMESPACE}::${project_name})
+  add_library(${LIB_NAMESPACE}::${project_name} ALIAS ${lib_name})
+endif()
 
 if (SPDLOG_ENABLED)
   target_compile_definitions(${lib_name} ${lib_link_scope} SPDLOG_UTILS_ENABLED=1)
@@ -234,6 +241,6 @@ install(FILES
 )
 
 # Add target export to allow usage of build by other consumer projects
-export(EXPORT ${lib_name}
+export(EXPORT ${project_name}
   FILE "${CMAKE_CURRENT_BINARY_DIR}/cmake/${project_name}Target.cmake"
 )
