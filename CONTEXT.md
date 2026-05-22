@@ -2,7 +2,31 @@
 
 - Main repo: `/home/peterc/devDir/dev-tools/cpp_cuda_template_project`
 - Test harness repo: `/home/peterc/devDir/dev-tools/cpp_cuda_template_testfield`
-- Date: 2026-03-18
+- Date: 2026-05-22
+
+### 2026-05-22 cross-compilation and nested-library work
+
+- Active branch in both repos: `feature/improve-cross-compiling`.
+- Main repo now disables `CPU_ENABLE_NATIVE_TUNING` automatically under `CMAKE_CROSSCOMPILING`.
+- `CPU_SIMD_LEVEL=native` now fails configure when cross-compiling with explicit SIMD enabled.
+- Toolchain metadata is applied to the project compile interface target, so downstream compiles receive `CROSS_COMPILED`, architecture, and target-OS defines.
+- Root-only program/example toggles are namespace-derived:
+  - default names: `template_project_BUILD_PROGRAMS`, `template_project_BUILD_EXAMPLES`;
+  - nested override examples: `nested_template_BUILD_PROGRAMS`, `nested_testfield_BUILD_PROGRAMS`.
+- Nested consumers can override the concrete library target name with `LIB_TARGET_NAME_OVERRIDE`, while the exported/imported target remains `<namespace>::template_project`.
+- Main repo added `tests/cmake/VerifyTemplateProjectCrossCompile.cmake` and CTest coverage for:
+  - configure flags for aarch64;
+  - install + consume through `find_package(template_project)`;
+  - nested `add_subdirectory` consume with namespace/target-name override.
+- Testfield repo mirrors the cross/nesting changes and added `tests/cmake/VerifyTestfieldCrossCompile.cmake`.
+- Validation completed:
+  - main repo `ctest --test-dir /tmp/cpp_cuda_template_stage_check --output-on-failure -R template_project_aarch64_cross`: 3/3 passed;
+  - testfield `ctest --test-dir /tmp/cpp_cuda_template_testfield_stage --output-on-failure -R "testfield_aarch64_cross|template_project_builds_(shared|static)_and_is_consumable"`: 5/5 passed;
+  - main repo `build_lib.sh` aarch64 smoke built `/tmp/cpp_cuda_template_buildlib_aarch64/src/libtemplate_project.so`;
+  - testfield `build_lib.sh` aarch64 smoke built `/tmp/cpp_cuda_template_testfield_aarch64_buildlib/src/libtemplate_project.so`;
+  - both produced shared libraries are `ELF 64-bit ... ARM aarch64`;
+  - both compile command databases have no `-march=native` or `-mtune=native`;
+  - stale `BUILD_TEMPLATE_PROGRAMS` / `BUILD_TEMPLATE_EXAMPLES` names were removed from both repos.
 
 ### Unified Python package/wrapper work
 
