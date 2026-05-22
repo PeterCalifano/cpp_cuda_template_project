@@ -242,7 +242,8 @@ if(SANITIZE_BUILD AND SANITIZERS)
 endif()
 set(_release_flags -O3 -fmax-errors=1)
 set(_relwithdebinfo_flags -O2 -g)
-set(_noptim_flags -O0 -g)
+# Diagnostic/profiling builds should preserve symbols, frames, and source-level call flow.
+set(_noptim_flags -O0 -g3 -fno-omit-frame-pointer -fno-inline -fno-optimize-sibling-calls)
 set(_safety_warnings -Wnull-dereference -Wfloat-equal -fdelete-null-pointer-checks -Wconversion)
 
 set(_cpu_opt_flags)
@@ -459,7 +460,7 @@ handle_toolchain(TARGET ${LIB_COMPILE_TARGET})
 handle_tbb(TARGET ${LIB_COMPILE_TARGET})
 
 if (NO_OPTIMIZATION)
-  target_compile_definitions(${LIB_COMPILE_TARGET} INTERFACE NDEBUG)
+  message(STATUS "NO_OPTIMIZATION keeps assertions enabled and emits profiler-friendly debug flags.")
 
 elseif (CMAKE_BUILD_TYPE_LOWER MATCHES "debug")
   # Set compile options for the interface target

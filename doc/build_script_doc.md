@@ -84,7 +84,7 @@ The script now uses **GNU `getopt`** to support:
   `-D ENABLE_CUDA=ON -D CUDA_ENABLE_FMAD=ON -D ENABLE_TBB=ON`.
 
 * **`-n, --no-optim`**
-  Sets `-DNO_OPTIMIZATION=ON` in the CMake cache. Project CMake then forces `-O0 -g` for the selected build type and omits CPU-specific optimization flags like `-march=native`.
+  Sets `-DNO_OPTIMIZATION=ON` in the CMake cache. Project CMake then forces profiler-friendly `-O0 -g3`, keeps assertions enabled, preserves frame pointers, disables inlining/sibling-call optimization, and omits CPU-specific optimization flags like `-march=native`.
 
 * **`--toolchain <file>`**
   Pass a CMake toolchain file: `-DCMAKE_TOOLCHAIN_FILE=<file>`.

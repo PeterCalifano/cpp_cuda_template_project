@@ -14,7 +14,7 @@
   - default names: `template_project_BUILD_PROGRAMS`, `template_project_BUILD_EXAMPLES`;
   - nested override examples: `nested_template_BUILD_PROGRAMS`, `nested_testfield_BUILD_PROGRAMS`.
 - Nested consumers can override the concrete library target name with `LIB_TARGET_NAME_OVERRIDE`, while the exported/imported target remains `<namespace>::template_project`.
-- `NO_OPTIMIZATION=ON` now overrides config-specific CMake flags so it produces `-O0 -g` without `-O2`, `-O3`, or host-native CPU flags.
+- `NO_OPTIMIZATION=ON` now overrides config-specific CMake flags so it produces profiler-friendly `-O0 -g3`, keeps assertions enabled, preserves frame pointers, disables inlining/sibling-call optimization, and omits `-O2`, `-O3`, and host-native CPU flags.
 - The build-type branch around `${LIB_COMPILE_TARGET}` was cleaned up: only no-optimization, debug sanitizer/frame-pointer handling, and invalid-build-type validation remain active.
 - Main repo added `tests/cmake/VerifyTemplateProjectCrossCompile.cmake` and CTest coverage for:
   - configure flags for aarch64;
@@ -32,7 +32,7 @@
   - testfield `build_lib.sh --no-optim` smoke built `/tmp/cpp_cuda_template_testfield_buildlib_noopt/src/libtemplate_project.so`;
   - both produced shared libraries are `ELF 64-bit ... ARM aarch64`;
   - both compile command databases have no `-march=native` or `-mtune=native`;
-  - both no-optimization compile command databases contain `-O0` and no `-O2`, `-O3`, `-march=native`, or `-mtune=native`;
+  - both no-optimization compile command databases contain `-O0`, `-g3`, `-fno-omit-frame-pointer`, `-fno-inline`, and `-fno-optimize-sibling-calls`, with no `-O2`, `-O3`, `-march=native`, `-mtune=native`, or `-DNDEBUG`;
   - stale `BUILD_TEMPLATE_PROGRAMS` / `BUILD_TEMPLATE_EXAMPLES` names were removed from both repos.
 
 ### Unified Python package/wrapper work

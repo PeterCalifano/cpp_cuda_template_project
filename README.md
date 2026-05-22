@@ -135,7 +135,7 @@ See [`doc/build_script_doc.md`](doc/build_script_doc.md) for a detailed option r
 | `CUDA_USE_FAST_MATH` | OFF | Adds NVCC `--use_fast_math` to regular CUDA builds |
 | `CUDA_PTX_USE_FAST_MATH` | ON | Adds NVCC `--use_fast_math` to PTX generation path |
 | `CUDA_NVCC_EXTRA_FLAGS` | `""` | Extra NVCC flags for CUDA and PTX compilation |
-| `NO_OPTIMIZATION` | OFF | Force `-O0` regardless of build type |
+| `NO_OPTIMIZATION` | OFF | Force profiler-friendly `-O0 -g3`, frame pointers, and assertions regardless of build type |
 | `WARNINGS_ARE_ERRORS` | OFF | Treat all warnings as errors (`-Werror`) |
 
 ### Build type compiler flags
@@ -146,7 +146,7 @@ See [`doc/build_script_doc.md`](doc/build_script_doc.md) for a detailed option r
 | `RelWithDebInfo` | `-O2 -g` + stricter warnings | **Default** |
 | `Release` | `-O3` | Tests forced on |
 | `MinSizeRel` | `-Os` | |
-| `NOPTIM` | `-O0 -g` | Stricter warnings, no optimization |
+| `NOPTIM` | `-O0 -g3` | Stricter warnings, frame pointers, no inlining/sibling-call optimization |
 
 ---
 
