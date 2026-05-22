@@ -9,6 +9,36 @@
 
 # Set additional properties for Catch2 test targets
 set(CATCH2_TEST_PROPERTIES "--output-on-failure;--reporter=compact") 
+include(CTest)
+
+find_program(TEMPLATE_AARCH64_GCC_EXECUTABLE NAMES aarch64-linux-gnu-gcc)
+find_program(TEMPLATE_AARCH64_GXX_EXECUTABLE NAMES aarch64-linux-gnu-g++)
+set(TEMPLATE_AARCH64_TOOLCHAIN_FILE "${PROJECT_SOURCE_DIR}/cmake/toolchains/defaults/aarch64-linux-gnu.cmake")
+
+if(TEMPLATE_AARCH64_GCC_EXECUTABLE AND TEMPLATE_AARCH64_GXX_EXECUTABLE AND EXISTS "${TEMPLATE_AARCH64_TOOLCHAIN_FILE}")
+    foreach(_cross_case IN ITEMS configure_flags install_consumer nested_consumer)
+        add_test(
+            NAME template_project_aarch64_cross_${_cross_case}
+            COMMAND ${CMAKE_COMMAND}
+                -DTEST_TEMPLATE_SOURCE_DIR=${PROJECT_SOURCE_DIR}
+                -DTEST_BINARY_ROOT=${PROJECT_BINARY_DIR}/cross_compile/${_cross_case}
+                -DTEST_TOOLCHAIN_FILE=${TEMPLATE_AARCH64_TOOLCHAIN_FILE}
+                -DTEST_CASE=${_cross_case}
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyTemplateProjectCrossCompile.cmake
+        )
+    endforeach()
+
+    set_tests_properties(
+        template_project_aarch64_cross_configure_flags
+        template_project_aarch64_cross_install_consumer
+        template_project_aarch64_cross_nested_consumer
+        PROPERTIES
+        LABELS "cross;aarch64"
+        TIMEOUT 180
+    )
+else()
+    message(STATUS "aarch64-linux-gnu compilers not found. Skipping aarch64 cross-compilation regression tests.")
+endif()
 
 # Exclude EXCLUDED_LIST from the list of tests
 set(EXCLUDED_LIST "test_to_exclude")  # Specify files to exclude WE
@@ -17,12 +47,16 @@ set(TESTS_LIST "")
 # Include the content of the fixtures directory
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
-# Add subdirectory 
-add_subdirectory(template_test)
-add_subdirectory(template_fixtures)
+if(Catch2_FOUND)
+    # Add subdirectory
+    add_subdirectory(template_test)
+    add_subdirectory(template_fixtures)
 
-# Add tests to build
-add_tests(${project_name} EXCLUDED_LIST TESTS_LIST ${CUDA_COMPILE_TARGET} CATCH2_TEST_PROPERTIES Catch2::Catch2WithMain)
+    # Add tests to build
+    add_tests(${project_name} EXCLUDED_LIST TESTS_LIST ${CUDA_COMPILE_TARGET} CATCH2_TEST_PROPERTIES Catch2::Catch2WithMain)
+else()
+    message(STATUS "Catch2 not found. Skipping Catch2 unit tests.")
+endif()
 
 # Make catch2 to search for tests
 message(STATUS "List of test targets: ${TESTS_LIST}")
