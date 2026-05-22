@@ -94,11 +94,14 @@
 - Those workflows upload the build tree from a build job and execute downloaded test binaries in a separate test job, so host-native CPU tuning can produce non-portable binaries and fail as `Illegal`/`SIGILL` on a different runner CPU.
 - Both `.github/workflows/build_linux.yml` and `.github/workflows/build_linux_cuda.yml` now force `-DCPU_ENABLE_NATIVE_TUNING=OFF`.
 - Added CTest guard `template_project_ci_workflow_cpu_flags` through `tests/cmake/VerifyTemplateProjectCiWorkflowFlags.cmake` so future workflow edits fail if CI re-enables native CPU tuning.
+- Mirrored the same workflow policy and guard in testfield as `testfield_ci_workflow_cpu_flags`; the pre-existing testfield `lib/wrap` submodule pointer change was left untouched.
 - Validation completed in `/tmp/cpp_cuda_template_ci_blocker`:
   - CI-style configure with `RelWithDebInfo`, tests enabled, CUDA/OptiX/OpenGL off, and `CPU_ENABLE_NATIVE_TUNING=OFF`;
   - `cmake --build /tmp/cpp_cuda_template_ci_blocker --parallel 4`;
   - `ctest --test-dir /tmp/cpp_cuda_template_ci_blocker --output-on-failure --parallel 2 --no-tests=error`: 11/11 passed, including the logging and template Catch2 tests that failed as `Illegal` in CI;
   - generated `build.ninja` has no `-march=native` or `-mtune=native` compile flags; `CMakeCache.txt` keeps `CPU_ENABLE_NATIVE_TUNING:BOOL=OFF`.
+- Testfield guard validation used direct CMake script execution to avoid its known source-`VERSION` configure mutation:
+  - `cmake -DTEST_SOURCE_DIR=/home/peterc/devDir/dev-tools/cpp_cuda_template_testfield -P tests/cmake/VerifyTestfieldCiWorkflowFlags.cmake`.
 
 ## 2026-05-10 MATLAB wrap lifecycle work
 
