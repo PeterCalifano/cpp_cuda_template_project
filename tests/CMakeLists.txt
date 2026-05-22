@@ -79,16 +79,7 @@ if(Catch2_FOUND)
     # Add subdirectory
     add_subdirectory(template_test)
     add_subdirectory(template_fixtures)
-if(Catch2_FOUND)
-    # Add subdirectory
-    add_subdirectory(template_test)
-    add_subdirectory(template_fixtures)
 
-    # Add tests to build
-    add_tests(${project_name} EXCLUDED_LIST TESTS_LIST ${CUDA_COMPILE_TARGET} CATCH2_TEST_PROPERTIES Catch2::Catch2WithMain)
-else()
-    message(STATUS "Catch2 not found. Skipping Catch2 unit tests.")
-endif()
     # Add tests to build
     add_tests(${project_name} EXCLUDED_LIST TESTS_LIST ${CUDA_COMPILE_TARGET} CATCH2_TEST_PROPERTIES Catch2::Catch2WithMain)
 else()
