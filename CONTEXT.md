@@ -15,17 +15,20 @@
   - nested override examples: `nested_template_BUILD_PROGRAMS`, `nested_testfield_BUILD_PROGRAMS`.
 - Nested consumers can override the concrete library target name with `LIB_TARGET_NAME_OVERRIDE`, while the exported/imported target remains `<namespace>::template_project`.
 - `NO_OPTIMIZATION=ON` now overrides config-specific CMake flags so it produces profiler-friendly `-O0 -g3`, keeps assertions enabled, preserves frame pointers, disables inlining/sibling-call optimization, and omits `-O2`, `-O3`, and host-native CPU flags.
+- `Release` and `RelWithDebInfo` now explicitly include `-DNDEBUG` and are guarded against profiler/debug-only flags such as `-O0`, `-Og`, `-g3`, frame-pointer forcing, no-inline flags, and sanitizer flags.
 - The build-type branch around `${LIB_COMPILE_TARGET}` was cleaned up: only no-optimization, debug sanitizer/frame-pointer handling, and invalid-build-type validation remain active.
 - Main repo added `tests/cmake/VerifyTemplateProjectCrossCompile.cmake` and CTest coverage for:
   - configure flags for aarch64;
   - install + consume through `find_package(template_project)`;
   - nested `add_subdirectory` consume with namespace/target-name override.
 - Main repo added `tests/cmake/VerifyTemplateProjectNoOptimization.cmake` to guard `NO_OPTIMIZATION=ON`.
+- Main repo added `tests/cmake/VerifyTemplateProjectOptimizedFlags.cmake` to guard Release/RelWithDebInfo flags.
 - Testfield repo mirrors the cross/nesting changes and added `tests/cmake/VerifyTestfieldCrossCompile.cmake`.
 - Testfield repo added `tests/cmake/VerifyTestfieldNoOptimization.cmake` to guard its `NO_OPTIMIZATION=ON` path.
+- Testfield repo added `tests/cmake/VerifyTestfieldOptimizedFlags.cmake` to guard Release/RelWithDebInfo flags.
 - Validation completed:
-  - main repo `ctest --test-dir /tmp/cpp_cuda_template_stage_check --output-on-failure -R "template_project_(no_optimization_flags|aarch64_cross)"`: 4/4 passed;
-  - testfield `ctest --test-dir /tmp/cpp_cuda_template_testfield_stage --output-on-failure -R "testfield_(no_optimization_flags|aarch64_cross)|template_project_builds_(shared|static)_and_is_consumable"`: 6/6 passed;
+  - main repo `ctest --test-dir /tmp/cpp_cuda_template_stage_check --output-on-failure -R "template_project_(optimized_config_flags|no_optimization_flags|aarch64_cross)"`: 5/5 passed;
+  - testfield `ctest --test-dir /tmp/cpp_cuda_template_testfield_stage --output-on-failure -R "testfield_(optimized_config_flags|no_optimization_flags|aarch64_cross)|template_project_builds_(shared|static)_and_is_consumable"`: 7/7 passed;
   - main repo `build_lib.sh` aarch64 smoke built `/tmp/cpp_cuda_template_buildlib_aarch64/src/libtemplate_project.so`;
   - testfield `build_lib.sh` aarch64 smoke built `/tmp/cpp_cuda_template_testfield_aarch64_buildlib/src/libtemplate_project.so`;
   - main repo `build_lib.sh --no-optim` smoke built `/tmp/cpp_cuda_template_buildlib_noopt/src/libtemplate_project.so`;
@@ -33,6 +36,7 @@
   - both produced shared libraries are `ELF 64-bit ... ARM aarch64`;
   - both compile command databases have no `-march=native` or `-mtune=native`;
   - both no-optimization compile command databases contain `-O0`, `-g3`, `-fno-omit-frame-pointer`, `-fno-inline`, and `-fno-optimize-sibling-calls`, with no `-O2`, `-O3`, `-march=native`, `-mtune=native`, or `-DNDEBUG`;
+  - optimized config compile command databases contain `-O3 -DNDEBUG` for Release and `-O2 -g -DNDEBUG` for RelWithDebInfo, with no no-optimization/profiler/sanitizer flags;
   - stale `BUILD_TEMPLATE_PROGRAMS` / `BUILD_TEMPLATE_EXAMPLES` names were removed from both repos.
 
 ### Unified Python package/wrapper work

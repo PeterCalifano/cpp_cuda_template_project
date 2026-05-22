@@ -143,8 +143,8 @@ See [`doc/build_script_doc.md`](doc/build_script_doc.md) for a detailed option r
 | Build type | Flags | Notes |
 |---|---|---|
 | `Debug` | `-Og -g` + sanitizers | Max debug info |
-| `RelWithDebInfo` | `-O2 -g` + stricter warnings | **Default** |
-| `Release` | `-O3` | Tests forced on |
+| `RelWithDebInfo` | `-O2 -g -DNDEBUG` + stricter warnings | **Default** |
+| `Release` | `-O3 -DNDEBUG` | Tests forced on |
 | `MinSizeRel` | `-Os` | |
 | `NOPTIM` | `-O0 -g3` | Stricter warnings, frame pointers, no inlining/sibling-call optimization |
 

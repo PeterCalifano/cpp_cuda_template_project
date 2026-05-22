@@ -25,6 +25,20 @@ set_tests_properties(
     TIMEOUT 180
 )
 
+add_test(
+    NAME template_project_optimized_config_flags
+    COMMAND ${CMAKE_COMMAND}
+        -DTEST_TEMPLATE_SOURCE_DIR=${PROJECT_SOURCE_DIR}
+        -DTEST_BINARY_ROOT=${PROJECT_BINARY_DIR}/optimized_flags
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyTemplateProjectOptimizedFlags.cmake
+)
+set_tests_properties(
+    template_project_optimized_config_flags
+    PROPERTIES
+    LABELS "flags;optimized"
+    TIMEOUT 180
+)
+
 find_program(TEMPLATE_AARCH64_GCC_EXECUTABLE NAMES aarch64-linux-gnu-gcc)
 find_program(TEMPLATE_AARCH64_GXX_EXECUTABLE NAMES aarch64-linux-gnu-g++)
 set(TEMPLATE_AARCH64_TOOLCHAIN_FILE "${PROJECT_SOURCE_DIR}/cmake/toolchains/defaults/aarch64-linux-gnu.cmake")
