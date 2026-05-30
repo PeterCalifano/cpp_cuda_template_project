@@ -133,6 +133,32 @@
   - `ctest --test-dir /tmp/cpp_cuda_template_docs_gate --output-on-failure -R "docs|version|nested|tailoring"`: 6/6 passed.
   - `ctest --test-dir /tmp/cpp_cuda_template_testfield_docs_gate --output-on-failure -R "docs|version|nested|tailoring"`: 10/10 passed.
   - `git diff --check`: passed in both repos.
+
+### 2026-05-30 continuation: docs CTest CI dependencies and default-branch Pages deploy
+
+- User reported CI CTest failure: `gmake: *** No rule to make target 'doc'. Stop.` from `template_project_docs_build_output`.
+- Verified a fresh local CMake configure/build with Doxygen present exposes the `doc` target and passes `template_project_docs_build_output`; stale/incomplete build trees can reproduce the missing-target symptom.
+- Found a real CI dependency gap:
+  - `build_linux.yml` installed CMake/Ninja/Eigen/TBB/Python but not `doxygen` or `graphviz`;
+  - docs CTest configures a fresh build and builds the `doc` target;
+  - self-hosted/CUDA workflows also need explicit `doxygen` and `dot` prerequisite checks.
+- Updated `build_linux.yml`:
+  - GitHub-hosted build and test dependency installs now include `doxygen graphviz`;
+  - self-hosted build/test prerequisite checks now include `command -v doxygen` and `command -v dot`.
+- Updated `build_linux_cuda.yml`:
+  - CUDA build/test prerequisite checks now include `command -v doxygen` and `command -v dot`.
+- Updated `VerifyTemplateProjectCiWorkflowFlags.cmake` to require Doxygen/Graphviz validation and Linux hosted package installation.
+- User also flagged that Pages deploy would publish every docs-affecting push to `develop`.
+- Updated docs Pages deploy condition in template and testfield:
+  - push deploys only when `github.ref` equals the repository default branch;
+  - manual deploy remains available through `workflow_dispatch` with `deploy_pages=true`.
+- Updated template/testfield docs static checks to require the default-branch deploy guard.
+- Validation:
+  - `VerifyTemplateProjectDocsStatic.cmake`: passed.
+  - `VerifyTemplateProjectCiWorkflowFlags.cmake`: passed.
+  - `VerifyTestfieldDocsStatic.cmake`: passed.
+  - Fresh full CI-like run in `/tmp/cpp_cuda_template_ci_fresh_docs`: configure, build, and `ctest --no-tests=error` passed 12/12.
+  - `git diff --check`: passed in both repos.
 - Interpreting GitHub run results:
   - deploy skipped on PRs is expected;
   - deploy skipped on manual run with `deploy_pages=false` is expected;

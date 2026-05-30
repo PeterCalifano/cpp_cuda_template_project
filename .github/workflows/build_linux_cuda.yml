@@ -53,6 +53,8 @@ jobs:
           command -v nvcc
           command -v nvidia-smi
           command -v python3
+          command -v doxygen
+          command -v dot
           nvidia-smi
           nvcc --version
 
@@ -114,6 +116,8 @@ jobs:
       - name: Validate test prerequisites
         run: |
           command -v ctest
+          command -v doxygen
+          command -v dot
 
       - name: Download build artifacts
         uses: actions/download-artifact@v4
