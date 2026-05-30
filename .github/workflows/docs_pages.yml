@@ -15,6 +15,7 @@ on:
       - "main"
       - "develop"
     paths:
+      - README.md
       - src/**
       - doc/**
       - cmake/**
@@ -28,6 +29,7 @@ on:
       - "develop"
       - "dev*"
     paths:
+      - README.md
       - src/**
       - doc/**
       - cmake/**

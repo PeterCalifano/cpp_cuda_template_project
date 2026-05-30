@@ -61,6 +61,14 @@ _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/tailor_template_cleanup.sh" "doc/de
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/tailor_template_cleanup.sh" "VerifyTemplateProjectDocsWorkflow.cmake")
 
 set(_pages_workflow "${TEST_TEMPLATE_SOURCE_DIR}/.github/workflows/docs_pages.yml")
+_read_required("${_pages_workflow}" _pages_workflow_contents)
+string(REGEX MATCHALL "(^|\n)[ ]*-[ ]*README\\.md" _readme_path_filters "${_pages_workflow_contents}")
+list(LENGTH _readme_path_filters _readme_path_filter_count)
+if(NOT _readme_path_filter_count EQUAL 2)
+  message(FATAL_ERROR
+      "Expected README.md in both push and pull_request docs workflow path filters; "
+      "found ${_readme_path_filter_count}")
+endif()
 _assert_matches("${_pages_workflow}" "actions/checkout@v6")
 _assert_matches("${_pages_workflow}" "actions/configure-pages@v5")
 _assert_matches("${_pages_workflow}" "actions/upload-pages-artifact@v4")
