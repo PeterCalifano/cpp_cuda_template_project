@@ -9,6 +9,7 @@ ROOT_DIR="${SCRIPT_DIR}"
 APPLY=0
 ASSUME_YES=0
 LIST_ONLY=0
+KEEP_PROFILING=0
 
 info() { printf '\033[34m[INFO]\033[0m %s\n' "$*"; }
 warn() { printf '\033[33m[WARN]\033[0m %s\n' "$*" >&2; }
@@ -18,7 +19,7 @@ usage() {
     cat <<'EOF'
 Usage:
   ./tailor_template_cleanup.sh --list
-  ./tailor_template_cleanup.sh --apply [--yes] [--root <dir>]
+  ./tailor_template_cleanup.sh --apply [--yes] [--root <dir>] [--keep-profiling]
 
 Purpose:
   Remove files that are only useful while developing cpp_cuda_template_project
@@ -29,6 +30,8 @@ Options:
   --apply         Remove files and patch CMake files.
   --yes           Do not prompt before applying.
   --root <dir>    Project root to clean. Defaults to the script directory.
+  --keep-profiling
+                  Keep profiling/ scripts. By default profiling/ is removed.
   -h, --help      Show this help.
 EOF
 }
@@ -59,6 +62,10 @@ template_development_paths=(
     "tests/matlab/RunTemplateWrapperRegression.m"
 )
 
+optional_paths=(
+    "profiling"
+)
+
 print_cleanup_list() {
     cat <<'EOF'
 Template-development-only files/directories removed by --apply:
@@ -66,6 +73,11 @@ EOF
     for path_ in "${template_development_paths[@]}"; do
         printf '  - %s\n' "${path_}"
     done
+    if ((KEEP_PROFILING)); then
+        printf '  - profiling (kept because --keep-profiling is set)\n'
+    else
+        printf '  - profiling\n'
+    fi
     cat <<'EOF'
 
 CMake edits made by --apply:
@@ -75,7 +87,8 @@ CMake edits made by --apply:
 Not removed:
   - cmake/, build_lib.sh, generate_version.sh, docs workflow files, issue forms, and docs guides.
   - tests/template_test and tests/template_fixtures, because they are starter project tests.
-  - .devcontainer, .vscode, profiling/, examples/, and toolchains, because they are reusable project infrastructure.
+  - .devcontainer, .vscode, examples/, and toolchains, because they are reusable project infrastructure.
+  - profiling/ only when --keep-profiling is set.
 EOF
 }
 
@@ -92,6 +105,10 @@ parse_args() {
                 ;;
             --yes|-y)
                 ASSUME_YES=1
+                shift
+                ;;
+            --keep-profiling)
+                KEEP_PROFILING=1
                 shift
                 ;;
             --root)
@@ -223,6 +240,13 @@ main() {
     for path_ in "${template_development_paths[@]}"; do
         remove_path "${path_}"
     done
+    if ((! KEEP_PROFILING)); then
+        for path_ in "${optional_paths[@]}"; do
+            remove_path "${path_}"
+        done
+    else
+        info "keeping profiling/"
+    fi
 
     patch_root_cmakelists
     patch_tests_cmakelists

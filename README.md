@@ -18,6 +18,8 @@ Tailoring helper:
 ./tailor_template_cleanup.sh --apply --yes
 ```
 
+`profiling/` is removed by default. Use `./tailor_template_cleanup.sh --apply --yes --keep-profiling` when the new project should keep the Valgrind/perf helper scripts.
+
 ## Requirements
 
 | Dependency | Version | Notes |
@@ -90,7 +92,7 @@ src/cmake/template_projectConfig.cmake.in  --> src/cmake/<your_project>Config.cm
 set(project_name "your_project_name")
 ```
 
-**What to keep as-is:** the entire `cmake/` module system, `build_lib.sh`, `configure_devcontainer.sh`, `generate_version.sh`, and the `profiling/` scripts - these are project-agnostic.
+**What to keep as-is:** the entire `cmake/` module system, `build_lib.sh`, `configure_devcontainer.sh`, and `generate_version.sh`. Keep `profiling/` only when the project needs the optional Valgrind/perf helper scripts.
 
 ---
 
@@ -481,7 +483,7 @@ The docs target is created only for the top-level project. Nested template-deriv
 │   ├── config.h.in              CMake-configured header (version, feature flags)
 │   └── global_includes.h        Shared utilities (ANSI colors, precision constants)
 ├── cmake/                       CMake module system (Handle*.cmake)
-├── profiling/                   Valgrind/perf wrapper scripts
+├── profiling/                   Optional Valgrind/perf wrapper scripts
 ├── tests/                       Catch2 unit tests and fixtures
 ├── examples/
 │   ├── template_consumer_project/   Using the library via find_package()

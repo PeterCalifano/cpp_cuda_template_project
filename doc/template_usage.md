@@ -84,6 +84,12 @@ Apply the cleanup once the list is acceptable:
 ./tailor_template_cleanup.sh --apply --yes
 ```
 
-The script removes agent/context notes, template-development prompt/history docs, workflow snapshot files, template-specific validation CTest scripts, and the workspace file tied to this template checkout. It keeps reusable project infrastructure such as `cmake/`, `build_lib.sh`, docs workflow files, issue forms, examples, profiling scripts, toolchains, starter unit tests, `.devcontainer/`, and `.vscode/`.
+By default this also removes `profiling/`. Keep those scripts only when the new project will use Valgrind/perf helpers:
+
+```bash
+./tailor_template_cleanup.sh --apply --yes --keep-profiling
+```
+
+The script removes agent/context notes, template-development prompt/history docs, workflow snapshot files, template-specific validation CTest scripts, optional profiling scripts, and the workspace file tied to this template checkout. It keeps reusable project infrastructure such as `cmake/`, `build_lib.sh`, docs workflow files, issue forms, examples, toolchains, starter unit tests, `.devcontainer/`, and `.vscode/`.
 
 It also removes the root CMake hook for the template MATLAB regression helper and rewrites `tests/CMakeLists.txt` so only starter project unit tests remain registered.

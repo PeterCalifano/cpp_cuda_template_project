@@ -95,6 +95,25 @@
   - `ctest --test-dir /tmp/cpp_cuda_template_docs_gate --output-on-failure -R "docs|version|nested|tailoring"`: 6/6 passed.
   - `ctest --test-dir /tmp/cpp_cuda_template_testfield_docs_gate --output-on-failure -R "docs|version|nested|tailoring"`: 10/10 passed.
   - `git diff --check`: passed in both repos.
+
+### 2026-05-30 continuation: profiling cleanup option
+
+- Updated `tailor_template_cleanup.sh` so `profiling/` is removed by default.
+- Added `--keep-profiling` to preserve `profiling/` when a downstream project wants the Valgrind/perf helper scripts.
+- Updated `--list`, README, and `doc/template_usage.md` to describe the default removal and opt-in keep behavior.
+- Extended `VerifyTemplateProjectTailoringScript.cmake`:
+  - default cleanup must remove `profiling/`;
+  - cleanup with `--keep-profiling` must preserve `profiling/run_ops_profiling.sh`;
+  - existing CMake hook/test-registration cleanup assertions still run for both fake projects.
+- Validation:
+  - `bash -n tailor_template_cleanup.sh`: passed.
+  - `tailor_template_cleanup.sh --list`: shows `profiling` removed by default.
+  - `tailor_template_cleanup.sh --list --keep-profiling`: shows `profiling` kept.
+  - `VerifyTemplateProjectTailoringScript.cmake`: passed.
+  - `VerifyTemplateProjectDocsStatic.cmake`: passed.
+  - `VerifyTemplateProjectDocsWorkflow.cmake`: passed.
+  - `ctest --test-dir /tmp/cpp_cuda_template_docs_gate --output-on-failure -R "docs|version|nested|tailoring"`: 6/6 passed.
+  - `git diff --check`: passed.
 - Interpreting GitHub run results:
   - deploy skipped on PRs is expected;
   - deploy skipped on manual run with `deploy_pages=false` is expected;
