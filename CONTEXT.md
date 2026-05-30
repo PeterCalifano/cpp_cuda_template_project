@@ -114,6 +114,25 @@
   - `VerifyTemplateProjectDocsWorkflow.cmake`: passed.
   - `ctest --test-dir /tmp/cpp_cuda_template_docs_gate --output-on-failure -R "docs|version|nested|tailoring"`: 6/6 passed.
   - `git diff --check`: passed.
+
+### 2026-05-30 continuation: Node 24 Pages action versions
+
+- User reported GitHub Actions warning that `actions/upload-artifact@v4.6.2` runs on deprecated Node.js 20.
+- Determined the warning is owned by our workflow indirectly:
+  - `.github/workflows/docs_pages.yml` used `actions/upload-pages-artifact@v4`.
+  - `actions/upload-pages-artifact@v4` internally uses `actions/upload-artifact@v4.6.2`.
+  - `actions/upload-pages-artifact@v5` internally uses `actions/upload-artifact@v7.0.0`.
+- Updated template and testfield docs workflows:
+  - `actions/upload-pages-artifact@v5`;
+  - `actions/configure-pages@v6`;
+  - `actions/deploy-pages@v5`.
+- Updated static workflow checks in both repos to require these newer major versions and reject older Pages action majors.
+- Validation:
+  - `VerifyTemplateProjectDocsStatic.cmake`: passed.
+  - `VerifyTestfieldDocsStatic.cmake`: passed.
+  - `ctest --test-dir /tmp/cpp_cuda_template_docs_gate --output-on-failure -R "docs|version|nested|tailoring"`: 6/6 passed.
+  - `ctest --test-dir /tmp/cpp_cuda_template_testfield_docs_gate --output-on-failure -R "docs|version|nested|tailoring"`: 10/10 passed.
+  - `git diff --check`: passed in both repos.
 - Interpreting GitHub run results:
   - deploy skipped on PRs is expected;
   - deploy skipped on manual run with `deploy_pages=false` is expected;
