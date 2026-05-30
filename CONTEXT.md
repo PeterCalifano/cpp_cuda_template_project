@@ -77,6 +77,29 @@
   - `https://petercalifano.github.io/cpp_cuda_template_testfield/` returns HTTP 404.
 - This is the same remaining gate: remote Pages publication cannot be proven without committing/pushing the local workflow/docs or using another authenticated GitHub publication path. No commits were made.
 
+### 2026-05-30 continuation: manual docs stage behavior
+
+- User observed that docs build works but deploy is skipped.
+- Updated `.github/workflows/docs_pages.yml` in both template and testfield:
+  - `workflow_dispatch` now has a boolean `deploy_pages` input with default `false`.
+  - Manual runs are build-only by default; deploy runs only when `deploy_pages=true`.
+  - Push events still deploy automatically.
+  - Pull requests still build and upload the artifact but never deploy.
+  - `actions/configure-pages@v5` moved from `build-docs` to `deploy`, so build-only/manual/pre-merge checks no longer fail when Pages has not been enabled.
+- Updated docs and static CMake workflow checks to enforce the new manual-deploy contract.
+- Validation after this change:
+  - `VerifyTemplateProjectDocsStatic.cmake`: passed.
+  - `VerifyTestfieldDocsStatic.cmake`: passed.
+  - `VerifyTemplateProjectDocsWorkflow.cmake`: passed.
+  - `VerifyTestfieldDocsWorkflow.cmake`: passed.
+  - `ctest --test-dir /tmp/cpp_cuda_template_docs_gate --output-on-failure -R "docs|version|nested|tailoring"`: 6/6 passed.
+  - `ctest --test-dir /tmp/cpp_cuda_template_testfield_docs_gate --output-on-failure -R "docs|version|nested|tailoring"`: 10/10 passed.
+  - `git diff --check`: passed in both repos.
+- Interpreting GitHub run results:
+  - deploy skipped on PRs is expected;
+  - deploy skipped on manual run with `deploy_pages=false` is expected;
+  - deploy skipped on push or manual `deploy_pages=true` is not expected and should be checked from the job condition/logs.
+
 ### 2026-05-22 cross-compilation and nested-library work
 
 - Active branch in both repos: `feature/improve-cross-compiling`.

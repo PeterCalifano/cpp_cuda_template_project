@@ -19,6 +19,8 @@ If a critical issue prevents trustworthy validation, stop immediately and add th
 - `cmake --build --preset docs`: passed and generated `build_docs/doc/html/index.html`.
 - `ctest --test-dir /tmp/cpp_cuda_template_docs_gate --output-on-failure -R "docs|version|nested|tailoring"`: 6/6 passed.
 - The Pages workflow now verifies the deployed URL after `actions/deploy-pages@v4` by fetching `steps.deployment.outputs.page_url` and checking the published index for expected documentation links.
+- Manual `workflow_dispatch` runs are build-only by default and intentionally skip deploy unless `deploy_pages=true`.
+- `actions/configure-pages@v5` runs only in the deploy job, so pre-merge and build-only manual checks do not fail just because Pages has not been enabled yet.
 - Direct script checks passed:
   - `VerifyTemplateProjectDocsStatic.cmake`
   - `VerifyTemplateProjectDocsWorkflow.cmake`

@@ -64,9 +64,11 @@ The generated Doxyfile excludes `lib/`, build directories, and `_deps/`. Do not 
 
 ## GitHub Pages
 
-`.github/workflows/docs_pages.yml` builds the Doxygen HTML site, uploads `build_docs/doc/html` as a Pages artifact, and deploys it from the default branch or manual dispatch.
+`.github/workflows/docs_pages.yml` builds the Doxygen HTML site and uploads `build_docs/doc/html` as a Pages artifact.
 
-Pull requests build and upload the artifact for inspection but do not deploy. Default-branch pushes and manual dispatches deploy to the `github-pages` environment.
+Pull requests build and upload the artifact for inspection but do not deploy. Manual `workflow_dispatch` runs are build-only by default; set `deploy_pages=true` to publish intentionally. Default-branch pushes deploy to the `github-pages` environment.
+
+`actions/configure-pages` runs only in the deploy job. This keeps pre-merge and manual build-only checks useful even when the repository has not yet enabled Pages.
 
 After deployment, the workflow fetches the published Pages URL and checks that the served index contains the expected documentation links. This guards against successful artifact upload with a broken or stale deployed site.
 

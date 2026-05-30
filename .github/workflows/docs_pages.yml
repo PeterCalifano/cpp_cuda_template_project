@@ -3,6 +3,12 @@ run-name: Build and publish Doxygen documentation
 
 on:
   workflow_dispatch:
+    inputs:
+      deploy_pages:
+        description: "Deploy to GitHub Pages after building docs"
+        required: true
+        default: false
+        type: boolean
   push:
     branches:
       - "master"
@@ -50,9 +56,6 @@ jobs:
           sudo apt update
           sudo apt install -y cmake ninja-build g++ doxygen graphviz libeigen3-dev
 
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-
       - name: Configure documentation build
         run: |
           cmake -S . -B "${BUILD_DIR}" -GNinja \
@@ -82,7 +85,7 @@ jobs:
           path: ${{ env.BUILD_DIR }}/doc/html
 
   deploy:
-    if: ${{ github.event_name != 'pull_request' }}
+    if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy_pages) }}
     needs: build-docs
     runs-on: ubuntu-latest
     permissions:
@@ -92,6 +95,9 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

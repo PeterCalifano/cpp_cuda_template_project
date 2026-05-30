@@ -26,7 +26,7 @@ The Pages workflow is separate from the C++ build workflow. It has these stages:
 2. Build Doxygen HTML and XML.
 3. Verify `index.html` exists before upload.
 4. Upload the Pages artifact.
-5. Deploy only for default-branch pushes or manual dispatch.
+5. Deploy only for default-branch pushes, or manual dispatch when `deploy_pages=true`.
 6. Fetch the deployed Pages URL and check that the published index contains the expected documentation links.
 
 ## Issue Templates
