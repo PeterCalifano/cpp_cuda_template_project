@@ -4,6 +4,185 @@
 - Test harness repo: `/home/peterc/devDir/dev-tools/cpp_cuda_template_testfield`
 - Date: 2026-05-22
 
+### 2026-05-30 documentation workflow, Pages, and tailoring cleanup
+
+- Implemented a generalized top-level-only Doxygen workflow in the template:
+  - new `cmake/HandleDoxygenDocs.cmake`;
+  - `doc/CMakeLists.txt` now configures docs through a reusable helper;
+  - root `CMakeLists.txt` adds docs only for `BUILD_AS_MAIN_PROJECT`;
+  - generated wrapper docstrings use build-tree XML and depend on the docs target when `BUILD_DOC_XML=ON`.
+- Source `VERSION` generation is now guarded by `WRITE_SOURCE_VERSION_FILE=OFF` by default; builds still generate/install the build-tree `VERSION`.
+- `VERSION` was verified already ignored in both template and testfield with `.gitignore:5` and `git check-ignore -v VERSION`.
+- Added docs preset/workflow support:
+  - `CMakePresets.json` with `docs` configure/build presets;
+  - `.github/workflows/docs_pages.yml` for GitHub Pages custom workflow publication;
+  - Doxygen input includes README, `src`, and `doc`, while nested `lib` content is excluded.
+- Replaced markdown issue templates with GitHub issue forms in `.github/ISSUE_TEMPLATE`.
+- Added usage docs covering template usage, C++/CUDA setup, wrappers, versioning, documentation/Pages, tests, and CI.
+- Added rollout notes in both repos under `doc/developments/docs_workflow_rollout.md`.
+- Added `tailor_template_cleanup.sh` in the template. `--list` reports the template-development-only files/directories, and `--apply --yes` removes them and patches starter CMake test registration.
+- Template validation passed:
+  - `cmake --preset docs`;
+  - `cmake --build --preset docs`;
+  - `ctest --test-dir /tmp/cpp_cuda_template_docs_gate --output-on-failure -R "docs|version|nested|tailoring"`: 6/6 passed;
+  - direct static/docs/version/nested/tailoring CMake script checks passed;
+  - generated `build_docs/doc/html/index.html` contains the expected documentation pages.
+- Testfield mirrors the workflow/docs/test updates and validates the sibling template too:
+  - `cmake --preset docs`;
+  - `cmake --build --preset docs`;
+  - `ctest --test-dir /tmp/cpp_cuda_template_testfield_docs_gate --output-on-failure -R "docs|version|nested|tailoring"`: 10/10 passed;
+  - generated `build_docs/doc/html/index.html` contains the expected documentation pages.
+- `git diff --check` passes in both repos after whitespace cleanup.
+- Real GitHub Pages publication was not executed:
+  - `command -v gh` exits 1, so GitHub CLI is not available;
+  - the new workflow/docs are still uncommitted local changes;
+  - publishing would require an explicit commit/push step or an authenticated GitHub publication path.
+- Pre-existing testfield `lib/wrap` submodule modification remains untouched.
+
+### 2026-05-30 continuation: post-deploy Pages verification
+
+- Strengthened `.github/workflows/docs_pages.yml` in both repos:
+  - after `actions/deploy-pages@v4`, the deploy job now fetches `${{ steps.deployment.outputs.page_url }}`;
+  - it checks the served index for `Template usage`, `Documentation workflow`, and `Versioning`;
+  - this closes the workflow-side gap where artifact upload could pass without checking the published site.
+- Updated static CMake workflow checks in both repos so this post-deploy Pages URL check is required.
+- Updated docs in both repos to describe the post-deploy URL verification.
+- Re-ran focused validation:
+  - template direct checks: `VerifyTemplateProjectDocsStatic.cmake` and `VerifyTemplateProjectDocsWorkflow.cmake` passed;
+  - testfield direct checks: `VerifyTestfieldDocsStatic.cmake` and `VerifyTestfieldDocsWorkflow.cmake` passed;
+  - `cmake --preset docs` and `cmake --build --preset docs` passed in both repos;
+  - `ctest --test-dir /tmp/cpp_cuda_template_docs_gate --output-on-failure -R "docs|version|nested|tailoring"`: 6/6 passed;
+  - `ctest --test-dir /tmp/cpp_cuda_template_testfield_docs_gate --output-on-failure -R "docs|version|nested|tailoring"`: 10/10 passed;
+  - `git diff --check` passed in both repos.
+- Action tag recency/existence was checked with `git ls-remote`; current workflow tags exist:
+  - `actions/checkout@v6`;
+  - `actions/configure-pages@v5`;
+  - `actions/upload-pages-artifact@v4`;
+  - `actions/deploy-pages@v4`.
+- Remaining gate: a real remote Pages deployment still requires commit/push or another authenticated GitHub publication path. No commits were made.
+- Expected public Pages URLs were checked for context and both returned HTTP 404:
+  - `https://petercalifano.github.io/cpp_cuda_template_project/`;
+  - `https://petercalifano.github.io/cpp_cuda_template_testfield/`.
+
+### 2026-05-30 continuation: blocker recheck
+
+- Re-read `AGENTS.md` and `CONTEXT.md` before continuing.
+- Re-ran the current focused gates after the previous rollout-doc updates:
+  - `ctest --test-dir /tmp/cpp_cuda_template_docs_gate --output-on-failure -R "docs|version|nested|tailoring"`: 6/6 passed.
+  - `ctest --test-dir /tmp/cpp_cuda_template_testfield_docs_gate --output-on-failure -R "docs|version|nested|tailoring"`: 10/10 passed.
+  - `git diff --check` passed in both repos.
+- Rechecked publication capability:
+  - `command -v gh` exits 1.
+  - `https://petercalifano.github.io/cpp_cuda_template_project/` returns HTTP 404.
+  - `https://petercalifano.github.io/cpp_cuda_template_testfield/` returns HTTP 404.
+- This is the same remaining gate: remote Pages publication cannot be proven without committing/pushing the local workflow/docs or using another authenticated GitHub publication path. No commits were made.
+
+### 2026-05-30 continuation: manual docs stage behavior
+
+- User observed that docs build works but deploy is skipped.
+- Updated `.github/workflows/docs_pages.yml` in both template and testfield:
+  - `workflow_dispatch` now has a boolean `deploy_pages` input with default `false`.
+  - Manual runs are build-only by default; deploy runs only when `deploy_pages=true`.
+  - Push events still deploy automatically.
+  - Pull requests still build and upload the artifact but never deploy.
+  - `actions/configure-pages@v5` moved from `build-docs` to `deploy`, so build-only/manual/pre-merge checks no longer fail when Pages has not been enabled.
+- Updated docs and static CMake workflow checks to enforce the new manual-deploy contract.
+- Validation after this change:
+  - `VerifyTemplateProjectDocsStatic.cmake`: passed.
+  - `VerifyTestfieldDocsStatic.cmake`: passed.
+  - `VerifyTemplateProjectDocsWorkflow.cmake`: passed.
+  - `VerifyTestfieldDocsWorkflow.cmake`: passed.
+  - `ctest --test-dir /tmp/cpp_cuda_template_docs_gate --output-on-failure -R "docs|version|nested|tailoring"`: 6/6 passed.
+  - `ctest --test-dir /tmp/cpp_cuda_template_testfield_docs_gate --output-on-failure -R "docs|version|nested|tailoring"`: 10/10 passed.
+  - `git diff --check`: passed in both repos.
+
+### 2026-05-30 continuation: profiling cleanup option
+
+- Updated `tailor_template_cleanup.sh` so `profiling/` is removed by default.
+- Added `--keep-profiling` to preserve `profiling/` when a downstream project wants the Valgrind/perf helper scripts.
+- Updated `--list`, README, and `doc/template_usage.md` to describe the default removal and opt-in keep behavior.
+- Extended `VerifyTemplateProjectTailoringScript.cmake`:
+  - default cleanup must remove `profiling/`;
+  - cleanup with `--keep-profiling` must preserve `profiling/run_ops_profiling.sh`;
+  - existing CMake hook/test-registration cleanup assertions still run for both fake projects.
+- Validation:
+  - `bash -n tailor_template_cleanup.sh`: passed.
+  - `tailor_template_cleanup.sh --list`: shows `profiling` removed by default.
+  - `tailor_template_cleanup.sh --list --keep-profiling`: shows `profiling` kept.
+  - `VerifyTemplateProjectTailoringScript.cmake`: passed.
+  - `VerifyTemplateProjectDocsStatic.cmake`: passed.
+  - `VerifyTemplateProjectDocsWorkflow.cmake`: passed.
+  - `ctest --test-dir /tmp/cpp_cuda_template_docs_gate --output-on-failure -R "docs|version|nested|tailoring"`: 6/6 passed.
+  - `git diff --check`: passed.
+
+### 2026-05-30 continuation: Node 24 Pages action versions
+
+- User reported GitHub Actions warning that `actions/upload-artifact@v4.6.2` runs on deprecated Node.js 20.
+- Determined the warning is owned by our workflow indirectly:
+  - `.github/workflows/docs_pages.yml` used `actions/upload-pages-artifact@v4`.
+  - `actions/upload-pages-artifact@v4` internally uses `actions/upload-artifact@v4.6.2`.
+  - `actions/upload-pages-artifact@v5` internally uses `actions/upload-artifact@v7.0.0`.
+- Updated template and testfield docs workflows:
+  - `actions/upload-pages-artifact@v5`;
+  - `actions/configure-pages@v6`;
+  - `actions/deploy-pages@v5`.
+- Updated static workflow checks in both repos to require these newer major versions and reject older Pages action majors.
+- Validation:
+  - `VerifyTemplateProjectDocsStatic.cmake`: passed.
+  - `VerifyTestfieldDocsStatic.cmake`: passed.
+  - `ctest --test-dir /tmp/cpp_cuda_template_docs_gate --output-on-failure -R "docs|version|nested|tailoring"`: 6/6 passed.
+  - `ctest --test-dir /tmp/cpp_cuda_template_testfield_docs_gate --output-on-failure -R "docs|version|nested|tailoring"`: 10/10 passed.
+  - `git diff --check`: passed in both repos.
+
+### 2026-05-30 continuation: docs CTest CI dependencies and default-branch Pages deploy
+
+- User reported CI CTest failure: `gmake: *** No rule to make target 'doc'. Stop.` from `template_project_docs_build_output`.
+- Verified a fresh local CMake configure/build with Doxygen present exposes the `doc` target and passes `template_project_docs_build_output`; stale/incomplete build trees can reproduce the missing-target symptom.
+- Found a real CI dependency gap:
+  - `build_linux.yml` installed CMake/Ninja/Eigen/TBB/Python but not `doxygen` or `graphviz`;
+  - docs CTest configures a fresh build and builds the `doc` target;
+  - self-hosted/CUDA workflows also need explicit `doxygen` and `dot` prerequisite checks.
+- Updated `build_linux.yml`:
+  - GitHub-hosted build and test dependency installs now include `doxygen graphviz`;
+  - self-hosted build/test prerequisite checks now include `command -v doxygen` and `command -v dot`.
+- Updated `build_linux_cuda.yml`:
+  - CUDA build/test prerequisite checks now include `command -v doxygen` and `command -v dot`.
+- Updated `VerifyTemplateProjectCiWorkflowFlags.cmake` to require Doxygen/Graphviz validation and Linux hosted package installation.
+- User also flagged that Pages deploy would publish every docs-affecting push to `develop`.
+- Updated docs Pages deploy condition in template and testfield:
+  - push deploys only when `github.ref` equals the repository default branch;
+  - manual deploy remains available through `workflow_dispatch` with `deploy_pages=true`.
+- Updated template/testfield docs static checks to require the default-branch deploy guard.
+- Validation:
+  - `VerifyTemplateProjectDocsStatic.cmake`: passed.
+  - `VerifyTemplateProjectCiWorkflowFlags.cmake`: passed.
+  - `VerifyTestfieldDocsStatic.cmake`: passed.
+  - Fresh full CI-like run in `/tmp/cpp_cuda_template_ci_fresh_docs`: configure, build, and `ctest --no-tests=error` passed 12/12.
+  - `git diff --check`: passed in both repos.
+- Interpreting GitHub run results:
+  - deploy skipped on PRs is expected;
+  - deploy skipped on manual run with `deploy_pages=false` is expected;
+  - deploy skipped on push or manual `deploy_pages=true` is not expected and should be checked from the job condition/logs.
+
+### 2026-05-30 continuation: README path filters and tailoring proof
+
+- Addressed review note that Doxygen uses `README.md` but docs workflow path filters did not include it.
+- Added `README.md` to both `push.paths` and `pull_request.paths` in `.github/workflows/docs_pages.yml` for template and testfield.
+- Strengthened static workflow checks in both repos:
+  - they now count `README.md` path-filter entries and require exactly two, one for push and one for pull request.
+- Reverified tailoring script availability and behavior:
+  - `git ls-files --stage tailor_template_cleanup.sh` shows mode `100755`;
+  - `git ls-tree -r HEAD --name-only | rg '^tailor_template_cleanup\.sh$'` finds the script in the current commit;
+  - `VerifyTemplateProjectTailoringScript.cmake` passed directly.
+- Validation after this change:
+  - `VerifyTemplateProjectDocsStatic.cmake`: passed.
+  - `VerifyTestfieldDocsStatic.cmake`: passed.
+  - `VerifyTemplateProjectDocsWorkflow.cmake`: passed.
+  - `VerifyTestfieldDocsWorkflow.cmake`: passed.
+  - `ctest --test-dir /tmp/cpp_cuda_template_docs_gate --output-on-failure -R "docs|version|nested|tailoring"`: 6/6 passed.
+  - `ctest --test-dir /tmp/cpp_cuda_template_testfield_docs_gate --output-on-failure -R "docs|version|nested|tailoring"`: 10/10 passed.
+  - `git diff --check`: passed in both repos.
+
 ### 2026-05-22 cross-compilation and nested-library work
 
 - Active branch in both repos: `feature/improve-cross-compiling`.

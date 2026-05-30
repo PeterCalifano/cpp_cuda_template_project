@@ -11,6 +11,8 @@
 set(CATCH2_TEST_PROPERTIES "--output-on-failure;--reporter=compact") 
 include(CTest)
 
+################################################################################
+# CMake template development tests (remove for instantiation)
 add_test(
     NAME template_project_no_optimization_flags
     COMMAND ${CMAKE_COMMAND}
@@ -52,6 +54,75 @@ set_tests_properties(
     TIMEOUT 60
 )
 
+add_test(
+    NAME template_project_docs_static_contract
+    COMMAND ${CMAKE_COMMAND}
+        -DTEST_TEMPLATE_SOURCE_DIR=${PROJECT_SOURCE_DIR}
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyTemplateProjectDocsStatic.cmake
+)
+set_tests_properties(
+    template_project_docs_static_contract
+    PROPERTIES
+    LABELS "docs;workflow;issues"
+    TIMEOUT 60
+)
+
+add_test(
+    NAME template_project_docs_build_output
+    COMMAND ${CMAKE_COMMAND}
+        -DTEST_TEMPLATE_SOURCE_DIR=${PROJECT_SOURCE_DIR}
+        -DTEST_BINARY_ROOT=${PROJECT_BINARY_DIR}/docs_workflow
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyTemplateProjectDocsWorkflow.cmake
+)
+set_tests_properties(
+    template_project_docs_build_output
+    PROPERTIES
+    LABELS "docs;doxygen"
+    TIMEOUT 240
+)
+
+add_test(
+    NAME template_project_nested_docs_isolation
+    COMMAND ${CMAKE_COMMAND}
+        -DTEST_TEMPLATE_SOURCE_DIR=${PROJECT_SOURCE_DIR}
+        -DTEST_BINARY_ROOT=${PROJECT_BINARY_DIR}/nested_docs_isolation
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyTemplateProjectNestedDocsIsolation.cmake
+)
+set_tests_properties(
+    template_project_nested_docs_isolation
+    PROPERTIES
+    LABELS "docs;nested"
+    TIMEOUT 180
+)
+
+add_test(
+    NAME template_project_version_no_source_side_effect
+    COMMAND ${CMAKE_COMMAND}
+        -DTEST_TEMPLATE_SOURCE_DIR=${PROJECT_SOURCE_DIR}
+        -DTEST_BINARY_ROOT=${PROJECT_BINARY_DIR}/version_side_effect
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyTemplateProjectVersionSideEffects.cmake
+)
+set_tests_properties(
+    template_project_version_no_source_side_effect
+    PROPERTIES
+    LABELS "version;configure"
+    TIMEOUT 180
+)
+
+add_test(
+    NAME template_project_tailoring_cleanup_script
+    COMMAND ${CMAKE_COMMAND}
+        -DTEST_TEMPLATE_SOURCE_DIR=${PROJECT_SOURCE_DIR}
+        -DTEST_BINARY_ROOT=${PROJECT_BINARY_DIR}/tailoring_cleanup
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyTemplateProjectTailoringScript.cmake
+)
+set_tests_properties(
+    template_project_tailoring_cleanup_script
+    PROPERTIES
+    LABELS "tailoring;template"
+    TIMEOUT 60
+)
+
 find_program(TEMPLATE_AARCH64_GCC_EXECUTABLE NAMES aarch64-linux-gnu-gcc)
 find_program(TEMPLATE_AARCH64_GXX_EXECUTABLE NAMES aarch64-linux-gnu-g++)
 set(TEMPLATE_AARCH64_TOOLCHAIN_FILE "${PROJECT_SOURCE_DIR}/cmake/toolchains/defaults/aarch64-linux-gnu.cmake")
@@ -80,6 +151,8 @@ if(TEMPLATE_AARCH64_GCC_EXECUTABLE AND TEMPLATE_AARCH64_GXX_EXECUTABLE AND EXIST
 else()
     message(STATUS "aarch64-linux-gnu compilers not found. Skipping aarch64 cross-compilation regression tests.")
 endif()
+
+################################################################################
 
 # Exclude EXCLUDED_LIST from the list of tests
 set(EXCLUDED_LIST "test_to_exclude")  # Specify files to exclude WE

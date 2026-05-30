@@ -16,7 +16,7 @@ on:
     branches:
       - "master"
       - "main"
-      - "dev_main"
+      - "develop"
     paths:
       - src/**
       - examples/**
@@ -30,7 +30,7 @@ on:
     branches:
       - "master"
       - "main"
-      - "dev_main"
+      - "develop"
       - "dev*"
     paths:
       - src/**
@@ -58,7 +58,7 @@ jobs:
         if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.runner == 'github-hosted' }}
         run: |
           sudo apt update
-          sudo apt install -y cmake ninja-build g++ ccache libboost-all-dev libeigen3-dev libtbb-dev python3-dev
+          sudo apt install -y cmake ninja-build g++ ccache libboost-all-dev libeigen3-dev libtbb-dev python3-dev doxygen graphviz
 
       - name: Validate self-hosted prerequisites
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.runner == 'self-hosted' }}
@@ -68,6 +68,8 @@ jobs:
           command -v g++
           command -v ccache
           command -v python3
+          command -v doxygen
+          command -v dot
 
       - name: Restore compiler cache
         uses: actions/cache@v4
@@ -120,13 +122,15 @@ jobs:
         if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.runner == 'github-hosted' }}
         run: |
           sudo apt update
-          sudo apt install -y cmake ninja-build g++ libboost-all-dev libeigen3-dev libtbb-dev python3-dev
+          sudo apt install -y cmake ninja-build g++ libboost-all-dev libeigen3-dev libtbb-dev python3-dev doxygen graphviz
 
       - name: Validate self-hosted prerequisites
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.runner == 'self-hosted' }}
         run: |
           command -v cmake
           command -v ctest
+          command -v doxygen
+          command -v dot
 
       - name: Download build artifacts
         uses: actions/download-artifact@v4
