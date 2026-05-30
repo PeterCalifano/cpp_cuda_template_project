@@ -16,7 +16,7 @@ on:
     branches:
       - "master"
       - "main"
-      - "dev_main"
+      - "develop"
     paths:
       - src/**
       - examples/**
@@ -30,7 +30,7 @@ on:
     branches:
       - "master"
       - "main"
-      - "dev_main"
+      - "develop"
       - "dev*"
     paths:
       - src/**
