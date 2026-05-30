@@ -1,6 +1,13 @@
 # cpp_cuda_template_project {#mainpage}
 
-See the [README](../../README.md) for full usage documentation, or read on for the condensed reference.
+See the [README](README.md) for the quick start, then use the focused guides below:
+
+- [Template usage](template_usage.md)
+- [C++ and CUDA build guide](cpp_cuda_build.md)
+- [Python and MATLAB wrappers](wrappers.md)
+- [Versioning](versioning.md)
+- [Documentation workflow](documentation_workflow.md)
+- [Testing, CI, and issue workflow](testing_and_ci.md)
 
 ## Installation
 
@@ -58,4 +65,4 @@ Replace all occurrences of `template_project` with your project name, rename
 `src/template_src/` and `src/template_src_kernels/`, and update
 `set(project_name ...)` in the root `CMakeLists.txt`.
 
-Full details in `README.md`.
+Full details are in `doc/template_usage.md`.

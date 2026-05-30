@@ -2,6 +2,22 @@
 
 A CMake template for building GPU-accelerated C++ libraries with optional CUDA/OptiX, Python/MATLAB bindings, and profiling support. Shared builds are the default, and static builds are selectable through standard CMake `BUILD_SHARED_LIBS`. Designed to be cloned and renamed into a real project.
 
+## Documentation Map
+
+- [`doc/template_usage.md`](doc/template_usage.md): cloning, renaming, source layout, nested consumers, and test placement.
+- [`doc/cpp_cuda_build.md`](doc/cpp_cuda_build.md): C++ build modes, CUDA, OptiX, toolchains, CPU tuning, and profiling toggles.
+- [`doc/wrappers.md`](doc/wrappers.md): gtwrap setup, Python package workflow, MATLAB wrappers, and wrapper docstrings.
+- [`doc/versioning.md`](doc/versioning.md): git tags, source/build/install `VERSION` files, C++ config macros, Python metadata, and packages.
+- [`doc/documentation_workflow.md`](doc/documentation_workflow.md): Doxygen, CMake docs targets, XML output, GitHub Pages, and output checks.
+- [`doc/testing_and_ci.md`](doc/testing_and_ci.md): CTest gates, CI workflow expectations, issue forms, and staged stop rules.
+
+Tailoring helper:
+
+```bash
+./tailor_template_cleanup.sh --list
+./tailor_template_cleanup.sh --apply --yes
+```
+
 ## Requirements
 
 | Dependency | Version | Notes |
@@ -327,7 +343,13 @@ Version is resolved in order:
 2. **`VERSION` file** - parsed from `Project version: X.Y.Z` if git is unavailable
 3. **CMake defaults** - `0.0.0` if neither source is available
 
-The `VERSION` file is always written to the source and build directories during CMake configure. To write it without building:
+The `VERSION` file is always written to the build directory during CMake configure and installed with the package. Source-tree writes are opt-in so CI and test harness configures do not dirty the checkout:
+
+```bash
+cmake -S . -B build -D WRITE_SOURCE_VERSION_FILE=ON
+```
+
+To write the ignored source `VERSION` file without building:
 
 ```bash
 ./generate_version.sh
@@ -432,10 +454,20 @@ ROS 1 requires Ubuntu 18.04 (melodic) or 20.04 (noetic). ROS 2 requires Ubuntu 2
 Doxygen documentation is auto-built when CMake finds `doxygen`:
 
 ```bash
-cmake -B build && cmake --build build --target doc
+cmake -S . -B build_docs -D BUILD_DOC_HTML=ON -D BUILD_DOC_XML=ON
+cmake --build build_docs --target doc
 ```
 
-Output goes to `build/doc/html/index.html`.
+Output goes to `build_docs/doc/html/index.html`; XML output for wrapper docstrings goes to `build_docs/doc/xml/`.
+
+If your CMake version supports presets:
+
+```bash
+cmake --preset docs
+cmake --build --preset docs
+```
+
+The docs target is created only for the top-level project. Nested template-derived libraries do not create generic `doc` targets and are excluded from the generated output.
 
 ---
 
