@@ -69,6 +69,15 @@ if(NOT _readme_path_filter_count EQUAL 2)
       "Expected README.md in both push and pull_request docs workflow path filters; "
       "found ${_readme_path_filter_count}")
 endif()
+string(REGEX MATCHALL "uses: actions/checkout@v[0-9]+" _pages_checkout_uses "${_pages_workflow_contents}")
+list(LENGTH _pages_checkout_uses _pages_checkout_count)
+string(REGEX MATCHALL "fetch-depth:[ ]*0" _pages_full_depth_settings "${_pages_workflow_contents}")
+list(LENGTH _pages_full_depth_settings _pages_full_depth_count)
+if(NOT _pages_checkout_count EQUAL 1 OR NOT _pages_full_depth_count EQUAL _pages_checkout_count)
+  message(FATAL_ERROR
+      "Docs workflow checkout must use fetch-depth: 0 so git tags are available "
+      "for Doxygen PROJECT_NUMBER version resolution.")
+endif()
 _assert_matches("${_pages_workflow}" "actions/checkout@v6")
 _assert_matches("${_pages_workflow}" "actions/configure-pages@v6")
 _assert_matches("${_pages_workflow}" "actions/upload-pages-artifact@v5")

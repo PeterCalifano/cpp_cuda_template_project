@@ -52,6 +52,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install dependencies
         if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.runner == 'github-hosted' }}
@@ -111,6 +113,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install test dependencies
         if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.runner == 'github-hosted' }}
