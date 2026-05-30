@@ -100,6 +100,25 @@
   - deploy skipped on manual run with `deploy_pages=false` is expected;
   - deploy skipped on push or manual `deploy_pages=true` is not expected and should be checked from the job condition/logs.
 
+### 2026-05-30 continuation: README path filters and tailoring proof
+
+- Addressed review note that Doxygen uses `README.md` but docs workflow path filters did not include it.
+- Added `README.md` to both `push.paths` and `pull_request.paths` in `.github/workflows/docs_pages.yml` for template and testfield.
+- Strengthened static workflow checks in both repos:
+  - they now count `README.md` path-filter entries and require exactly two, one for push and one for pull request.
+- Reverified tailoring script availability and behavior:
+  - `git ls-files --stage tailor_template_cleanup.sh` shows mode `100755`;
+  - `git ls-tree -r HEAD --name-only | rg '^tailor_template_cleanup\.sh$'` finds the script in the current commit;
+  - `VerifyTemplateProjectTailoringScript.cmake` passed directly.
+- Validation after this change:
+  - `VerifyTemplateProjectDocsStatic.cmake`: passed.
+  - `VerifyTestfieldDocsStatic.cmake`: passed.
+  - `VerifyTemplateProjectDocsWorkflow.cmake`: passed.
+  - `VerifyTestfieldDocsWorkflow.cmake`: passed.
+  - `ctest --test-dir /tmp/cpp_cuda_template_docs_gate --output-on-failure -R "docs|version|nested|tailoring"`: 6/6 passed.
+  - `ctest --test-dir /tmp/cpp_cuda_template_testfield_docs_gate --output-on-failure -R "docs|version|nested|tailoring"`: 10/10 passed.
+  - `git diff --check`: passed in both repos.
+
 ### 2026-05-22 cross-compilation and nested-library work
 
 - Active branch in both repos: `feature/improve-cross-compiling`.
