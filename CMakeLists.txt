@@ -58,9 +58,15 @@ project( ${project_name}
         LANGUAGES ${languages}
         VERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH})
 
-# Write VERSION file to source and build directories
-write_source_VERSION_file()
+# Write VERSION file to the build directory by default. Writing into the source tree is opt-in so CI/test harness configures do not dirty the checkout.
+option(WRITE_SOURCE_VERSION_FILE "Write VERSION into the source tree during CMake configure" OFF)
+
+if(WRITE_SOURCE_VERSION_FILE)
+  write_source_VERSION_file()
+endif()
+
 write_build_VERSION_file()
+install(FILES "${PROJECT_BINARY_DIR}/VERSION" DESTINATION ".")
 
 # Define variable for build as subproject (compare source dir)
 set(BUILD_AS_MAIN_PROJECT ON)
@@ -376,7 +382,6 @@ endif()
 
 # Add documentation
 if (BUILD_AS_MAIN_PROJECT)
-  set(DOC_SUBDIRS "${CMAKE_SOURCE_DIR}/src")
   if (DOXYGEN_FOUND)
       add_subdirectory( "doc" )
   else()
