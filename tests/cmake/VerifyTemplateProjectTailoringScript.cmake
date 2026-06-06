@@ -92,10 +92,6 @@ endif()
       "TODO"
       "cpp_cuda_template_project.code-workspace"
       "doc/developments/plan.md"
-      ".github/workflows/build_linux.yml.templ0"
-      ".github/workflows/build_linux.yml.templ1"
-      ".github/workflows/build_linux_cuda.yml.templ0"
-      ".github/workflows/build_linux_cuda.yml.templ1"
       "tests/cmake/AddMatlabWrapperRegressionTests.cmake"
       "tests/cmake/CheckTcmallocDependency.cmake"
       "tests/cmake/VerifyTemplateProjectDocsWorkflow.cmake"
@@ -112,7 +108,6 @@ function(_assert_fake_project_cleaned fake_root expect_profiling)
   foreach(_removed
       "AGENTS.md"
       "doc/developments"
-      ".github/workflows/build_linux.yml.templ0"
       "tests/cmake/VerifyTemplateProjectDocsWorkflow.cmake")
     if(EXISTS "${fake_root}/${_removed}")
       message(FATAL_ERROR "Expected cleanup to remove '${_removed}'")

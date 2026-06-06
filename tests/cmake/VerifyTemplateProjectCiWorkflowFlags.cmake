@@ -68,24 +68,8 @@ foreach(_workflow_path IN LISTS _workflow_paths)
   endif()
 endforeach()
 
-set(_workflow_template_paths
-    "${TEST_TEMPLATE_SOURCE_DIR}/.github/workflows/build_linux.yml.templ0"
-    "${TEST_TEMPLATE_SOURCE_DIR}/.github/workflows/build_linux.yml.templ1"
-    "${TEST_TEMPLATE_SOURCE_DIR}/.github/workflows/build_linux_cuda.yml.templ0"
-    "${TEST_TEMPLATE_SOURCE_DIR}/.github/workflows/build_linux_cuda.yml.templ1")
-
-foreach(_workflow_path IN LISTS _workflow_template_paths)
-  if(NOT EXISTS "${_workflow_path}")
-    message(FATAL_ERROR "Required CI workflow template not found: ${_workflow_path}")
-  endif()
-  _assert_full_history_checkouts("${_workflow_path}")
-  _assert_test_prerequisites("${_workflow_path}")
-endforeach()
-
 set(_linux_workflow_paths
-    "${TEST_TEMPLATE_SOURCE_DIR}/.github/workflows/build_linux.yml"
-    "${TEST_TEMPLATE_SOURCE_DIR}/.github/workflows/build_linux.yml.templ0"
-    "${TEST_TEMPLATE_SOURCE_DIR}/.github/workflows/build_linux.yml.templ1")
+    "${TEST_TEMPLATE_SOURCE_DIR}/.github/workflows/build_linux.yml")
 
 foreach(_workflow_path IN LISTS _linux_workflow_paths)
   file(READ "${_workflow_path}" _linux_workflow_contents)
