@@ -131,10 +131,25 @@ endif()
 
 # OPTIONS
 option(ENABLE_TESTS              "Build and run tests" ON)
+option(ENABLE_PYTHON_TESTS       "Discover and register Python pytest tests through CTest" ON)
+
 option(ENABLE_FETCH_CATCH2 "Fetch Catch2 from GitHub if not found" ON)
 option(ENABLE_SPDLOG "Enable spdlog logging support" ON)
 option(ENABLE_FETCH_SPDLOG "Fetch spdlog from GitHub if not found" ON)
 
+# Catch2 tests configuration
+set(CATCH2_TEST_REPORTER "compact" CACHE STRING "Catch2 reporter used by catch_discover_tests. Set empty to use Catch2 defaults.")
+set(CATCH2_TEST_PROPERTIES "LABELS;catch2" CACHE STRING "CTest property name/value pairs applied to discovered Catch2 tests.")
+
+# Python (pytest) testing configuration
+set(PYTHON_TEST_RUNNER "pytest" CACHE STRING "Python test runner used for test*.py files")
+set_property(CACHE PYTHON_TEST_RUNNER PROPERTY STRINGS pytest)
+set(PYTHON_TEST_EXECUTABLE "" CACHE FILEPATH "Python executable used for pytest tests when conda is not selected")
+set(PYTHON_TEST_CONDA_ENV "" CACHE STRING "Optional conda environment name used for pytest tests")
+set(PYTHON_TEST_CONDA_PREFIX "" CACHE PATH "Optional conda environment prefix used for pytest tests")
+set(PYTHON_TEST_CONDA_EXECUTABLE "conda" CACHE STRING "Conda executable used when PYTHON_TEST_CONDA_ENV or PYTHON_TEST_CONDA_PREFIX is set")
+
+# Options for building programs and examples when this project is the main
 option(${BUILD_PROGRAMS_OPTION_NAME} "Build project program targets when this project is the main project" ON)
 option(${BUILD_EXAMPLES_OPTION_NAME} "Build project example targets when this project is the main project" ON)
 
@@ -454,6 +469,10 @@ message(STATUS "CPU extra optimization flags             : ${CPU_EXTRA_OPT_FLAGS
 message(STATUS "Project extra C flags                    : ${EXTRA_C_FLAGS}")
 message(STATUS "Project extra C++ flags                  : ${EXTRA_CXX_FLAGS}")
 message(STATUS "OpenCV found                             : ${OpenCV_FOUND}")
+message(STATUS "Catch2 test reporter                     : ${CATCH2_TEST_REPORTER}")
+message(STATUS "Python tests enabled                     : ${ENABLE_PYTHON_TESTS}")
+message(STATUS "Python test conda env                    : ${PYTHON_TEST_CONDA_ENV}")
+message(STATUS "Python test conda prefix                 : ${PYTHON_TEST_CONDA_PREFIX}")
 
 # Installation
 message(STATUS "CMAKE_INSTALL_PREFIX                      : ${CMAKE_INSTALL_PREFIX}")
