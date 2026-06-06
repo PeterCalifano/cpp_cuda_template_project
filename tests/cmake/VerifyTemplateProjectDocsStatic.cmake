@@ -28,6 +28,7 @@ endfunction()
 
 set(_doc_files
     "doc/template_usage.md"
+    "doc/bootstrap_prompts.md"
     "doc/cpp_cuda_build.md"
     "doc/wrappers.md"
     "doc/versioning.md"
@@ -41,6 +42,7 @@ foreach(_doc_file IN LISTS _doc_files)
 endforeach()
 
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/README.md" "doc/template_usage.md")
+_assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/README.md" "doc/bootstrap_prompts.md")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/README.md" "doc/cpp_cuda_build.md")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/README.md" "doc/wrappers.md")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/README.md" "doc/versioning.md")
@@ -48,17 +50,41 @@ _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/README.md" "doc/documentation_workf
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/README.md" "doc/testing_and_ci.md")
 
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/template_usage.md" "Nested consumers")
+_assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/template_usage.md" "bootstrap_prompts.md")
+_assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/bootstrap_prompts.md" "interactive configuration")
+_assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/bootstrap_prompts.md" "Questions To Ask")
+_assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/bootstrap_prompts.md" "Stop Conditions")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/cpp_cuda_build.md" "CUDA")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/cpp_cuda_build.md" "OptiX")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/wrappers.md" "Python Package")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/wrappers.md" "MATLAB Wrapper")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/versioning.md" "WRITE_SOURCE_VERSION_FILE")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/documentation_workflow.md" "GitHub Pages")
+_assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/documentation_workflow.md" "doc/developments")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/testing_and_ci.md" "Issue Templates")
+_assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/testing_and_ci.md" "ctest --test-dir <build>")
+_assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/testing_and_ci.md" "test\\*\\.py")
+_assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/testing_and_ci.md" "PYTHON_TEST_CONDA_ENV")
+_assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/testing_and_ci.md" "PYTHON_TEST_CONDA_PREFIX")
+_assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/testing_and_ci.md" "CATCH2_TEST_PROPERTIES")
+_assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/testing_and_ci.md" "--ctest-extra-args")
+_assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/testing_and_ci.md" "local development only")
+_assert_not_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/testing_and_ci.md" "docs_workflow_rollout")
+_assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/template_usage.md" "test\\*\\.py")
+_assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/template_usage.md" "PYTHON_TEST_CONDA_PREFIX")
+_assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/CMakeLists.txt" "doc/developments")
+_assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/CMakeLists.txt" "\\*/doc/developments/\\*")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/template_usage.md" "tailor_template_cleanup.sh")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/README.md" "tailor_template_cleanup.sh")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/tailor_template_cleanup.sh" "doc/developments")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/tailor_template_cleanup.sh" "VerifyTemplateProjectDocsWorkflow.cmake")
+_assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/build_script_doc.md" "build_lib.sh Reference")
+_assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/build_script_doc.md" "--python-test-conda-env")
+_assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/build_script_doc.md" "--ctest-extra-args")
+_assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/build_script_doc.md" "not part of the CI contract")
+_assert_not_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/build_script_doc.md" "Detailed changes")
+_assert_not_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/build_script_doc.md" "previous script")
+_assert_not_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/build_script_doc.md" "If you want")
 
 set(_pages_workflow "${TEST_TEMPLATE_SOURCE_DIR}/.github/workflows/docs_pages.yml")
 _read_required("${_pages_workflow}" _pages_workflow_contents)

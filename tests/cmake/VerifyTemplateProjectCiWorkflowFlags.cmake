@@ -22,6 +22,30 @@ function(_assert_full_history_checkouts workflow_path)
   endif()
 endfunction()
 
+function(_assert_test_prerequisites workflow_path)
+  file(READ "${workflow_path}" _workflow_contents)
+
+  if(_workflow_contents MATCHES "ctest-extra|ctest_extra|CTEST_EXTRA")
+    message(FATAL_ERROR "CI workflow must not use local-only CTest extra-args hooks: ${workflow_path}")
+  endif()
+
+  if(NOT _workflow_contents MATCHES "command -v python3")
+    message(FATAL_ERROR "CI workflow must validate Python availability for pytest-backed CTest entries: ${workflow_path}")
+  endif()
+
+  if(NOT _workflow_contents MATCHES "python3 -m pytest --version")
+    message(FATAL_ERROR "CI workflow must validate pytest availability for pytest-backed CTest entries: ${workflow_path}")
+  endif()
+
+  if(NOT _workflow_contents MATCHES "command -v doxygen")
+    message(FATAL_ERROR "CI workflow must validate Doxygen availability for docs CTests: ${workflow_path}")
+  endif()
+
+  if(NOT _workflow_contents MATCHES "command -v dot")
+    message(FATAL_ERROR "CI workflow must validate Graphviz dot availability for docs CTests: ${workflow_path}")
+  endif()
+endfunction()
+
 set(_workflow_paths
     "${TEST_TEMPLATE_SOURCE_DIR}/.github/workflows/build_linux.yml"
     "${TEST_TEMPLATE_SOURCE_DIR}/.github/workflows/build_linux_cuda.yml")
@@ -32,6 +56,7 @@ foreach(_workflow_path IN LISTS _workflow_paths)
   endif()
 
   _assert_full_history_checkouts("${_workflow_path}")
+  _assert_test_prerequisites("${_workflow_path}")
 
   file(READ "${_workflow_path}" _workflow_contents)
   if(_workflow_contents MATCHES "CPU_ENABLE_NATIVE_TUNING=ON")
@@ -41,31 +66,16 @@ foreach(_workflow_path IN LISTS _workflow_paths)
   if(NOT _workflow_contents MATCHES "CPU_ENABLE_NATIVE_TUNING=OFF")
     message(FATAL_ERROR "CI workflow must force portable CPU tuning: ${_workflow_path}")
   endif()
-
-  if(NOT _workflow_contents MATCHES "command -v doxygen")
-    message(FATAL_ERROR "CI workflow must validate Doxygen availability for docs CTests: ${_workflow_path}")
-  endif()
-
-  if(NOT _workflow_contents MATCHES "command -v dot")
-    message(FATAL_ERROR "CI workflow must validate Graphviz dot availability for docs CTests: ${_workflow_path}")
-  endif()
 endforeach()
 
-set(_workflow_template_paths
-    "${TEST_TEMPLATE_SOURCE_DIR}/.github/workflows/build_linux.yml.templ0"
-    "${TEST_TEMPLATE_SOURCE_DIR}/.github/workflows/build_linux.yml.templ1"
-    "${TEST_TEMPLATE_SOURCE_DIR}/.github/workflows/build_linux_cuda.yml.templ0"
-    "${TEST_TEMPLATE_SOURCE_DIR}/.github/workflows/build_linux_cuda.yml.templ1")
+set(_linux_workflow_paths
+    "${TEST_TEMPLATE_SOURCE_DIR}/.github/workflows/build_linux.yml")
 
-foreach(_workflow_path IN LISTS _workflow_template_paths)
-  if(NOT EXISTS "${_workflow_path}")
-    message(FATAL_ERROR "Required CI workflow template not found: ${_workflow_path}")
+foreach(_workflow_path IN LISTS _linux_workflow_paths)
+  file(READ "${_workflow_path}" _linux_workflow_contents)
+  if(NOT _linux_workflow_contents MATCHES "sudo apt install -y[^\n]*python3-pytest[^\n]*doxygen[^\n]*graphviz")
+    message(FATAL_ERROR
+        "GitHub-hosted Linux CI must install python3-pytest, doxygen, and graphviz "
+        "for pytest-backed and docs CTests: ${_workflow_path}")
   endif()
-  _assert_full_history_checkouts("${_workflow_path}")
 endforeach()
-
-set(_linux_workflow "${TEST_TEMPLATE_SOURCE_DIR}/.github/workflows/build_linux.yml")
-file(READ "${_linux_workflow}" _linux_workflow_contents)
-if(NOT _linux_workflow_contents MATCHES "sudo apt install -y[^\n]*doxygen[^\n]*graphviz")
-  message(FATAL_ERROR "GitHub-hosted Linux CI must install doxygen and graphviz for docs CTests.")
-endif()

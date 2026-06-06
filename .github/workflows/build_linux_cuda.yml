@@ -55,6 +55,7 @@ jobs:
           command -v nvcc
           command -v nvidia-smi
           command -v python3
+          python3 -m pytest --version
           command -v doxygen
           command -v dot
           nvidia-smi
@@ -120,6 +121,8 @@ jobs:
       - name: Validate test prerequisites
         run: |
           command -v ctest
+          command -v python3
+          python3 -m pytest --version
           command -v doxygen
           command -v dot
 

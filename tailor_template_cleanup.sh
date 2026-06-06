@@ -42,12 +42,7 @@ template_development_paths=(
     "CONTEXT.md"
     "TODO"
     "cpp_cuda_template_project.code-workspace"
-    "doc/bootstrap_prompts.md"
     "doc/developments"
-    ".github/workflows/build_linux.yml.templ0"
-    ".github/workflows/build_linux.yml.templ1"
-    ".github/workflows/build_linux_cuda.yml.templ0"
-    ".github/workflows/build_linux_cuda.yml.templ1"
     "tests/cmake/AddMatlabWrapperRegressionTests.cmake"
     "tests/cmake/CheckTcmallocDependency.cmake"
     "tests/cmake/VerifyTemplateProjectCiWorkflowFlags.cmake"
@@ -198,11 +193,25 @@ patch_tests_cmakelists() {
         {
             cat <<'EOF'
 # Project unit tests. Template-development validation tests were removed by tailor_template_cleanup.sh.
-set(CATCH2_TEST_PROPERTIES "--output-on-failure;--reporter=compact")
 include(CTest)
 
+# Exclude EXCLUDED_LIST from the list of tests
+set(EXCLUDED_LIST "test_to_exclude")
+set(TESTS_LIST "")
+
+# Include the content of the fixtures directory
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+
+# Add subdirectories that may contain compiled and/or Python tests.
+add_subdirectory(template_test)
+add_subdirectory(template_fixtures)
+
+# Add tests to build and register.
+add_tests(${project_name} EXCLUDED_LIST TESTS_LIST ${CUDA_COMPILE_TARGET} CATCH2_TEST_PROPERTIES Catch2::Catch2WithMain)
+
+# Make catch2 to search for tests
+message(STATUS "List of test targets: ${TESTS_LIST}")
 EOF
-            awk 'BEGIN {emit = 0} /^# Exclude EXCLUDED_LIST/ {emit = 1} emit {print}' "${tests_cmake_}"
         } > "${tmp_}"
         mv "${tmp_}" "${tests_cmake_}"
         info "patched tests/CMakeLists.txt"

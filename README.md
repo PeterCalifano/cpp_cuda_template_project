@@ -5,11 +5,12 @@ A CMake template for building GPU-accelerated C++ libraries with optional CUDA/O
 ## Documentation Map
 
 - [`doc/template_usage.md`](doc/template_usage.md): cloning, renaming, source layout, nested consumers, and test placement.
+- [`doc/bootstrap_prompts.md`](doc/bootstrap_prompts.md): interactive agent prompt for tailoring the template into a fresh library.
 - [`doc/cpp_cuda_build.md`](doc/cpp_cuda_build.md): C++ build modes, CUDA, OptiX, toolchains, CPU tuning, and profiling toggles.
 - [`doc/wrappers.md`](doc/wrappers.md): gtwrap setup, Python package workflow, MATLAB wrappers, and wrapper docstrings.
 - [`doc/versioning.md`](doc/versioning.md): git tags, source/build/install `VERSION` files, C++ config macros, Python metadata, and packages.
 - [`doc/documentation_workflow.md`](doc/documentation_workflow.md): Doxygen, CMake docs targets, XML output, GitHub Pages, and output checks.
-- [`doc/testing_and_ci.md`](doc/testing_and_ci.md): CTest gates, CI workflow expectations, issue forms, and staged stop rules.
+- [`doc/testing_and_ci.md`](doc/testing_and_ci.md): CTest gates, CI workflow expectations, issue forms, and validation reports.
 
 Tailoring helper:
 
@@ -18,7 +19,7 @@ Tailoring helper:
 ./tailor_template_cleanup.sh --apply --yes
 ```
 
-`profiling/` is removed by default. Use `./tailor_template_cleanup.sh --apply --yes --keep-profiling` when the new project should keep the Valgrind/perf helper scripts.
+Run the cleanup before a broad `template_project` replacement, because the script contains template-specific cleanup paths. After cleanup succeeds, delete `tailor_template_cleanup.sh` or exclude it from the rename pass. `profiling/` is removed by default. Use `./tailor_template_cleanup.sh --apply --yes --keep-profiling` when the new project should keep the Valgrind/perf helper scripts.
 
 ## Requirements
 
@@ -31,6 +32,7 @@ Tailoring helper:
 | OptiX SDK | any | Optional (`-DENABLE_OPTIX=ON`), requires CUDA |
 | oneTBB | any | Optional (`-DENABLE_TBB=ON`) |
 | Catch2 | 3.x | Auto-fetched from GitHub if not found |
+| pytest | any | Required when `ENABLE_PYTHON_TESTS=ON` and `test*.py` files are present |
 | pyparsing | latest | Required for gtwrap Python/MATLAB code generation |
 | Valgrind / perf | any | Optional, for profiling scripts |
 | libgoogle-perftools-dev | any | Optional (`-DENABLE_PROFILING=ON` / `-DENABLE_TCMALLOC=ON`) |
@@ -58,17 +60,50 @@ git clone <repo-url> my_project && cd my_project
 Optimized native builds (`Release`, `RelWithDebInfo`) enable `-march=native -mtune=native` by default.
 Cross builds disable native tuning automatically; use `CPU_EXTRA_OPT_FLAGS` for target-specific CPU flags.
 
-Run tests manually after a build:
+Run tests manually from the repository root after a build:
 
 ```bash
-cd build && ctest --output-on-failure
-# Run a single test by name
-ctest --output-on-failure -R <test_name>
+ctest --test-dir build --output-on-failure
+ctest --test-dir build --output-on-failure -R <test_name>
 ```
+
+CTest is the single local test entrypoint. Compiled tests named `test*.cpp` or
+`test*.cu` are built as Catch2 executables. Python tests named `test*.py` are
+registered as CTest tests and run through `python -m pytest -q`.
+
+Useful local filters:
+
+```bash
+ctest --test-dir build --output-on-failure -L python
+ctest --test-dir build --output-on-failure -L catch2
+ctest --test-dir build --output-on-failure -R testPythonSmoke
+```
+
+Select a conda environment for Python tests without affecting C++ tests. Use a
+named environment when it is stable on the machine, or a prefix for temporary
+validation environments:
+
+```bash
+./build_lib.sh --python-test-conda-env my_env
+./build_lib.sh --python-test-conda-prefix /path/to/conda/env
+```
+
+Pass local CTest filters during development through the build helper:
+
+```bash
+./build_lib.sh --ctest-extra-args "-L python"
+```
+
+`--ctest-extra-args` is intentionally a local development hook. CI workflows
+should keep their test selection explicit in the workflow YAML instead of
+depending on this helper flag. The value is split on whitespace; run `ctest`
+directly for filters or arguments that need shell quoting.
 
 ---
 
 ## Using as a Template
+
+For a fresh library, first run the tailoring cleanup helper above, then perform the rename pass.
 
 To start a new project from this template, rename the following (all in one pass with your editor's global find-and-replace):
 
@@ -116,6 +151,14 @@ All options are passed via `build_lib.sh` flags or directly as `-D<VAR>=<VAL>` t
 -i, --install             Run install target after tests
 -p, --python-wrap         Enable Python wrappers
 -m, --matlab-wrap         Enable MATLAB wrappers
+    --python-test-conda-env <name>
+                          Run test*.py CTest entries with conda run -n <name>
+    --python-test-conda-prefix <dir>
+                          Run test*.py CTest entries with conda run -p <dir>
+    --python-test-executable <path>
+                          Python executable for test*.py CTest entries without conda
+    --ctest-extra-args <args>
+                          Simple whitespace-split arguments appended to CTest
     --gtwrap-root <dir>   Path to local wrap checkout root
     --no-wrap-update      Disable auto-update of local wrap checkout to latest master
     --no-wrap-submodule-init
@@ -134,7 +177,13 @@ See [`doc/build_script_doc.md`](doc/build_script_doc.md) for a detailed option r
 | `ENABLE_OPTIX` | OFF | NVIDIA OptiX (enables CUDA automatically) |
 | `ENABLE_TBB` | OFF | Intel oneTBB support (`find_package(TBB)`) |
 | `ENABLE_OPENGL` | OFF | OpenGL support |
-| `ENABLE_TESTS` | ON | Build and run Catch2 tests |
+| `ENABLE_TESTS` | ON | Register and run CTest tests |
+| `CATCH2_TEST_REPORTER` | `compact` | Catch2 reporter passed through `catch_discover_tests` |
+| `CATCH2_TEST_PROPERTIES` | `LABELS;catch2` | CTest property name/value pairs for discovered Catch2 tests |
+| `ENABLE_PYTHON_TESTS` | ON | Register `test*.py` files as pytest-backed CTest tests |
+| `PYTHON_TEST_EXECUTABLE` | auto | Python executable for pytest tests when conda is not selected |
+| `PYTHON_TEST_CONDA_ENV` | `""` | Optional conda environment name for pytest tests |
+| `PYTHON_TEST_CONDA_PREFIX` | `""` | Optional conda environment prefix for pytest tests |
 | `ENABLE_PROFILING` | OFF | Profiling-friendly flags; enables `ENABLE_GPERFTOOLS` by default |
 | `ENABLE_GPERFTOOLS` | `ENABLE_PROFILING` | Link gperftools `libprofiler` when found |
 | `ENABLE_TCMALLOC` | OFF | Explicitly link gperftools `libtcmalloc`; keep OFF for normal MATLAB MEX builds |
@@ -292,7 +341,6 @@ The default wrapper entrypoint is `src/wrap_interface.i`. If it is missing or th
 ### Generated sources
 
 If your wrapper interface uses `gtsam::Vector`/`gtsam::Matrix` without a full GTSAM dependency, include `src/utils/wrap_adapters/GtsamAliases.h` in `src/wrap_interface.i` to alias them to Eigen types.
-
 
 Wrapper generators produce different C++ files by design:
 

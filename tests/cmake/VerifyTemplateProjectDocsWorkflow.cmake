@@ -92,12 +92,16 @@ set(_xml_index "${_build_dir}/doc/xml/index.xml")
 _assert_file_contains("${_doxyfile}" "GENERATE_HTML[ ]*=[ ]*YES")
 _assert_file_contains("${_doxyfile}" "GENERATE_XML[ ]*=[ ]*YES")
 _assert_file_contains("${_doxyfile}" "INPUT[ ]*=.*${TEST_TEMPLATE_SOURCE_DIR}/README.md.*${TEST_TEMPLATE_SOURCE_DIR}/src.*${TEST_TEMPLATE_SOURCE_DIR}/doc")
-_assert_file_contains("${_doxyfile}" "EXCLUDE[ ]*=.*${TEST_TEMPLATE_SOURCE_DIR}/lib")
+_assert_file_contains("${_doxyfile}" "EXCLUDE[ ]*=.*${TEST_TEMPLATE_SOURCE_DIR}/lib.*${TEST_TEMPLATE_SOURCE_DIR}/doc/developments")
 _assert_file_contains("${_doxyfile}" "USE_MDFILE_AS_MAINPAGE[ ]*=[ ]*${TEST_TEMPLATE_SOURCE_DIR}/doc/main_page.md")
 file(READ "${_doxyfile}" _doxyfile_contents)
 string(REGEX MATCH "INPUT[^\n]*" _doxyfile_input_line "${_doxyfile_contents}")
 if(_doxyfile_input_line MATCHES "${TEST_TEMPLATE_SOURCE_DIR}/lib")
   message(FATAL_ERROR "Doxygen INPUT includes lib directory: ${_doxyfile_input_line}")
+endif()
+string(REGEX MATCH "(^|\n)EXCLUDE[ ]*=[^\n]*" _doxyfile_exclude_line "${_doxyfile_contents}")
+if(NOT _doxyfile_exclude_line MATCHES "${TEST_TEMPLATE_SOURCE_DIR}/doc/developments")
+  message(FATAL_ERROR "Doxygen EXCLUDE does not include internal development notes: ${_doxyfile_exclude_line}")
 endif()
 
 if(NOT EXISTS "${_html_index}")
@@ -115,6 +119,8 @@ foreach(_html_file IN LISTS _html_files)
 endforeach()
 
 foreach(_required_text
+    "Agent Tailoring Prompt"
+    "build_lib.sh Reference"
     "Template Usage Guide"
     "C\\+\\+ and CUDA Build Guide"
     "Python and MATLAB Wrapper Guide"
@@ -123,5 +129,14 @@ foreach(_required_text
     "Testing, CI, and Issue Workflow")
   if(NOT _combined_html MATCHES "${_required_text}")
     message(FATAL_ERROR "Generated HTML documentation does not contain '${_required_text}'")
+  endif()
+endforeach()
+
+foreach(_internal_text
+    "MATLAB wrapper crash investigation"
+    "Documentation workflow rollout"
+    "docs_workflow_rollout")
+  if(_combined_html MATCHES "${_internal_text}")
+    message(FATAL_ERROR "Generated HTML documentation contains internal note '${_internal_text}'")
   endif()
 endforeach()

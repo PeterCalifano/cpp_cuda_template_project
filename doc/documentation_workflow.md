@@ -56,11 +56,12 @@ Nested builds do not create these generic aliases.
 Doxygen input is explicit:
 
 ```text
+README.md
 src/
 doc/
 ```
 
-The generated Doxyfile excludes `lib/`, build directories, and `_deps/`. Do not point `INPUT` at the repository root; that would include nested dependencies, vendored code, and generated artifacts.
+The generated Doxyfile excludes `lib/`, `doc/developments/`, build directories, and `_deps/`. Do not point `INPUT` at the repository root; that would include nested dependencies, internal notes, vendored code, and generated artifacts.
 
 ## GitHub Pages
 
@@ -92,4 +93,4 @@ After a Pages deployment, check:
 2. The uploaded artifact contains `index.html`.
 3. The deployment URL serves the project title and expected docs headings.
 
-If the Pages setting, authentication, network, or deployment state blocks verification, stop and record the exact command, error excerpt, and next action in `doc/developments/docs_workflow_rollout.md`.
+If the Pages setting, authentication, network, or deployment state blocks verification, report the failing command, error excerpt, likely owner, and next action.
