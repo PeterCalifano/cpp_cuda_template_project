@@ -20,6 +20,9 @@
 		},
 		{
 			"path": "../wrap"
+		},
+		{
+			"path": "../ros2_cpp_cuda_template_project"
 		}
 	],
 	"settings": {

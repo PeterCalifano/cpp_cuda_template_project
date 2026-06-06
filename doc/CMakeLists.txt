@@ -8,9 +8,11 @@ handle_doxygen_docs(
         "${PROJECT_SOURCE_DIR}/doc"
     EXCLUDE_DIRS
         "${PROJECT_SOURCE_DIR}/lib"
+        "${PROJECT_SOURCE_DIR}/doc/developments"
         "${PROJECT_BINARY_DIR}"
     EXCLUDE_PATTERNS
         "*/lib/*"
+        "*/doc/developments/*"
         "*/build*/*"
         "*/_deps/*"
     MAIN_PAGE "${PROJECT_SOURCE_DIR}/doc/main_page.md"

@@ -47,7 +47,6 @@ endif()
 
 foreach(_expected
     "doc/developments"
-    "doc/bootstrap_prompts.md"
     "profiling"
     "tests/cmake/VerifyTemplateProjectDocsWorkflow.cmake"
     "CMake edits made by --apply")
@@ -73,8 +72,7 @@ if(BUILD_AS_MAIN_PROJECT)
 endif()
 ")
   file(WRITE "${fake_root}/tests/CMakeLists.txt"
-"set(CATCH2_TEST_PROPERTIES \"--output-on-failure;--reporter=compact\")
-include(CTest)
+"include(CTest)
 add_test(NAME template_project_docs_build_output COMMAND false)
 add_test(NAME template_project_version_no_source_side_effect COMMAND false)
 
@@ -93,7 +91,6 @@ endif()
       "CONTEXT.md"
       "TODO"
       "cpp_cuda_template_project.code-workspace"
-      "doc/bootstrap_prompts.md"
       "doc/developments/plan.md"
       ".github/workflows/build_linux.yml.templ0"
       ".github/workflows/build_linux.yml.templ1"
@@ -114,7 +111,6 @@ endfunction()
 function(_assert_fake_project_cleaned fake_root expect_profiling)
   foreach(_removed
       "AGENTS.md"
-      "doc/bootstrap_prompts.md"
       "doc/developments"
       ".github/workflows/build_linux.yml.templ0"
       "tests/cmake/VerifyTemplateProjectDocsWorkflow.cmake")
@@ -144,6 +140,15 @@ function(_assert_fake_project_cleaned fake_root expect_profiling)
   endif()
   if(NOT _tests_cmake MATCHES "Project unit tests")
     message(FATAL_ERROR "tests/CMakeLists.txt was not rewritten with project unit-test header.")
+  endif()
+  if(NOT _tests_cmake MATCHES "add_tests\\(\\$\\{project_name\\} EXCLUDED_LIST TESTS_LIST")
+    message(FATAL_ERROR "tests/CMakeLists.txt does not keep the reusable add_tests registration.")
+  endif()
+  if(_tests_cmake MATCHES "if\\(Catch2_FOUND\\)")
+    message(FATAL_ERROR "tests/CMakeLists.txt still gates all starter tests on Catch2.")
+  endif()
+  if(_tests_cmake MATCHES "--output-on-failure|--reporter=compact")
+    message(FATAL_ERROR "tests/CMakeLists.txt still passes CTest/Catch2 runner flags as Catch2 test properties.")
   endif()
 endfunction()
 
