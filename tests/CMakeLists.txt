@@ -7,8 +7,6 @@
 #add_executable(custom-main-tests test.cpp test-main.cpp)
 #target_link_libraries(custom-main-tests PRIVATE Catch2::Catch2)
 
-# Set additional properties for Catch2 test targets
-set(CATCH2_TEST_PROPERTIES "--output-on-failure;--reporter=compact") 
 include(CTest)
 
 ################################################################################
@@ -110,6 +108,20 @@ set_tests_properties(
 )
 
 add_test(
+    NAME template_project_python_test_option_gates
+    COMMAND ${CMAKE_COMMAND}
+        -DTEST_TEMPLATE_SOURCE_DIR=${PROJECT_SOURCE_DIR}
+        -DTEST_BINARY_ROOT=${PROJECT_BINARY_DIR}/python_test_options
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyTemplateProjectPythonTestOptions.cmake
+)
+set_tests_properties(
+    template_project_python_test_option_gates
+    PROPERTIES
+    LABELS "tests;python"
+    TIMEOUT 180
+)
+
+add_test(
     NAME template_project_tailoring_cleanup_script
     COMMAND ${CMAKE_COMMAND}
         -DTEST_TEMPLATE_SOURCE_DIR=${PROJECT_SOURCE_DIR}
@@ -161,16 +173,12 @@ set(TESTS_LIST "")
 # Include the content of the fixtures directory
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
-if(Catch2_FOUND)
-    # Add subdirectory
-    add_subdirectory(template_test)
-    add_subdirectory(template_fixtures)
+# Add subdirectories that may contain compiled and/or Python tests.
+add_subdirectory(template_test)
+add_subdirectory(template_fixtures)
 
-    # Add tests to build
-    add_tests(${project_name} EXCLUDED_LIST TESTS_LIST ${CUDA_COMPILE_TARGET} CATCH2_TEST_PROPERTIES Catch2::Catch2WithMain)
-else()
-    message(STATUS "Catch2 not found. Skipping Catch2 unit tests.")
-endif()
+# Add tests to build and register.
+add_tests(${project_name} EXCLUDED_LIST TESTS_LIST ${CUDA_COMPILE_TARGET} CATCH2_TEST_PROPERTIES Catch2::Catch2WithMain)
 
 # Make catch2 to search for tests
 message(STATUS "List of test targets: ${TESTS_LIST}")
