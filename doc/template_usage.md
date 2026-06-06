@@ -2,9 +2,31 @@
 
 This repository is meant to be renamed into a real C++ library while keeping the build, wrapper, documentation, packaging, and CI machinery reusable.
 
+Agents tailoring a fresh project should use [`bootstrap_prompts.md`](bootstrap_prompts.md) as the interactive configuration checklist before editing.
+
+## Fresh Library Tailoring Sequence
+
+Use this order for a new library checkout:
+
+1. Choose the project name, main C++ module name, optional CUDA module name, C++ namespace, and Python package name.
+2. Inspect and apply the template cleanup before the broad rename pass:
+
+   ```bash
+   ./tailor_template_cleanup.sh --list
+   ./tailor_template_cleanup.sh --apply --yes
+   ```
+
+   Add `--keep-profiling` only when the new project should keep the optional Valgrind/perf helper scripts.
+3. Rename the template identifiers in tracked source files only. Exclude build trees, install trees, virtual environments, generated Python build metadata, and other generated artifacts. After cleanup succeeds, either delete `tailor_template_cleanup.sh` or exclude it from the rename pass; it is a one-shot template helper.
+4. Remove optional skeletons that the project will not use. For example, if the CUDA module directory is deleted, also remove the matching `add_subdirectory()` entry from `src/CMakeLists.txt`.
+5. Configure, build, and run CTest from a clean build directory.
+6. Inspect remaining template names with `rg "template_project|template_src|template_src_kernels|cpp_playground"` and keep only intentional references in examples or documentation.
+
+The cleanup script contains template-specific filenames and test names, so running it before a global `template_project` replacement avoids stale cleanup paths.
+
 ## Rename Checklist
 
-Use one global replacement pass for the project name, then inspect the changed CMake package files.
+Use one global replacement pass for the project name, then inspect the changed CMake package files and CMake option names.
 
 | Template item | Replace with |
 |---|---|
@@ -16,10 +38,13 @@ Use one global replacement pass for the project name, then inspect the changed C
 Update these files first:
 
 - `CMakeLists.txt`: `set(project_name "...")`
+- `CMakeLists.txt`: default wrapper namespace value if wrappers are used
+- `src/CMakeLists.txt`: module `add_subdirectory()` entries and status messages
 - `src/cmake/template_projectConfig.cmake.in`: rename file and package references
+- `src/bin/`, `examples/`, and `tests/`: include paths and starter class names
 - `python/pyproject.toml.in`: package metadata
 - `python/template_project/`: package directory name
-- `.github/workflows/*.yml`: workflow names and artifact names when useful
+- `.github/workflows/*.yml`: workflow names, artifact names, and renamed CMake option prefixes when useful
 - `README.md` and `doc/main_page.md`: public project name and usage notes
 
 ## Adding C++ Code
@@ -53,16 +78,17 @@ Nested consumers should override the internal target namespace if they include m
 set(LIB_NAMESPACE_OVERRIDE nested_my_project CACHE STRING "" FORCE)
 set(LIB_TARGET_NAME_OVERRIDE nested_my_project_library CACHE STRING "" FORCE)
 add_subdirectory(path/to/my_project)
-target_link_libraries(parent_target PRIVATE nested_my_project::template_project)
+target_link_libraries(parent_target PRIVATE nested_my_project::my_project)
 ```
 
 Only the main project configures documentation, tests, examples, wrappers, and generic `doc` targets. Nested projects keep their library target available without publishing documentation for the parent build.
 
 ## Tests
 
-Use Catch2 for compiled tests and CTest for workflow-level checks. Add narrow CMake-script tests under `tests/cmake/` when the behavior is about configuration, installation, generated files, CI YAML, or documentation output rather than runtime C++ behavior.
+Use Catch2 for compiled tests, pytest for Python tests, and CTest as the common runner. Put compiled tests in `test*.cpp` or `test*.cu` files and Python tests in `test*.py` files. Add narrow CMake-script tests under `tests/cmake/` when the behavior is about configuration, installation, generated files, CI YAML, or documentation output rather than runtime C++ behavior.
 
-Run focused checks during development:
+Run focused checks during development. Prefer `ctest --test-dir <build>` so the
+same command works from the repository root, local scripts, and CI jobs:
 
 ```bash
 cmake -S . -B build -DENABLE_TESTS=ON
@@ -70,9 +96,42 @@ cmake --build build --parallel 4
 ctest --test-dir build --output-on-failure
 ```
 
+Test discovery is filename based:
+
+- `test*.cpp` and `test*.cu` become Catch2 tests when Catch2 is available.
+- `test*.py` becomes pytest-backed CTest tests when `ENABLE_PYTHON_TESTS=ON`.
+- Use `EXCLUDED_LIST` in `tests/CMakeLists.txt` for local files that should not
+  be registered by the generic helper.
+
+Run focused subsets:
+
+```bash
+ctest --test-dir build --output-on-failure -L python
+ctest --test-dir build --output-on-failure -L catch2
+ctest --test-dir build --output-on-failure -R testPythonSmoke
+```
+
+Pass local CTest filters through the build helper:
+
+```bash
+./build_lib.sh --ctest-extra-args "-L python"
+```
+
+Run Python tests inside conda while keeping C++ tests native:
+
+```bash
+cmake -S . -B build -DENABLE_TESTS=ON -DPYTHON_TEST_CONDA_ENV=my_env
+cmake -S . -B build -DENABLE_TESTS=ON -DPYTHON_TEST_CONDA_PREFIX=/path/to/conda/env
+```
+
+Use `PYTHON_TEST_CONDA_ENV` for a named environment and
+`PYTHON_TEST_CONDA_PREFIX` for a temporary or path-pinned environment. Set only
+one of them. The selected environment must provide `pytest`; CMake checks this
+only when Python tests are enabled and at least one `test*.py` file is present.
+
 ## Tailoring Cleanup Script
 
-After cloning and renaming the template, list template-development-only files:
+Before broad renaming, list template-development-only files:
 
 ```bash
 ./tailor_template_cleanup.sh --list
@@ -90,6 +149,6 @@ By default this also removes `profiling/`. Keep those scripts only when the new 
 ./tailor_template_cleanup.sh --apply --yes --keep-profiling
 ```
 
-The script removes agent/context notes, template-development prompt/history docs, workflow snapshot files, template-specific validation CTest scripts, optional profiling scripts, and the workspace file tied to this template checkout. It keeps reusable project infrastructure such as `cmake/`, `build_lib.sh`, docs workflow files, issue forms, examples, toolchains, starter unit tests, `.devcontainer/`, and `.vscode/`.
+The script removes agent/context notes, internal development notes, workflow snapshot files, template-specific validation CTest scripts, optional profiling scripts, and the workspace file tied to this template checkout. It keeps reusable project infrastructure such as `cmake/`, `build_lib.sh`, docs workflow files, issue forms, examples, toolchains, starter unit tests, `.devcontainer/`, and `.vscode/`.
 
 It also removes the root CMake hook for the template MATLAB regression helper and rewrites `tests/CMakeLists.txt` so only starter project unit tests remain registered.

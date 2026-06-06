@@ -3,6 +3,7 @@
 See the [README](README.md) for the quick start, then use the focused guides below:
 
 - [Template usage](template_usage.md)
+- [Agent tailoring prompt](bootstrap_prompts.md)
 - [C++ and CUDA build guide](cpp_cuda_build.md)
 - [Python and MATLAB wrappers](wrappers.md)
 - [Versioning](versioning.md)
@@ -65,4 +66,5 @@ Replace all occurrences of `template_project` with your project name, rename
 `src/template_src/` and `src/template_src_kernels/`, and update
 `set(project_name ...)` in the root `CMakeLists.txt`.
 
-Full details are in `doc/template_usage.md`.
+Full details are in `doc/template_usage.md`. Agents should use
+`doc/bootstrap_prompts.md` for an interactive tailoring session.

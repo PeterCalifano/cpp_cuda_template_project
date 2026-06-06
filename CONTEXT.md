@@ -183,6 +183,71 @@
   - `ctest --test-dir /tmp/cpp_cuda_template_testfield_docs_gate --output-on-failure -R "docs|version|nested|tailoring"`: 10/10 passed.
   - `git diff --check`: passed in both repos.
 
+### 2026-05-30 completion audit: docs workflow and versioned CI checkout
+
+- Reverted the temporary `DOXYGEN_PROJECT_NUMBER` clarification experiment; Doxygen again receives the resolved project version through `PROJECT_NUMBER = @FULL_VERSION@`.
+- Fixed CI version resolution by requiring full-history checkouts:
+  - all `actions/checkout` steps in template `build_linux.yml`, `build_linux_cuda.yml`, `docs_pages.yml`, and their `.templ0`/`.templ1` variants now use `fetch-depth: 0`;
+  - the same checkout setting was mirrored into testfield workflows and workflow templates.
+- Added static guards so shallow checkouts cannot silently return:
+  - `VerifyTemplateProjectCiWorkflowFlags.cmake` and `VerifyTestfieldCiWorkflowFlags.cmake` require `fetch-depth: 0` for every checkout step in build/test workflow files and templates;
+  - `VerifyTemplateProjectDocsStatic.cmake` and `VerifyTestfieldDocsStatic.cmake` require `fetch-depth: 0` in the Pages workflow checkout.
+- Local CMake configure evidence shows version resolution now sees tags:
+  - template audit configure printed `Version from git describe: 1.8.0+19.g9a5b396`;
+  - testfield audit configure printed `Version from git tag: 0.3.0+222b60a`.
+- Completion audit validation:
+  - template direct checks passed: docs static, docs build/content, nested docs isolation, CI workflow flags;
+  - testfield direct checks passed: docs static, docs build/content, nested docs isolation, CI workflow flags;
+  - template focused CTest gate passed 7/7 for docs, version, nested, tailoring, CI, and cross nested consumer checks;
+  - testfield focused CTest gate passed 6/6 for docs, version, nested, CI, and cross nested consumer checks;
+  - template full audit build and `ctest --no-tests=error` passed 16/16 in `/tmp/cpp_cuda_template_finish_audit`;
+  - testfield full audit build and `ctest --no-tests=error` passed 12/12 in `/tmp/cpp_cuda_template_testfield_finish_audit`;
+  - `git diff --check` passed in both repos;
+  - public Pages smoke check passed for `https://petercalifano.github.io/cpp_cuda_template_project/`, including `Template usage`, `Documentation workflow`, and `Versioning`.
+- Current state notes:
+  - template implementation/workflow files are clean at commit `9a5b396 Specify fetch depth in CI configs`; this `CONTEXT.md` update is local bookkeeping for compaction safety;
+  - testfield remains locally dirty with the staged documentation/testfield rollout changes and the pre-existing `lib/wrap` modification, which was not touched.
+
+### 2026-05-30 continuation: template usage guide clarification
+
+- Reviewed `doc/template_usage.md` as an agent-facing fresh-library tailoring guide.
+- Added an explicit "Fresh Library Tailoring Sequence":
+  - choose names first;
+  - run `tailor_template_cleanup.sh --list` and `--apply --yes` before broad placeholder replacement;
+  - use `--keep-profiling` only when the downstream project should keep Valgrind/perf helpers;
+  - rename only tracked source files and exclude generated artifacts;
+  - delete or exclude `tailor_template_cleanup.sh` after cleanup because it is a one-shot helper;
+  - remove optional skeletons such as CUDA modules together with their `src/CMakeLists.txt` entries;
+  - configure/build/test and search for remaining template identifiers.
+- Fixed the nested consumer example to link against `nested_my_project::my_project` after renaming rather than `nested_my_project::template_project`.
+- Updated README tailoring notes to match the cleanup-before-rename sequence.
+- Validation:
+  - `VerifyTemplateProjectDocsStatic.cmake`: passed.
+  - `VerifyTemplateProjectDocsWorkflow.cmake`: passed.
+  - `git diff --check`: passed.
+
+### 2026-05-30 continuation: removed bootstrap prompt artifact
+
+- Deleted `doc/bootstrap_prompts.md` from the template.
+- Removed `doc/bootstrap_prompts.md` from the tailoring cleanup script and its regression fixture, because the prompt artifact is no longer shipped in the template.
+- Updated `doc/template_usage.md` so the cleanup script description no longer mentions prompt docs.
+
+### 2026-05-30 continuation: restored bootstrap prompt as agent tailoring instructions
+
+- Reintroduced `doc/bootstrap_prompts.md` as a reusable agent-facing interactive tailoring prompt, replacing the old ad hoc bootstrap note.
+- The prompt tells agents to ask for project identity, source layout, optional CUDA/OptiX/TBB/OpenGL, wrappers, Python package policy, profiling, GitHub Pages/forms, versioning, and validation requirements before editing.
+- Added execution order and stop conditions for fresh-library tailoring.
+- Linked the prompt from `README.md`, `doc/main_page.md`, and `doc/template_usage.md`.
+- Extended docs static/workflow checks so the prompt remains present and rendered in generated Doxygen output.
+
+### 2026-05-30 continuation: public documentation cleanup
+
+- Reviewed public documentation for historical/log-style wording.
+- Rewrote `doc/build_script_doc.md` from a change-log style page into a stable `build_lib.sh` reference.
+- Removed public references to rollout logs from docs workflow and CI docs.
+- Kept `doc/developments/` in the repository as internal notes but excluded it from generated Doxygen output through `doc/CMakeLists.txt`.
+- Added static/generated-doc checks so `doc/developments/` remains excluded and historical rollout pages do not appear in public HTML.
+
 ### 2026-05-22 cross-compilation and nested-library work
 
 - Active branch in both repos: `feature/improve-cross-compiling`.
