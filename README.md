@@ -497,6 +497,30 @@ The project ships a VS Code DevContainer configuration. To reconfigure it (base 
 
 ROS 1 requires Ubuntu 18.04 (melodic) or 20.04 (noetic). ROS 2 requires Ubuntu 22.04+.
 
+The configure script only rewrites the keys it manages in `devcontainer.json` (features, GPU run args, CUDA/ROS env); project-specific entries (e.g. `customizations`, extra `remoteEnv` variables) are preserved across reconfigurations. CUDA toolkit version is selected with `--cuda-version <v>` (default 12.9).
+
+### GPU host requirements
+
+`"runArgs": ["--gpus", "all"]` needs GPU support in the container engine on the host:
+
+- **Docker**: install the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html).
+- **Podman** (also used by VS Code when Docker is absent): additionally generate a CDI spec once: `sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml`. If `--gpus all` fails, replace it with `--device nvidia.com/gpu=all`. Rootless Podman also requires subordinate UID/GID ranges for your user in `/etc/subuid` and `/etc/subgid` (then run `podman system migrate`).
+
+### Standalone container (without VS Code)
+
+The image in `.devcontainer/Dockerfile` can be built and used outside the DevContainer flow. CUDA is installed by the `INSTALL_CUDA=on` build arg in that case (the DevContainer installs it via the `nvidia-cuda` feature instead):
+
+```bash
+# Build the image and run a command/binary inside it (repo mounted at /workspace)
+./run_in_container.sh ./build/my_app --my-flag
+
+# Interactive shell, force image rebuild, disable GPU
+./run_in_container.sh --build --no-gpu
+
+# Manual build
+docker build --build-arg INSTALL_CUDA=on --build-arg CUDA_VERSION=12.9 -t my-dev .devcontainer
+```
+
 ---
 
 ## Documentation
