@@ -15,9 +15,13 @@ RUN if [ "${REINSTALL_CMAKE_VERSION_FROM_SOURCE}" != "none" ]; then \
     && rm -f /tmp/reinstall-cmake.sh
 
 # Default package setup (edit .devcontainer/custom-setup.sh for your needs).
+# Valgrind is built from source by default; disable with
+# --build-arg INSTALL_VALGRIND=false, or pin via --build-arg VALGRIND_VERSION=x.y.z.
+ARG INSTALL_VALGRIND="on"
+ARG VALGRIND_VERSION="3.27.1"
 COPY ./custom-setup.sh /tmp/custom-setup.sh
 RUN chmod +x /tmp/custom-setup.sh \
-    && /tmp/custom-setup.sh \
+    && INSTALL_VALGRIND="${INSTALL_VALGRIND}" VALGRIND_VERSION="${VALGRIND_VERSION}" /tmp/custom-setup.sh \
     && rm -f /tmp/custom-setup.sh
 
 # Optional ROS/ROS 2 install (configured by build args).
