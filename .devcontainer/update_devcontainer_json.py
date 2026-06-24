@@ -54,6 +54,35 @@ DEFAULT_EXTENSIONS = [
     "llvm-vs-code-extensions.vscode-clangd",
 ]
 
+# GPU passthrough runArg. The CDI form works with rootless Podman (and Docker
+# 25+); the legacy Docker `--gpus all` is accepted by Podman but injects nothing
+# (no driver libs, no nvidia-smi), so it is intentionally NOT used here.
+GPU_RUN_ARGS = ["--device", "nvidia.com/gpu=all"]
+
+
+def strip_gpu_run_args(args: list) -> list:
+    """Drop managed GPU passthrough pairs, preserving unrelated runArgs.
+
+    Removes both the CDI form (``--device nvidia.com/gpu=all``) and the legacy
+    ``--gpus all`` form so toggling/regenerating stays idempotent and migrates
+    old files. Other ``--device`` entries are left untouched.
+    """
+    out = []
+    i = 0
+    n = len(args)
+    while i < n:
+        cur = args[i]
+        nxt = args[i + 1] if i + 1 < n else None
+        if cur == "--gpus" and nxt == "all":
+            i += 2
+            continue
+        if cur == "--device" and nxt == "nvidia.com/gpu=all":
+            i += 2
+            continue
+        out.append(cur)
+        i += 1
+    return out
+
 
 def load_existing(path: str) -> dict:
     """Load an existing devcontainer.json, tolerating JSONC line comments."""
@@ -138,11 +167,10 @@ def main() -> int:
     # Sorted for stable output regardless of option toggling history.
     data["features"] = dict(sorted(features.items()))
 
-    # Managed: runArgs --gpus all (CUDA only); other runArgs preserved.
-    run_args = [a for a in data.get(
-        "runArgs", []) if a not in ("--gpus", "all")]
+    # Managed: GPU passthrough runArg (CUDA only); other runArgs preserved.
+    run_args = strip_gpu_run_args(data.get("runArgs", []))
     if cuda == "on":
-        run_args = ["--gpus", "all"] + run_args
+        run_args = list(GPU_RUN_ARGS) + run_args
     if run_args:
         data["runArgs"] = run_args
     else:

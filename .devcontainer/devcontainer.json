@@ -48,8 +48,8 @@
     }
   },
   "runArgs": [
-    "--gpus",
-    "all"
+    "--device",
+    "nvidia.com/gpu=all"
   ],
   "remoteEnv": {
     "PATH": "/usr/local/cuda/bin:${containerEnv:PATH}",
