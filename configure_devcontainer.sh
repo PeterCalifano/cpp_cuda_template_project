@@ -31,6 +31,7 @@ Usage: ./configure_devcontainer.sh [options]
 
 Options:
   --cuda               Enable CUDA support.
+  --cuda-version <v>   CUDA toolkit version for the nvidia-cuda feature (default: 12.9).
   --base <name>        Base image tag (ubuntu-24.04, ubuntu-22.04, ubuntu-20.04, ubuntu-18.04, debian-12, debian-11, custom).
   --base-image <img>   Full base image name (overrides --base).
   --ros <distro>       Install ROS 1 with selected distro (noetic, melodic).
@@ -173,6 +174,14 @@ if [[ -f "$DEVCONTAINER_JSON" ]] && file_contains "nvidia-cuda" "$DEVCONTAINER_J
   cuda_default="on"
 fi
 
+cuda_version_default="12.9"
+if [[ -f "$DEVCONTAINER_JSON" ]]; then
+  cuda_version_detected="$(sed -n 's/.*"cudaVersion"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$DEVCONTAINER_JSON" | head -n1)"
+  if [[ -n "$cuda_version_detected" ]]; then
+    cuda_version_default="$cuda_version_detected"
+  fi
+fi
+
 ros_mode_default="none"
 ros_distro_default=""
 ros_profile_default="ros-base"
@@ -196,6 +205,7 @@ fi
 
 # Set default values from current configuration
 CUDA="$cuda_default"
+CUDA_VERSION="$cuda_version_default"
 BASE="$current_base"
 BASE_IMAGE=""
 ROS_MODE="$ros_mode_default"
@@ -219,6 +229,14 @@ while [[ $# -gt 0 ]]; do
     --no-cuda)
       CUDA="off"
       CUDA_SET="yes"
+      ;;
+    --cuda-version)
+      shift
+      CUDA_VERSION="${1:-}"
+      if [[ -z "$CUDA_VERSION" ]]; then
+        echo "--cuda-version requires a value (e.g. 12.9)."
+        exit 1
+      fi
       ;;
     --base)
       shift
@@ -478,9 +496,19 @@ if ! awk -v new_from="$new_from" '
 fi
 mv "$tmp_dockerfile" "$DOCKERFILE"
 
-# Write updated devcontainer.json using python script
-CUDA="$CUDA" ROS_MODE="$ROS_MODE" ROS_DISTRO="$ROS_DISTRO" ROS_PROFILE="$ROS_PROFILE" \
-  python3 "$DEVCONTAINER_JSON_WRITER" > "$DEVCONTAINER_JSON"
+# Write updated devcontainer.json using python script.
+# Render to a temp file first: the writer reads the existing devcontainer.json
+# to preserve unmanaged keys, so it must not be truncated by the redirection.
+tmp_json="$(mktemp)"
+if ! CUDA="$CUDA" CUDA_VERSION="$CUDA_VERSION" \
+     ROS_MODE="$ROS_MODE" ROS_DISTRO="$ROS_DISTRO" ROS_PROFILE="$ROS_PROFILE" \
+     DEVCONTAINER_JSON_PATH="$DEVCONTAINER_JSON" \
+     python3 "$DEVCONTAINER_JSON_WRITER" > "$tmp_json"; then
+  rm -f "$tmp_json"
+  echo "Failed to update devcontainer.json."
+  exit 1
+fi
+mv "$tmp_json" "$DEVCONTAINER_JSON"
 
 echo "Updated:"
 echo "  - ${DOCKERFILE}"
