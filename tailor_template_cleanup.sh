@@ -45,6 +45,7 @@ template_development_paths=(
     "doc/developments"
     "tests/cmake/AddMatlabWrapperRegressionTests.cmake"
     "tests/cmake/CheckTcmallocDependency.cmake"
+    "tests/cmake/VerifyTemplateProjectAddTestsProperties.cmake"
     "tests/cmake/VerifyTemplateProjectCiWorkflowFlags.cmake"
     "tests/cmake/VerifyTemplateProjectCrossCompile.cmake"
     "tests/cmake/VerifyTemplateProjectDocsStatic.cmake"
@@ -205,6 +206,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 # Add subdirectories that may contain compiled and/or Python tests.
 add_subdirectory(template_test)
 add_subdirectory(template_fixtures)
+add_subdirectory(template_cuda)  # CUDA-init fixture gate + placeholder (built only when ENABLE_CUDA)
 
 # Add tests to build and register.
 add_tests(${project_name} EXCLUDED_LIST TESTS_LIST ${CUDA_COMPILE_TARGET} CATCH2_TEST_PROPERTIES Catch2::Catch2WithMain)

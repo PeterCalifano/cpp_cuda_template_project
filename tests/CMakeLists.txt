@@ -135,6 +135,19 @@ set_tests_properties(
     TIMEOUT 60
 )
 
+add_test(
+    NAME template_project_add_tests_property_resolution
+    COMMAND ${CMAKE_COMMAND}
+        -DTEST_CMAKE_UTILS_FILE=${PROJECT_SOURCE_DIR}/cmake/cmake_utils.cmake
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyTemplateProjectAddTestsProperties.cmake
+)
+set_tests_properties(
+    template_project_add_tests_property_resolution
+    PROPERTIES
+    LABELS "tests;cmake_utils"
+    TIMEOUT 60
+)
+
 find_program(TEMPLATE_AARCH64_GCC_EXECUTABLE NAMES aarch64-linux-gnu-gcc)
 find_program(TEMPLATE_AARCH64_GXX_EXECUTABLE NAMES aarch64-linux-gnu-g++)
 set(TEMPLATE_AARCH64_TOOLCHAIN_FILE "${PROJECT_SOURCE_DIR}/cmake/toolchains/defaults/aarch64-linux-gnu.cmake")
@@ -176,6 +189,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 # Add subdirectories that may contain compiled and/or Python tests.
 add_subdirectory(template_test)
 add_subdirectory(template_fixtures)
+add_subdirectory(template_cuda)  # CUDA-init fixture gate + placeholder (built only when ENABLE_CUDA)
 
 # Add tests to build and register.
 add_tests(${project_name} EXCLUDED_LIST TESTS_LIST ${CUDA_COMPILE_TARGET} CATCH2_TEST_PROPERTIES Catch2::Catch2WithMain)
