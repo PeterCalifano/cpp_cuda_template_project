@@ -84,15 +84,74 @@ def strip_gpu_run_args(args: list) -> list:
     return out
 
 
+def _strip_jsonc_comments(text: str) -> str:
+    """Remove JSONC comments while preserving string contents.
+
+    Example:
+        cleaned_ = _strip_jsonc_comments('{"url": "https://example.invalid", // note\\n"x": 1}')
+        print(cleaned_)
+        # Output:
+        # {"url": "https://example.invalid",
+        # "x": 1}
+    """
+    output_: list[str] = []
+    inString_ = False
+    escapeNext_ = False
+    index_ = 0
+    textLength_ = len(text)
+
+    while index_ < textLength_:
+        char_ = text[index_]
+
+        if inString_:
+            output_.append(char_)
+            if escapeNext_:
+                escapeNext_ = False
+            elif char_ == "\\":
+                escapeNext_ = True
+            elif char_ == '"':
+                inString_ = False
+            index_ += 1
+            continue
+
+        if char_ == '"':
+            inString_ = True
+            output_.append(char_)
+            index_ += 1
+            continue
+
+        if char_ == "/" and index_ + 1 < textLength_:
+            nextChar_ = text[index_ + 1]
+            if nextChar_ == "/":
+                index_ += 2
+                while index_ < textLength_ and text[index_] not in "\r\n":
+                    index_ += 1
+                continue
+            if nextChar_ == "*":
+                index_ += 2
+                while index_ + 1 < textLength_ and not (
+                    text[index_] == "*" and text[index_ + 1] == "/"
+                ):
+                    if text[index_] in "\r\n":
+                        output_.append(text[index_])
+                    index_ += 1
+                if index_ + 1 < textLength_:
+                    index_ += 2
+                continue
+
+        output_.append(char_)
+        index_ += 1
+
+    return "".join(output_)
+
+
 def load_existing(path: str) -> dict:
-    """Load an existing devcontainer.json, tolerating JSONC line comments."""
+    """Load an existing devcontainer.json, tolerating JSONC comments."""
     if not os.path.isfile(path):
         return {}
     with open(path, "r", encoding="utf-8") as f:
         text = f.read()
-    # Strip // line comments (not inside strings: comments in devcontainer
-    # templates always start the line or follow whitespace).
-    text = re.sub(r"^\s*//.*$", "", text, flags=re.MULTILINE)
+    text = _strip_jsonc_comments(text)
     # Strip trailing commas before } or ] left behind by comment removal.
     text = re.sub(r",(\s*[}\]])", r"\1", text)
     text = text.strip()
