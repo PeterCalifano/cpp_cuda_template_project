@@ -122,6 +122,20 @@ set_tests_properties(
 )
 
 add_test(
+    NAME template_project_build_tree_package_root
+    COMMAND ${CMAKE_COMMAND}
+        -DTEST_TEMPLATE_SOURCE_DIR=${PROJECT_SOURCE_DIR}
+        -DTEST_BINARY_ROOT=${PROJECT_BINARY_DIR}/build_tree_package
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyTemplateProjectBuildTreePackage.cmake
+)
+set_tests_properties(
+    template_project_build_tree_package_root
+    PROPERTIES
+    LABELS "package;template"
+    TIMEOUT 180
+)
+
+add_test(
     NAME template_project_tailoring_cleanup_script
     COMMAND ${CMAKE_COMMAND}
         -DTEST_TEMPLATE_SOURCE_DIR=${PROJECT_SOURCE_DIR}

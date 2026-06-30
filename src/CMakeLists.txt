@@ -219,28 +219,29 @@ include(CMakePackageConfigHelpers)
 install(EXPORT ${project_name}
     FILE "${project_name}Target.cmake"
     NAMESPACE ${project_name}::
-    DESTINATION lib/cmake/${project_name}
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${project_name}
 )
 
 write_basic_package_version_file(
-    "${CMAKE_CURRENT_BINARY_DIR}/${project_name}ConfigVersion.cmake"
+    "${PROJECT_BINARY_DIR}/${project_name}ConfigVersion.cmake"
     VERSION ${PROJECT_VERSION}
     COMPATIBILITY AnyNewerVersion
 )
 
 configure_package_config_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/cmake/${project_name}Config.cmake.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/${project_name}Config.cmake"
-    INSTALL_DESTINATION lib/cmake/${project_name}
+    "${PROJECT_BINARY_DIR}/${project_name}Config.cmake"
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${project_name}
 )
 
 install(FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/${project_name}Config.cmake"
-    "${CMAKE_CURRENT_BINARY_DIR}/${project_name}ConfigVersion.cmake"
-    DESTINATION lib/cmake/${project_name}
+    "${PROJECT_BINARY_DIR}/${project_name}Config.cmake"
+    "${PROJECT_BINARY_DIR}/${project_name}ConfigVersion.cmake"
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${project_name}
 )
 
 # Add target export to allow usage of build by other consumer projects
 export(EXPORT ${project_name}
-  FILE "${CMAKE_CURRENT_BINARY_DIR}/cmake/${project_name}Target.cmake"
+  FILE "${PROJECT_BINARY_DIR}/${project_name}Target.cmake"
+  NAMESPACE ${project_name}::
 )
