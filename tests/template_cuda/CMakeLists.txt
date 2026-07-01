@@ -21,9 +21,13 @@ if(ENABLE_CUDA)
     # test*.cpp glob, so add_tests() ignores it; register it by hand as the
     # FIXTURES_SETUP so it is itself excluded from FIXTURES_REQUIRED (a setup must
     # not depend on its own fixture).
-    add_executable(cudaInitGate cudaInitGate.cpp)
-    target_link_libraries(cudaInitGate PRIVATE ${CUDA_COMPILE_TARGET} Catch2::Catch2WithMain)
-    catch_discover_tests(cudaInitGate PROPERTIES FIXTURES_SETUP Cuda LABELS "cuda;setup")
+    if(Catch2_FOUND)
+        add_executable(cudaInitGate cudaInitGate.cpp)
+        target_link_libraries(cudaInitGate PRIVATE ${CUDA_COMPILE_TARGET} Catch2::Catch2WithMain)
+        catch_discover_tests(cudaInitGate PROPERTIES FIXTURES_SETUP Cuda LABELS "cuda;setup")
+    else()
+        message(STATUS "Catch2 not found. Skipping CUDA test gate (tests/template_cuda/cudaInitGate.cpp).")
+    endif()
 
     set(TESTS_LIST ${TESTS_LIST} PARENT_SCOPE) # Export list of tests to parent scope (applied ONLY here)
 else()

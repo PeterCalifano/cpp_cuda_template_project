@@ -162,6 +162,34 @@ set_tests_properties(
     TIMEOUT 60
 )
 
+find_program(
+    TEMPLATE_NVCC_EXECUTABLE
+    NAMES nvcc
+    PATHS
+        "$ENV{CUDA_HOME}/bin"
+        "$ENV{CUDA_PATH}/bin"
+        "/usr/local/cuda/bin"
+        "/usr/local/cuda-12.9/bin"
+)
+
+if(TEMPLATE_NVCC_EXECUTABLE)
+    add_test(
+        NAME template_project_cuda_without_catch2_configure
+        COMMAND ${CMAKE_COMMAND}
+            -DTEST_TEMPLATE_SOURCE_DIR=${PROJECT_SOURCE_DIR}
+            -DTEST_BINARY_ROOT=${PROJECT_BINARY_DIR}/cuda_without_catch2
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyTemplateProjectCudaWithoutCatch2.cmake
+    )
+    set_tests_properties(
+        template_project_cuda_without_catch2_configure
+        PROPERTIES
+        LABELS "cuda;catch2;configure"
+        TIMEOUT 180
+    )
+else()
+    message(STATUS "nvcc not found. Skipping CUDA-without-Catch2 configure regression test.")
+endif()
+
 find_program(TEMPLATE_AARCH64_GCC_EXECUTABLE NAMES aarch64-linux-gnu-gcc)
 find_program(TEMPLATE_AARCH64_GXX_EXECUTABLE NAMES aarch64-linux-gnu-g++)
 set(TEMPLATE_AARCH64_TOOLCHAIN_FILE "${PROJECT_SOURCE_DIR}/cmake/toolchains/defaults/aarch64-linux-gnu.cmake")
