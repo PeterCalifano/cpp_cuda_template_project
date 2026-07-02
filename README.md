@@ -491,20 +491,21 @@ The project ships a VS Code DevContainer configuration. To reconfigure it (base 
 
 # Non-interactive
 ./configure_devcontainer.sh --cuda --base ubuntu-22.04 --ros2 humble
+./configure_devcontainer.sh --cuda --gpu-runtime podman --base ubuntu-24.04
 ./configure_devcontainer.sh --base ubuntu-22.04 --ros noetic --ros-profile desktop
 ./configure_devcontainer.sh --non-interactive --base ubuntu-24.04
 ```
 
 ROS 1 requires Ubuntu 18.04 (melodic) or 20.04 (noetic). ROS 2 requires Ubuntu 22.04+.
 
-The configure script only rewrites the keys it manages in `devcontainer.json` (features, GPU run args, CUDA/ROS env); project-specific entries (e.g. `customizations`, extra `remoteEnv` variables) are preserved across reconfigurations. CUDA toolkit version is selected with `--cuda-version <v>` (default 12.9).
+The configure script only rewrites the keys it manages in `devcontainer.json` (features, GPU run args, CUDA/ROS env); project-specific entries (e.g. `customizations`, extra `remoteEnv` variables) are preserved across reconfigurations. CUDA toolkit version is selected with `--cuda-version <v>` (default 12.9). GPU passthrough args are selected with `--gpu-runtime auto|docker|podman` (default: `auto`, which prefers Docker when both engines are installed).
 
 ### GPU host requirements
 
-`"runArgs": ["--gpus", "all"]` needs GPU support in the container engine on the host:
+When CUDA is enabled, generated `runArgs` match the selected container engine:
 
-- **Docker**: install the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html).
-- **Podman** (also used by VS Code when Docker is absent): additionally generate a CDI spec once: `sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml`. If `--gpus all` fails, replace it with `--device nvidia.com/gpu=all`. Rootless Podman also requires subordinate UID/GID ranges for your user in `/etc/subuid` and `/etc/subgid` (then run `podman system migrate`).
+- **Docker**: generated args are `["--gpus", "all"]`; install the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html).
+- **Podman**: generated args are `["--device", "nvidia.com/gpu=all", "--security-opt=label=disable"]`; generate a CDI spec once, e.g. `sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml`. Rootless Podman also requires subordinate UID/GID ranges for your user in `/etc/subuid` and `/etc/subgid` (then run `podman system migrate`).
 
 ### Standalone container (without VS Code)
 

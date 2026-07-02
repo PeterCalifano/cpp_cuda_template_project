@@ -15,6 +15,7 @@ ROS1_DISTROS=("noetic" "melodic")
 ROS2_DISTROS=("humble" "iron" "jazzy" "rolling")
 ROS_PROFILES=("ros-base" "desktop" "desktop-full")
 ROS2_PROFILES=("ros-base" "desktop")
+GPU_RUNTIME_OPTIONS=("auto" "docker" "podman")
 
 if [[ ! -f "$DOCKERFILE" ]]; then
   echo "Dockerfile not found at: $DOCKERFILE"
@@ -32,6 +33,7 @@ Usage: ./configure_devcontainer.sh [options]
 Options:
   --cuda               Enable CUDA support.
   --cuda-version <v>   CUDA toolkit version for the nvidia-cuda feature (default: 12.9).
+  --gpu-runtime <r>    GPU runArgs mode for CUDA devcontainers: auto, docker, or podman (default: auto).
   --base <name>        Base image tag (ubuntu-24.04, ubuntu-22.04, ubuntu-20.04, ubuntu-18.04, debian-12, debian-11, custom).
   --base-image <img>   Full base image name (overrides --base).
   --ros <distro>       Install ROS 1 with selected distro (noetic, melodic).
@@ -42,11 +44,13 @@ Options:
 
 Examples:
   ./configure_devcontainer.sh --cuda --base ubuntu-24.04 --ros2 jazzy
+  ./configure_devcontainer.sh --cuda --gpu-runtime podman --base ubuntu-24.04
   ./configure_devcontainer.sh --no-cuda --base debian-12
   ./configure_devcontainer.sh --base-image ubuntu:20.04 --ros noetic
 
 Note:
   CUDA is off by default (use --cuda to enable).
+  GPU runtime auto-detection prefers docker when both docker and podman are installed.
   ROS 1 supports Ubuntu 18.04/20.04; ROS 2 supports Ubuntu 22.04+.
 EOF
 }
@@ -154,6 +158,24 @@ detect_ubuntu_version() {
   esac
 }
 
+resolve_gpu_runtime() {
+  local requested="$1"
+  if [[ "$requested" != "auto" ]]; then
+    echo "$requested"
+    return 0
+  fi
+  if command -v docker >/dev/null 2>&1; then
+    echo "docker"
+    return 0
+  fi
+  if command -v podman >/dev/null 2>&1; then
+    echo "podman"
+    return 0
+  fi
+  echo "Warning: neither docker nor podman found; defaulting devcontainer GPU runtime to docker." >&2
+  echo "docker"
+}
+
 #######################################
 # Main script 
 #######################################
@@ -206,6 +228,7 @@ fi
 # Set default values from current configuration
 CUDA="$cuda_default"
 CUDA_VERSION="$cuda_version_default"
+GPU_RUNTIME="auto"
 BASE="$current_base"
 BASE_IMAGE=""
 ROS_MODE="$ros_mode_default"
@@ -213,6 +236,7 @@ ROS_DISTRO="$ros_distro_default"
 ROS_PROFILE="$ros_profile_default"
 NON_INTERACTIVE="no"
 CUDA_SET="no"
+GPU_RUNTIME_SET="no"
 BASE_SET="no"
 BASE_IMAGE_SET="no"
 ROS_MODE_SET="no"
@@ -235,6 +259,19 @@ while [[ $# -gt 0 ]]; do
       CUDA_VERSION="${1:-}"
       if [[ -z "$CUDA_VERSION" ]]; then
         echo "--cuda-version requires a value (e.g. 12.9)."
+        exit 1
+      fi
+      ;;
+    --gpu-runtime)
+      shift
+      GPU_RUNTIME="${1:-}"
+      GPU_RUNTIME_SET="yes"
+      if [[ -z "$GPU_RUNTIME" ]]; then
+        echo "--gpu-runtime requires a value: auto, docker, or podman."
+        exit 1
+      fi
+      if ! contains_value "$GPU_RUNTIME" "${GPU_RUNTIME_OPTIONS[@]}"; then
+        echo "Invalid --gpu-runtime value: $GPU_RUNTIME"
         exit 1
       fi
       ;;
@@ -306,6 +343,10 @@ if [[ "$NON_INTERACTIVE" != "yes" ]]; then
   fi
 
   echo "Selected CUDA support: $CUDA"
+
+  if [[ "$CUDA" == "on" && "$GPU_RUNTIME_SET" != "yes" ]]; then
+    GPU_RUNTIME="$(prompt_select "Select GPU runtime for devcontainer GPU passthrough:" "$GPU_RUNTIME" "${GPU_RUNTIME_OPTIONS[@]}")"
+  fi
 
   # Base image
   if [[ -z "$BASE_IMAGE" && "$BASE_SET" != "yes" ]]; then
@@ -393,6 +434,10 @@ if [[ "$NON_INTERACTIVE" != "yes" ]]; then
 
 else
   # Validate options in non-interactive mode
+  if ! contains_value "$GPU_RUNTIME" "${GPU_RUNTIME_OPTIONS[@]}"; then
+    echo "Invalid GPU runtime: $GPU_RUNTIME"
+    exit 1
+  fi
   if [[ -z "$BASE_IMAGE" ]]; then
     if ! contains_value "$BASE" "${BASE_OPTIONS[@]}"; then
       echo "Invalid --base value: $BASE"
@@ -424,6 +469,16 @@ else
   elif [[ "$ROS_MODE" != "none" ]]; then
     echo "Invalid ROS mode: $ROS_MODE"
     exit 1
+  fi
+fi
+
+RESOLVED_GPU_RUNTIME="docker"
+if [[ "$CUDA" == "on" ]]; then
+  RESOLVED_GPU_RUNTIME="$(resolve_gpu_runtime "$GPU_RUNTIME")"
+  if [[ "$GPU_RUNTIME" == "auto" ]]; then
+    echo "Selected GPU runtime: ${RESOLVED_GPU_RUNTIME} (auto)"
+  else
+    echo "Selected GPU runtime: ${RESOLVED_GPU_RUNTIME}"
   fi
 fi
 
@@ -501,6 +556,7 @@ mv "$tmp_dockerfile" "$DOCKERFILE"
 # to preserve unmanaged keys, so it must not be truncated by the redirection.
 tmp_json="$(mktemp)"
 if ! CUDA="$CUDA" CUDA_VERSION="$CUDA_VERSION" \
+     DEVCONTAINER_GPU_RUNTIME="$RESOLVED_GPU_RUNTIME" \
      ROS_MODE="$ROS_MODE" ROS_DISTRO="$ROS_DISTRO" ROS_PROFILE="$ROS_PROFILE" \
      DEVCONTAINER_JSON_PATH="$DEVCONTAINER_JSON" \
      python3 "$DEVCONTAINER_JSON_WRITER" > "$tmp_json"; then

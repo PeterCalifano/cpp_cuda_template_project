@@ -15,6 +15,8 @@ import re
 import sys
 
 DEFAULT_CUDA_VERSION = "12.9"
+DEFAULT_GPU_RUNTIME = "docker"
+SUPPORTED_GPU_RUNTIMES = ("docker", "podman")
 
 # remoteEnv entries owned by the CUDA option.
 CUDA_REMOTE_ENV = {
@@ -54,18 +56,43 @@ DEFAULT_EXTENSIONS = [
     "llvm-vs-code-extensions.vscode-clangd",
 ]
 
-# GPU passthrough runArg. The CDI form works with rootless Podman (and Docker
-# 25+); the legacy Docker `--gpus all` is accepted by Podman but injects nothing
-# (no driver libs, no nvidia-smi), so it is intentionally NOT used here.
-GPU_RUN_ARGS = ["--device", "nvidia.com/gpu=all"]
+# GPU passthrough runArgs are selected by the configure script. Docker's
+# standard NVIDIA Container Toolkit path uses --gpus all, while Podman uses CDI.
+DOCKER_GPU_RUN_ARGS = ["--gpus", "all"]
+PODMAN_GPU_RUN_ARGS = [
+    "--device",
+    "nvidia.com/gpu=all",
+    "--security-opt=label=disable",
+]
+
+
+def _gpu_run_args(gpu_runtime: str) -> list[str]:
+    """Return managed GPU runArgs for the requested container engine.
+
+    Example:
+        args_ = _gpu_run_args("docker")
+        print(args_)
+        # Output:
+        # ['--gpus', 'all']
+    """
+    if gpu_runtime == "docker":
+        return list(DOCKER_GPU_RUN_ARGS)
+    if gpu_runtime == "podman":
+        return list(PODMAN_GPU_RUN_ARGS)
+    print(
+        "update_devcontainer_json.py: DEVCONTAINER_GPU_RUNTIME must be one of: "
+        + ", ".join(SUPPORTED_GPU_RUNTIMES),
+        file=sys.stderr,
+    )
+    sys.exit(1)
 
 
 def strip_gpu_run_args(args: list) -> list:
     """Drop managed GPU passthrough pairs, preserving unrelated runArgs.
 
-    Removes both the CDI form (``--device nvidia.com/gpu=all``) and the legacy
-    ``--gpus all`` form so toggling/regenerating stays idempotent and migrates
-    old files. Other ``--device`` entries are left untouched.
+    Removes Docker, CDI, and SELinux-label forms owned by this updater so
+    toggling/regenerating stays idempotent and migrates old files. Other
+    ``--device`` entries are left untouched.
     """
     out = []
     i = 0
@@ -76,8 +103,20 @@ def strip_gpu_run_args(args: list) -> list:
         if cur == "--gpus" and nxt == "all":
             i += 2
             continue
+        if cur == "--gpus=all":
+            i += 1
+            continue
         if cur == "--device" and nxt == "nvidia.com/gpu=all":
             i += 2
+            continue
+        if cur == "--device=nvidia.com/gpu=all":
+            i += 1
+            continue
+        if cur == "--security-opt" and nxt == "label=disable":
+            i += 2
+            continue
+        if cur == "--security-opt=label=disable":
+            i += 1
             continue
         out.append(cur)
         i += 1
@@ -171,6 +210,8 @@ def main() -> int:
     # Options come from the configure script via environment variables.
     cuda = os.environ.get("CUDA", "off")
     cuda_version = os.environ.get("CUDA_VERSION", DEFAULT_CUDA_VERSION)
+    gpu_runtime = os.environ.get(
+        "DEVCONTAINER_GPU_RUNTIME", DEFAULT_GPU_RUNTIME)
     ros_mode = os.environ.get("ROS_MODE", "none")
     ros_distro = os.environ.get("ROS_DISTRO", "")
     ros_profile = os.environ.get("ROS_PROFILE", "ros-base")
@@ -229,7 +270,7 @@ def main() -> int:
     # Managed: GPU passthrough runArg (CUDA only); other runArgs preserved.
     run_args = strip_gpu_run_args(data.get("runArgs", []))
     if cuda == "on":
-        run_args = list(GPU_RUN_ARGS) + run_args
+        run_args = _gpu_run_args(gpu_runtime) + run_args
     if run_args:
         data["runArgs"] = run_args
     else:
