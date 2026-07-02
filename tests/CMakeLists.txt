@@ -122,6 +122,20 @@ set_tests_properties(
 )
 
 add_test(
+    NAME template_project_build_tree_package_root
+    COMMAND ${CMAKE_COMMAND}
+        -DTEST_TEMPLATE_SOURCE_DIR=${PROJECT_SOURCE_DIR}
+        -DTEST_BINARY_ROOT=${PROJECT_BINARY_DIR}/build_tree_package
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyTemplateProjectBuildTreePackage.cmake
+)
+set_tests_properties(
+    template_project_build_tree_package_root
+    PROPERTIES
+    LABELS "package;template"
+    TIMEOUT 180
+)
+
+add_test(
     NAME template_project_tailoring_cleanup_script
     COMMAND ${CMAKE_COMMAND}
         -DTEST_TEMPLATE_SOURCE_DIR=${PROJECT_SOURCE_DIR}
@@ -134,6 +148,47 @@ set_tests_properties(
     LABELS "tailoring;template"
     TIMEOUT 60
 )
+
+add_test(
+    NAME template_project_add_tests_property_resolution
+    COMMAND ${CMAKE_COMMAND}
+        -DTEST_CMAKE_UTILS_FILE=${PROJECT_SOURCE_DIR}/cmake/cmake_utils.cmake
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyTemplateProjectAddTestsProperties.cmake
+)
+set_tests_properties(
+    template_project_add_tests_property_resolution
+    PROPERTIES
+    LABELS "tests;cmake_utils"
+    TIMEOUT 60
+)
+
+find_program(
+    TEMPLATE_NVCC_EXECUTABLE
+    NAMES nvcc
+    PATHS
+        "$ENV{CUDA_HOME}/bin"
+        "$ENV{CUDA_PATH}/bin"
+        "/usr/local/cuda/bin"
+        "/usr/local/cuda-12.9/bin"
+)
+
+if(TEMPLATE_NVCC_EXECUTABLE)
+    add_test(
+        NAME template_project_cuda_without_catch2_configure
+        COMMAND ${CMAKE_COMMAND}
+            -DTEST_TEMPLATE_SOURCE_DIR=${PROJECT_SOURCE_DIR}
+            -DTEST_BINARY_ROOT=${PROJECT_BINARY_DIR}/cuda_without_catch2
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyTemplateProjectCudaWithoutCatch2.cmake
+    )
+    set_tests_properties(
+        template_project_cuda_without_catch2_configure
+        PROPERTIES
+        LABELS "cuda;catch2;configure"
+        TIMEOUT 180
+    )
+else()
+    message(STATUS "nvcc not found. Skipping CUDA-without-Catch2 configure regression test.")
+endif()
 
 find_program(TEMPLATE_AARCH64_GCC_EXECUTABLE NAMES aarch64-linux-gnu-gcc)
 find_program(TEMPLATE_AARCH64_GXX_EXECUTABLE NAMES aarch64-linux-gnu-g++)
@@ -176,6 +231,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 # Add subdirectories that may contain compiled and/or Python tests.
 add_subdirectory(template_test)
 add_subdirectory(template_fixtures)
+add_subdirectory(template_cuda)  # CUDA-init fixture gate + placeholder (built only when ENABLE_CUDA)
 
 # Add tests to build and register.
 add_tests(${project_name} EXCLUDED_LIST TESTS_LIST ${CUDA_COMPILE_TARGET} CATCH2_TEST_PROPERTIES Catch2::Catch2WithMain)

@@ -204,6 +204,28 @@ function(resolve_python_test_command output_var)
 endfunction()
 
 # Function to add test files to the build
+# Resolve the catch_discover_tests PROPERTIES argument. The 5th add_tests()
+# argument may be either:
+#   - a defined variable NAME holding the properties (preferred idiom, e.g.
+#     CATCH2_TEST_PROPERTIES, or a caller-defined "OPTIX_TEST_PROPERTIES"), or
+#   - a literal value/list (e.g. "FIXTURES_REQUIRED;Optix").
+# The MATCHES ";" guard must precede the if(DEFINED ...) check: a list literal
+# expands to multiple tokens and would otherwise break if(DEFINED ${var}) at
+# parse time (CMake error: "if given arguments ... Unknown arguments specified").
+function(resolve_catch2_test_properties out_var properties_arg)
+    set(resolved "")
+    if(NOT "${properties_arg}" STREQUAL "")
+        if("${properties_arg}" MATCHES ";")
+            set(resolved ${properties_arg})        # literal value/list
+        elseif(DEFINED ${properties_arg})
+            set(resolved ${${properties_arg}})     # defined variable NAME -> dereference
+        else()
+            set(resolved ${properties_arg})        # single-token literal
+        endif()
+    endif()
+    set(${out_var} "${resolved}" PARENT_SCOPE)
+endfunction()
+
 function(add_tests project_lib_name excluded_list tests_list_var target_compile_settings catch2_test_properties_var catch2_target)
 
     file(GLOB srcTestFiles
@@ -227,14 +249,9 @@ function(add_tests project_lib_name excluded_list tests_list_var target_compile_
     
     # Register compiled tests for catch2
     if(Catch2_FOUND)
-        set(catch2TestProperties "")
-
-        # Check if the catch2_test_properties_var is defined and assign
-        if(DEFINED ${catch2_test_properties_var})
-            set(catch2TestProperties ${${catch2_test_properties_var}})
-        elseif(NOT "${catch2_test_properties_var}" STREQUAL "")
-            set(catch2TestProperties ${catch2_test_properties_var})
-        endif()
+        # Resolve the PROPERTIES from the 5th add_tests() argument, which may be
+        # a defined variable NAME or a literal value/list (see helper above).
+        resolve_catch2_test_properties(catch2TestProperties "${catch2_test_properties_var}")
 
         # Append the CTest properties to the test discovery arguments if they are set
         set(catch2DiscoverArgs "")

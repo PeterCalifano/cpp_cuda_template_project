@@ -491,11 +491,36 @@ The project ships a VS Code DevContainer configuration. To reconfigure it (base 
 
 # Non-interactive
 ./configure_devcontainer.sh --cuda --base ubuntu-22.04 --ros2 humble
+./configure_devcontainer.sh --cuda --gpu-runtime podman --base ubuntu-24.04
 ./configure_devcontainer.sh --base ubuntu-22.04 --ros noetic --ros-profile desktop
 ./configure_devcontainer.sh --non-interactive --base ubuntu-24.04
 ```
 
 ROS 1 requires Ubuntu 18.04 (melodic) or 20.04 (noetic). ROS 2 requires Ubuntu 22.04+.
+
+The configure script only rewrites the keys it manages in `devcontainer.json` (features, GPU run args, CUDA/ROS env); project-specific entries (e.g. `customizations`, extra `remoteEnv` variables) are preserved across reconfigurations. CUDA toolkit version is selected with `--cuda-version <v>` (default 12.9). GPU passthrough args are selected with `--gpu-runtime auto|docker|podman` (default: `auto`, which prefers Docker when both engines are installed).
+
+### GPU host requirements
+
+When CUDA is enabled, generated `runArgs` match the selected container engine:
+
+- **Docker**: generated args are `["--gpus", "all"]`; install the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html).
+- **Podman**: generated args are `["--device", "nvidia.com/gpu=all", "--security-opt=label=disable"]`; generate a CDI spec once, e.g. `sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml`. Rootless Podman also requires subordinate UID/GID ranges for your user in `/etc/subuid` and `/etc/subgid` (then run `podman system migrate`).
+
+### Standalone container (without VS Code)
+
+The image in `.devcontainer/Dockerfile` can be built and used outside the DevContainer flow. CUDA is installed by the `INSTALL_CUDA=on` build arg in that case (the DevContainer installs it via the `nvidia-cuda` feature instead):
+
+```bash
+# Build the image and run a command/binary inside it (repo mounted at /workspace)
+./run_in_container.sh ./build/my_app --my-flag
+
+# Interactive shell, force image rebuild, disable GPU
+./run_in_container.sh --build --no-gpu
+
+# Manual build
+docker build --build-arg INSTALL_CUDA=on --build-arg CUDA_VERSION=12.9 -t my-dev .devcontainer
+```
 
 ---
 

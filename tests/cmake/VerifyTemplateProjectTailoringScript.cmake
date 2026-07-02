@@ -94,6 +94,7 @@ endif()
       "doc/developments/plan.md"
       "tests/cmake/AddMatlabWrapperRegressionTests.cmake"
       "tests/cmake/CheckTcmallocDependency.cmake"
+      "tests/cmake/VerifyTemplateProjectBuildTreePackage.cmake"
       "tests/cmake/VerifyTemplateProjectDocsWorkflow.cmake"
       "tests/cmake/VerifyTemplateProjectTailoringScript.cmake"
       "tests/matlab/RunTemplateWrapperRegression.m"
