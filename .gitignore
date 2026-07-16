@@ -26,6 +26,7 @@ CMakeUserPresets.json
 *.asv
 *.png
 .idea
+/*.code-workspace
 *.pyc
 *.DS_Store
 *.swp
