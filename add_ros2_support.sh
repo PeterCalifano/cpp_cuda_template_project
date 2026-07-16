@@ -414,7 +414,9 @@ Post-apply checklist:
   1. Adapt the fenced core-call seam in ros2/${ros_package_prefix}_ros/src/conversions.cpp to a real ${cmake_project_name} API.
      Review ros2/${ros_package_prefix}_ros/src/CTemplateLifecycleNode.cpp only for ROS node wiring changes.
   2. Run ./build_ros2.sh --clean in the target project.
-  3. Run ./generate_version.sh --sync-ros2 if the target ships generate_version.sh.
+  3. Adopt the root CMake metadata contract, including PROJECT_METADATA_ONLY, and upgrade
+     generate_version.sh if it predates project metadata sync. Then run
+     ./generate_version.sh --sync-ros2 to synchronize project metadata.
   4. If the target removed optional CUDA, OptiX, or spdlog support, manually tailor the copied
      build_ros2.sh facade, shim CMake options, docs, and CI so unsupported options are not advertised.
 EOF

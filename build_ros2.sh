@@ -14,7 +14,7 @@ clean=false
 skip_tests=false
 enable_cuda=false
 enable_optix=false
-version_sync=true
+metadata_sync=true
 packages_select=()
 cmake_args=()
 colcon_args=()
@@ -44,7 +44,7 @@ Options:
   --optix                    Enable core OptiX support; implies --cuda.
   --cmake-arg <arg>          Append one CMake argument. Repeatable.
   --colcon-arg <arg>         Append one colcon build argument. Repeatable.
-  --no-version-sync          Do not run ROS 2 package version synchronization.
+  --no-version-sync          Do not synchronize ROS 2 package metadata (legacy flag name).
   -h, --help                 Show this help.
 
 Examples:
@@ -110,7 +110,7 @@ parse_args() {
         shift 2
         ;;
       --no-version-sync)
-        version_sync=false
+        metadata_sync=false
         shift
         ;;
       -h|--help)
@@ -155,25 +155,25 @@ touch_root_colcon_ignore_markers() {
   shopt -u nullglob
 }
 
-sync_ros2_package_versions() {
-  if [[ "${version_sync}" != true ]]; then
+sync_ros2_package_metadata() {
+  if [[ "${metadata_sync}" != true ]]; then
     return
   fi
 
   if [[ ! -x "${ROOT_DIR}/generate_version.sh" ]]; then
-    warn "generate_version.sh is missing or not executable; skipping ROS 2 version sync"
+    warn "generate_version.sh is missing or not executable; skipping ROS 2 package metadata sync"
     return
   fi
 
-  if ! grep -q -- "--sync-ros2" "${ROOT_DIR}/generate_version.sh"; then
-    warn "generate_version.sh predates --sync-ros2; skipping ROS 2 version sync"
+  if ! grep -q -- "ROS2_PROJECT_METADATA_SYNC=1" "${ROOT_DIR}/generate_version.sh"; then
+    warn "generate_version.sh predates project metadata sync; skipping ROS 2 package metadata sync"
     return
   fi
 
   if "${ROOT_DIR}/generate_version.sh" --sync-ros2; then
-    info "synchronized ROS 2 package versions"
+    info "synchronized ROS 2 package metadata"
   else
-    warn "ROS 2 package version sync failed; continuing with existing package.xml versions"
+    warn "ROS 2 package metadata sync failed; continuing with existing package.xml metadata"
   fi
 }
 
@@ -251,7 +251,7 @@ main() {
     rm -rf "${WORKSPACE_DIR}/build" "${WORKSPACE_DIR}/install" "${WORKSPACE_DIR}/log"
   fi
 
-  sync_ros2_package_versions
+  sync_ros2_package_metadata
   run_colcon_build
 }
 

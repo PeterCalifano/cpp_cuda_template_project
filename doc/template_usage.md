@@ -35,6 +35,22 @@ Use one global replacement pass for the project name, then inspect the changed C
 | `template_src_kernels` | CUDA kernel module directory, or delete if CUDA is not used |
 | `cpp_playground` | Top C++ namespace exposed to wrappers |
 
+Set the root project metadata beside `project_name` before building or rolling
+out the optional ROS overlay:
+
+```cmake
+set(project_name "my_project")
+set(project_description "Reusable algorithms for my project")
+set(project_homepage_url "https://example.com/my_project")
+set(PROJECT_MAINTAINER_NAME "Project Maintainer" CACHE STRING "Project maintainer name")
+set(PROJECT_MAINTAINER_EMAIL "maintainer@example.com" CACHE STRING "Project maintainer email")
+set(PROJECT_LICENSE "Apache-2.0" CACHE STRING "Project SPDX license identifier")
+```
+
+The root `project()` call exports the description and homepage through standard
+CMake metadata. The explicit maintainer and SPDX license fields also feed CPack
+and ROS package manifests.
+
 <!-- ros2-overlay-begin -->
 When the optional ROS 2 overlay is kept, include these paths and identifiers in the same rename review:
 
@@ -49,6 +65,12 @@ The broad `template_project` replacement also updates copied ROS launch/config n
 
 When the CMake package name is not a valid ROS package name, keep the original CMake package name for core `find_package(...)` and `<project>::<project>` target links, and use a ROS-valid package prefix for copied ROS package names. For example, `space-nav-frontend` should keep core CMake references to `space-nav-frontend` while using ROS package paths such as `ros2/space_nav_frontend_ros`.
 
+Treat the ROS prefix as one-time package identity chosen during rename or
+`add_ros2_support.sh --ros-prefix`. After that mapping is established, run
+`./generate_version.sh --sync-ros2` for recurring project metadata updates.
+The command updates version, description, maintainer, license, and website but
+does not rename ROS packages or their dependencies.
+
 Remove the overlay with:
 
 ```bash
@@ -61,6 +83,8 @@ Remove the overlay with:
 Update these files first:
 
 - `CMakeLists.txt`: `set(project_name "...")`
+- `CMakeLists.txt`: `project_description`, `project_homepage_url`,
+  `PROJECT_MAINTAINER_NAME`, `PROJECT_MAINTAINER_EMAIL`, and `PROJECT_LICENSE`
 - `CMakeLists.txt`: default wrapper namespace value if wrappers are used
 - `src/CMakeLists.txt`: module `add_subdirectory()` entries and status messages
 - `src/cmake/template_projectConfig.cmake.in`: rename file and package references

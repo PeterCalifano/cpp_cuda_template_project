@@ -34,6 +34,20 @@ function(_assert_not_matches file_path pattern)
   endif()
 endfunction()
 
+function(_read_cache_value cache_path cache_key out_var)
+  file(STRINGS "${cache_path}" _cache_lines REGEX "^${cache_key}:")
+  list(LENGTH _cache_lines _cache_line_count)
+  if(NOT _cache_line_count EQUAL 1)
+    message(FATAL_ERROR "Missing CMake cache field: ${cache_key}")
+  endif()
+  list(GET _cache_lines 0 _cache_line)
+  string(REGEX REPLACE "^[^=]*=" "" _cache_value "${_cache_line}")
+  if(_cache_value STREQUAL "")
+    message(FATAL_ERROR "Empty CMake cache field: ${cache_key}")
+  endif()
+  set(${out_var} "${_cache_value}" PARENT_SCOPE)
+endfunction()
+
 function(_assert_ros2_fence relative_path)
   set(_doc_path "${_root}/${relative_path}")
   _read_required("${_doc_path}" _contents)
@@ -46,12 +60,14 @@ function(_assert_ros2_fence relative_path)
 endfunction()
 
 foreach(_required_path
+    "CMakeLists.txt"
     ".github/workflows/build_ros2_overlay.yml"
     "build_ros2.sh"
     "add_ros2_support.sh"
     "tailor_template_cleanup.sh"
     "generate_version.sh"
     "doc/ros2_overlay.md"
+    "ros2/tools/sync_package_metadata.py"
     "ros2/template_project/CMakeLists.txt"
     "ros2/template_project/package.xml"
     "ros2/template_project_interfaces/package.xml"
@@ -61,6 +77,37 @@ foreach(_required_path
     message(FATAL_ERROR "Missing ROS 2 overlay path: ${_required_path}")
   endif()
 endforeach()
+
+set(_root_cmake "${_root}/CMakeLists.txt")
+_read_required("${_root_cmake}" _root_cmake_contents)
+string(FIND "${_root_cmake_contents}" "if(NOT DEFINED CMAKE_INSTALL_PREFIX)" _install_prefix_default_index)
+string(FIND "${_root_cmake_contents}" "project(\${project_name}" _project_command_index)
+if(_install_prefix_default_index LESS 0
+    OR _project_command_index LESS 0
+    OR _install_prefix_default_index GREATER _project_command_index)
+  message(FATAL_ERROR
+      "The repository-local install prefix default must remain before project() initializes CMake's platform default.")
+endif()
+_assert_matches("${_root_cmake}" "set\\(project_description")
+_assert_matches("${_root_cmake}" "set\\(project_homepage_url")
+_assert_matches("${_root_cmake}" "PROJECT_MAINTAINER_NAME[ \\t]+\"[^\"]+\"[ \\t]+CACHE[ \\t]+STRING")
+_assert_matches("${_root_cmake}" "PROJECT_MAINTAINER_EMAIL[ \\t]+\"[^\"]+\"[ \\t]+CACHE[ \\t]+STRING")
+_assert_matches("${_root_cmake}" "PROJECT_LICENSE[ \\t]+\"[^\"]+\"[ \\t]+CACHE[ \\t]+STRING")
+_assert_matches("${_root_cmake}" "PROJECT_METADATA_ONLY")
+_assert_matches("${_root_cmake}" "set\\(languages NONE\\)")
+_assert_matches("${_root_cmake}" "DESCRIPTION[ \\t]+\"\\$\\{project_description\\}\"")
+_assert_matches("${_root_cmake}" "HOMEPAGE_URL[ \\t]+\"\\$\\{project_homepage_url\\}\"")
+_assert_matches("${_root_cmake}" "return\\(\\)")
+_assert_matches("${_root_cmake}" "CPACK_PACKAGE_DESCRIPTION_SUMMARY[ \\t]+\"\\$\\{PROJECT_DESCRIPTION\\}\"")
+_assert_matches("${_root_cmake}" "CPACK_PACKAGE_HOMEPAGE_URL[ \\t]+\"\\$\\{PROJECT_HOMEPAGE_URL\\}\"")
+_assert_matches("${_root_cmake}" "CPACK_PACKAGE_VENDOR[ \\t]+\"\\$\\{PROJECT_MAINTAINER_NAME\\}\"")
+_assert_matches("${_root_cmake}" "CPACK_PACKAGE_CONTACT[ \\t]+\"\\$\\{PROJECT_MAINTAINER_NAME\\}")
+
+set(_metadata_helper "${_root}/ros2/tools/sync_package_metadata.py")
+_assert_matches("${_metadata_helper}" "xml\\.etree\\.ElementTree")
+_assert_matches("${_metadata_helper}" "insert_comments=True")
+_assert_matches("${_metadata_helper}" "insert_pis=True")
+_assert_matches("${_metadata_helper}" "os\\.replace")
 
 find_program(_bash_executable NAMES bash)
 if(NOT _bash_executable)
@@ -116,6 +163,12 @@ foreach(_package_name
   if(NOT "${_package_version}" STREQUAL "${EXPECTED_VERSION}")
     message(FATAL_ERROR
         "Expected ${_package_xml} version '${EXPECTED_VERSION}', got '${_package_version}'")
+  endif()
+  if(_package_contents MATCHES "example\\.com")
+    message(FATAL_ERROR "Placeholder metadata remains in ${_package_xml}")
+  endif()
+  if(NOT _package_contents MATCHES "<url[ \\t]+type=\\\"website\\\">[^<]+</url>")
+    message(FATAL_ERROR "No website URL metadata found in ${_package_xml}")
   endif()
 endforeach()
 
@@ -204,13 +257,25 @@ _read_required("${_root}/generate_version.sh" _generate_version_script)
 if(NOT _generate_version_script MATCHES "--sync-ros2")
   message(FATAL_ERROR "generate_version.sh does not advertise --sync-ros2")
 endif()
+if(NOT _generate_version_script MATCHES "tools/sync_package_metadata\\.py"
+    OR NOT _generate_version_script MATCHES "python3")
+  message(FATAL_ERROR "generate_version.sh does not invoke the structured ROS metadata helper")
+endif()
+if(NOT _generate_version_script MATCHES "ROS2_PROJECT_METADATA_SYNC=1")
+  message(FATAL_ERROR "generate_version.sh does not expose the ROS metadata sync capability marker")
+endif()
 
 _read_required("${_root}/build_ros2.sh" _build_ros2_script)
 if(NOT _build_ros2_script MATCHES "generate_version\\.sh[^\\n]*--sync-ros2")
   message(FATAL_ERROR "build_ros2.sh does not invoke generate_version.sh --sync-ros2")
 endif()
-if(NOT _build_ros2_script MATCHES "predates --sync-ros2")
-  message(FATAL_ERROR "build_ros2.sh does not warn when a derived repo has an older version helper")
+if(NOT _build_ros2_script MATCHES "ROS2_PROJECT_METADATA_SYNC=1"
+    OR NOT _build_ros2_script MATCHES "predates project metadata sync")
+  message(FATAL_ERROR "build_ros2.sh does not reject an older version-only sync helper")
+endif()
+if(NOT _build_ros2_script MATCHES "package metadata"
+    OR NOT _build_ros2_script MATCHES "legacy flag name")
+  message(FATAL_ERROR "build_ros2.sh does not describe the expanded project metadata sync contract")
 endif()
 if(NOT _build_ros2_script MATCHES "test-result --test-result-base")
   message(FATAL_ERROR "build_ros2.sh does not scope selected-package result checks")
@@ -289,11 +354,93 @@ function(_create_fake_target fake_root project_name)
   file(WRITE "${fake_root}/CMakeLists.txt"
 "cmake_minimum_required(VERSION 3.15)
 set(project_name \"${project_name}\")
-project(\${project_name} LANGUAGES NONE)
+set(project_description \"Derived ${project_name} project\")
+set(project_homepage_url \"https://example.test/${project_name}\")
+set(PROJECT_MAINTAINER_NAME \"Derived Maintainer\" CACHE STRING \"\")
+set(PROJECT_MAINTAINER_EMAIL \"maintainer@example.test\" CACHE STRING \"\")
+set(PROJECT_LICENSE \"Apache-2.0\" CACHE STRING \"\")
+project(\${project_name}
+  VERSION 2.3.4
+  DESCRIPTION \"\${project_description}\"
+  HOMEPAGE_URL \"\${project_homepage_url}\"
+  LANGUAGES NONE)
+")
+  configure_file(
+      "${_root}/generate_version.sh"
+      "${fake_root}/generate_version.sh"
+      COPYONLY)
+  file(WRITE "${fake_root}/VERSION"
+"Project version: 2.3.4
+Project version core: 2.3.4
+Project version prerelease: <none>
+Project version metadata: <none>
+Full version: 2.3.4
 ")
 endfunction()
 
 file(REMOVE_RECURSE "${TEST_BINARY_ROOT}")
+set(_metadata_probe "${TEST_BINARY_ROOT}/metadata_probe")
+_run_success(
+    "Configure root project metadata without build languages"
+    "${CMAKE_COMMAND}" -S "${_root}" -B "${_metadata_probe}" -DPROJECT_METADATA_ONLY=ON)
+set(_metadata_cache_path "${_metadata_probe}/CMakeCache.txt")
+_read_cache_value("${_metadata_cache_path}" "CMAKE_PROJECT_DESCRIPTION" _project_description)
+_read_cache_value("${_metadata_cache_path}" "CMAKE_PROJECT_HOMEPAGE_URL" _project_homepage_url)
+_read_cache_value("${_metadata_cache_path}" "PROJECT_MAINTAINER_NAME" _project_maintainer_name)
+_read_cache_value("${_metadata_cache_path}" "PROJECT_MAINTAINER_EMAIL" _project_maintainer_email)
+_read_cache_value("${_metadata_cache_path}" "PROJECT_LICENSE" _project_license)
+file(STRINGS "${_metadata_cache_path}" _metadata_cxx_compiler REGEX "^CMAKE_CXX_COMPILER:")
+if(_metadata_cxx_compiler)
+  message(FATAL_ERROR "Metadata-only configure unexpectedly enabled the C++ language.")
+endif()
+if(EXISTS "${_metadata_probe}/src")
+  message(FATAL_ERROR "Metadata-only configure unexpectedly entered the source target tree.")
+endif()
+
+string(REGEX REPLACE "[.]$" "" _project_description_base "${_project_description}")
+
+foreach(_package_name
+    template_project
+    template_project_interfaces
+    template_project_ros
+    template_project_spinup)
+  if(_package_name STREQUAL "template_project")
+    set(_description_suffix "ROS 2 colcon shim package.")
+  elseif(_package_name STREQUAL "template_project_interfaces")
+    set(_description_suffix "ROS 2 message and service interfaces.")
+  elseif(_package_name STREQUAL "template_project_ros")
+    set(_description_suffix "ROS 2 bridge package.")
+  else()
+    set(_description_suffix "ROS 2 launch and runtime assets.")
+  endif()
+
+  set(_package_xml "${_root}/ros2/${_package_name}/package.xml")
+  _read_required("${_package_xml}" _package_contents)
+  string(REGEX MATCH "<name>([^<]+)</name>" _package_name_match "${_package_contents}")
+  if(NOT CMAKE_MATCH_1 STREQUAL "${_package_name}")
+    message(FATAL_ERROR "Recurring metadata sync changed package identity in ${_package_xml}.")
+  endif()
+  string(REGEX MATCH "<description>([^<]+)</description>" _description_match "${_package_contents}")
+  set(_expected_description "${_project_description_base}: ${_description_suffix}")
+  if(NOT CMAKE_MATCH_1 STREQUAL "${_expected_description}")
+    message(FATAL_ERROR
+        "Expected ${_package_xml} description '${_expected_description}', got '${CMAKE_MATCH_1}'.")
+  endif()
+  string(REGEX MATCH "<maintainer[ \\t]+email=\"([^\"]+)\">([^<]+)</maintainer>" _maintainer_match "${_package_contents}")
+  if(NOT CMAKE_MATCH_1 STREQUAL "${_project_maintainer_email}"
+      OR NOT CMAKE_MATCH_2 STREQUAL "${_project_maintainer_name}")
+    message(FATAL_ERROR "Maintainer metadata does not match the root project in ${_package_xml}.")
+  endif()
+  string(REGEX MATCH "<license>([^<]+)</license>" _license_match "${_package_contents}")
+  if(NOT CMAKE_MATCH_1 STREQUAL "${_project_license}")
+    message(FATAL_ERROR "License metadata does not match the root project in ${_package_xml}.")
+  endif()
+  string(REGEX MATCH "<url[ \\t]+type=\"website\">([^<]+)</url>" _website_match "${_package_contents}")
+  if(NOT CMAKE_MATCH_1 STREQUAL "${_project_homepage_url}")
+    message(FATAL_ERROR "Website metadata does not match the root project in ${_package_xml}.")
+  endif()
+endforeach()
+
 set(_fake_list "${TEST_BINARY_ROOT}/fake_list")
 set(_fake_conflict "${TEST_BINARY_ROOT}/fake_conflict")
 set(_fake_doc_conflict "${TEST_BINARY_ROOT}/fake_doc_conflict")
@@ -379,8 +526,15 @@ endif()
 if(_last_stdout MATCHES "CTemplateLifecycleNode\\.cpp to a real")
   message(FATAL_ERROR "Post-apply checklist still names CTemplateLifecycleNode.cpp as the primary seam.")
 endif()
+if(NOT _last_stdout MATCHES "root CMake metadata contract"
+    OR NOT _last_stdout MATCHES "PROJECT_METADATA_ONLY"
+    OR NOT _last_stdout MATCHES "project metadata")
+  message(FATAL_ERROR
+      "Post-apply checklist does not require the root metadata contract before recurring sync.")
+endif()
 foreach(_expected_path
     "build_ros2.sh"
+    "ros2/tools/sync_package_metadata.py"
     "ros2/space_nav/package.xml"
     "ros2/space_nav_interfaces/package.xml"
     "ros2/space_nav_ros/package.xml"
@@ -403,6 +557,11 @@ foreach(_forbidden_path
     message(FATAL_ERROR "add_ros2_support.sh unexpectedly copied ${_forbidden_path}")
   endif()
 endforeach()
+
+_run_success(
+    "Synchronize copied overlay metadata from fake target"
+    "${CMAKE_COMMAND}" -E env "GIT_CEILING_DIRECTORIES=${TEST_BINARY_ROOT}"
+    "${_bash_executable}" "${_fake_apply}/generate_version.sh" --sync-ros2)
 
 file(GLOB_RECURSE _fake_apply_files LIST_DIRECTORIES false "${_fake_apply}/ros2/*")
 foreach(_fake_file IN LISTS _fake_apply_files)
@@ -511,6 +670,7 @@ _assert_matches("${_workflow}" "ros2/\\*\\*")
 _assert_matches("${_workflow}" "build_ros2\\.sh")
 _assert_matches("${_workflow}" "add_ros2_support\\.sh")
 _assert_matches("${_workflow}" "generate_version\\.sh")
+_assert_matches("${_workflow}" "CMakeLists\\.txt")
 _assert_matches("${_workflow}" "tailor_template_cleanup\\.sh")
 _assert_matches("${_workflow}" "doc/ros2_overlay\\.md")
 _assert_matches("${_workflow}" "doc/template_usage\\.md")
@@ -530,6 +690,10 @@ _assert_matches("${_workflow}" "python3-colcon-common-extensions")
 _assert_matches("${_workflow}" "python3-pytest")
 _assert_matches("${_workflow}" "ros-dev-tools")
 _assert_matches("${_workflow}" "rosdep install --from-paths ros2 -i -r -y --rosdistro jazzy")
+_assert_matches("${_workflow}" "Synchronize ROS package metadata")
+_assert_matches("${_workflow}" "grep -q -- \"--sync-ros2\"")
+_assert_matches("${_workflow}" "grep -q -- \"ROS2_PROJECT_METADATA_SYNC=1\"")
+_assert_matches("${_workflow}" "\\./generate_version\\.sh --sync-ros2")
 _assert_matches("${_workflow}" "\\./build_ros2\\.sh --clean")
 _assert_matches("${_workflow}" "python3 -m pytest -q tests/template_test/testRos2OverlayStatic\\.py")
 _assert_matches(
@@ -554,6 +718,7 @@ foreach(_owned_trigger_pattern
     "README\\.md"
     "AGENTS\\.md"
     "CLAUDE\\.md"
+    "- CMakeLists\\.txt"
     "python/COLCON_IGNORE"
     "lib/COLCON_IGNORE"
     "examples/COLCON_IGNORE"
@@ -566,12 +731,33 @@ foreach(_owned_trigger_pattern
         "found ${_owned_trigger_count} occurrences.")
   endif()
 endforeach()
-string(REGEX MATCHALL "generate_version\\.sh" _version_trigger_paths "${_workflow_contents}")
+string(REGEX MATCHALL "- generate_version\\.sh" _version_trigger_paths "${_workflow_contents}")
 list(LENGTH _version_trigger_paths _version_trigger_count)
 if(NOT _version_trigger_count EQUAL 2)
   message(FATAL_ERROR
       "generate_version.sh must appear in both ROS 2 overlay workflow path filters; "
       "found ${_version_trigger_count} occurrences.")
+endif()
+string(REGEX MATCHALL "\\./generate_version\\.sh --sync-ros2" _workflow_metadata_syncs "${_workflow_contents}")
+list(LENGTH _workflow_metadata_syncs _workflow_metadata_sync_count)
+if(NOT _workflow_metadata_sync_count EQUAL 2)
+  message(FATAL_ERROR
+      "Both ROS 2 workflow jobs must synchronize project metadata before rosdep; "
+      "found ${_workflow_metadata_sync_count} invocations.")
+endif()
+string(REGEX MATCHALL "grep -q -- \"--sync-ros2\"" _workflow_metadata_guards "${_workflow_contents}")
+list(LENGTH _workflow_metadata_guards _workflow_metadata_guard_count)
+if(NOT _workflow_metadata_guard_count EQUAL 2)
+  message(FATAL_ERROR
+      "Both ROS 2 workflow metadata syncs must tolerate older generated helpers; "
+      "found ${_workflow_metadata_guard_count} guards.")
+endif()
+string(REGEX MATCHALL "grep -q -- \"ROS2_PROJECT_METADATA_SYNC=1\"" _workflow_capability_guards "${_workflow_contents}")
+list(LENGTH _workflow_capability_guards _workflow_capability_guard_count)
+if(NOT _workflow_capability_guard_count EQUAL 2)
+  message(FATAL_ERROR
+      "Both ROS 2 workflow metadata syncs must reject the older version-only helper; "
+      "found ${_workflow_capability_guard_count} capability guards.")
 endif()
 string(REGEX MATCHALL "uses: actions/checkout@v[0-9]+" _checkout_uses "${_workflow_contents}")
 list(LENGTH _checkout_uses _checkout_count)
@@ -595,9 +781,9 @@ string(
     _rollout_tooling_guards
     "${_workflow_contents}")
 list(LENGTH _rollout_tooling_guards _rollout_tooling_guard_count)
-if(NOT _rollout_tooling_guard_count EQUAL 2)
+if(NOT _rollout_tooling_guard_count EQUAL 4)
   message(FATAL_ERROR
-      "Expected rollout dependency installation and rehearsal to share the template-tooling guard; "
+      "Expected rollout dependency installation, metadata sync, rosdep, and rehearsal to share the template-tooling guard; "
       "found ${_rollout_tooling_guard_count} guarded steps.")
 endif()
 
@@ -617,6 +803,12 @@ _assert_matches("${_ros2_doc}" "ENABLE_FETCH_SPDLOG=OFF")
 _assert_matches("${_ros2_doc}" "COLCON_IGNORE")
 _assert_matches("${_ros2_doc}" "parent workspace")
 _assert_matches("${_ros2_doc}" "--sync-ros2")
+_assert_matches("${_ros2_doc}" "Project metadata sync")
+_assert_matches("${_ros2_doc}" "PROJECT_METADATA_ONLY")
+_assert_matches("${_ros2_doc}" "CMAKE_PROJECT_DESCRIPTION")
+_assert_matches("${_ros2_doc}" "preserves the established")
+_assert_matches("${_ros2_doc}" "ROS package names")
+_assert_matches("${_ros2_doc}" "--no-version-sync")
 _assert_matches("${_ros2_doc}" "add_ros2_support\\.sh")
 _assert_matches("${_ros2_doc}" "EDIT-ME core-call")
 _assert_matches("${_ros2_doc}" "conversions\\.cpp")
@@ -676,3 +868,10 @@ _assert_matches("${_template_usage}" "template_project_spinup")
 _assert_matches("${_template_usage}" "ros2/template_project")
 _assert_matches("${_template_usage}" "--remove-ros2")
 _assert_matches("${_template_usage}" "ros2/<ros_prefix>_ros/src/conversions\\.cpp")
+_assert_matches("${_template_usage}" "project_description")
+_assert_matches("${_template_usage}" "project_homepage_url")
+_assert_matches("${_template_usage}" "PROJECT_MAINTAINER_NAME")
+_assert_matches("${_template_usage}" "PROJECT_MAINTAINER_EMAIL")
+_assert_matches("${_template_usage}" "PROJECT_LICENSE")
+_assert_matches("${_template_usage}" "one-time package identity")
+_assert_matches("${_template_usage}" "recurring project metadata")

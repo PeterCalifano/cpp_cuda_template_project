@@ -204,3 +204,30 @@ Stage 8 friction note, 2026-07-07:
 - [x] Mirror and red-green test the operational changes in `cpp_cuda_template_testfield` without changing its adapted `conversions.cpp` seam.
 - [x] Run the full standalone, ROS, dogfood, lint, parse, invariant, and Docker gates; append evidence to `ROS2_OVERLAY_STAGE_OUTPUTS.md`.
 - [x] Perform an extensive correctness and design review, then create only the two approved testfield commits without pushing.
+
+## 2026-07-16 project metadata flowdown
+
+### Stage M1 - Root project metadata contract
+
+- [x] Define the project description and homepage through standard CMake `project(DESCRIPTION ... HOMEPAGE_URL ...)` fields, plus explicit cache-backed maintainer name, maintainer email, and SPDX-style license fields.
+- [x] Add an opt-in metadata-only configure mode that resolves the project/version with `LANGUAGES NONE` and returns before dependencies, targets, wrappers, tests, docs, or packaging are configured.
+- [x] Reuse the same fields for CPack description, homepage, vendor, and contact metadata.
+
+### Stage M2 - Structured ROS manifest synchronization
+
+- [x] Extend the static pytest and CMake verifier first so missing root metadata, missing helper integration, stale manifest metadata, lost XML processing instructions, or changed manifest modes fail red.
+- [x] Add a typed Python helper under `ros2/tools/` that reads the metadata-only CMake cache and updates immediate `ros2/*/package.xml` files with `xml.etree.ElementTree` while preserving package names, non-website URLs, unrelated dependencies, and file modes.
+- [x] Expand `generate_version.sh --sync-ros2` to synchronize version, description, maintainer, license, and website metadata through the helper; preserve the existing no-overlay and version-fallback behavior.
+- [x] Synchronize and commit all four template manifests from the root metadata contract.
+
+### Stage M3 - Rollout, CI, and documentation contract
+
+- [x] Keep package identity mapping at rollout time: `add_ros2_support.sh` derives the ROS-valid prefix from root `set(project_name ...)` or `--ros-prefix`, while recurring metadata synchronization preserves those established ROS package names.
+- [x] Run guarded metadata synchronization in the ROS workflow after dependencies are installed and before `rosdep install`; keep copied workflows compatible with missing or older `generate_version.sh` helpers.
+- [x] Update `build_ros2.sh`, rollout checklists, `doc/ros2_overlay.md`, and `doc/template_usage.md` to describe the one-time name mapping versus recurring metadata flowdown.
+
+### Stage M4 - Validation and review
+
+- [x] Run the metadata-only configure probe, direct helper/pytest/CMake verifiers, full standalone tests, clean ROS tests, and scratch remove/re-add dogfood with non-default metadata and a non-ROS CMake name.
+- [x] Run shell lint, YAML/XML/Python parsing, manifest mode checks, conflict scan, and confirm `src/` and `python/` remain untouched; the only root CMake change must be the approved metadata contract.
+- [x] Perform a final correctness/design review, tick this section, and append validation evidence to `ROS2_OVERLAY_STAGE_OUTPUTS.md` and `CONTEXT.md` without staging those bookkeeping files.

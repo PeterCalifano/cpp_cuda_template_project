@@ -80,17 +80,48 @@ Use a ROS 2 Jazzy environment or the ROS devcontainer for local GPU checks:
 
 There are no markers in `doc/`, `matlab/`, or `profiling/`. Runtime-generated top-level directories such as `build*`, `install`, and `template_subbuild` are handled best-effort by `build_ros2.sh` when they exist. This matters when the repository is placed inside a parent workspace: without the markers, a parent colcon crawl can discover unrelated template internals.
 
-## Version sync
+## Project metadata sync
 
-ROS package manifests require strict `X.Y.Z` versions. `build_ros2.sh` runs:
+The root CMake project is the source of truth for overlay metadata. Standard
+`project(DESCRIPTION ... HOMEPAGE_URL ...)` fields export
+`CMAKE_PROJECT_DESCRIPTION` and `CMAKE_PROJECT_HOMEPAGE_URL`; cache-backed
+`PROJECT_MAINTAINER_NAME`, `PROJECT_MAINTAINER_EMAIL`, and `PROJECT_LICENSE`
+fields provide the remaining manifest identity. `PROJECT_METADATA_ONLY=ON`
+configures these values and the resolved version with `LANGUAGES NONE`, then
+returns before compilers, dependencies, targets, wrappers, tests, docs, or
+packaging are configured.
+
+ROS package manifests require strict `X.Y.Z` versions. Before each overlay
+build, `build_ros2.sh` runs:
 
 ```bash
 ./generate_version.sh --sync-ros2
 ```
 
-before colcon builds, unless `--no-version-sync` is passed. The command rewrites the first `<version>` tag in each immediate `ros2/*/package.xml` to the core semantic version. It no-ops when `ros2/` is absent, so keeping `generate_version.sh` in tailored non-ROS projects is safe.
+unless `--no-version-sync` is passed. The flag keeps its legacy spelling for
+compatibility, but now disables the complete metadata synchronization. The
+command invokes `ros2/tools/sync_package_metadata.py`, which updates each
+immediate `ros2/*/package.xml` version, role-specific description, maintainer,
+license, and website URL from the root CMake cache. It preserves the established
+ROS package names, XML processing instructions, non-website URLs, dependencies,
+and file modes.
 
-Run the same command manually after changing tags or before packaging source archives.
+Package names are intentionally outside recurring synchronization. They are a
+one-time rollout or tailoring decision and may differ from the CMake project
+name. This prevents an explicit `--ros-prefix` from being replaced by a later
+metadata refresh.
+
+The command no-ops when `ros2/` is absent, so keeping `generate_version.sh` in
+tailored non-ROS projects is safe. It also retains the existing hardcoded-version
+fallback guard. An older derived repository must adopt the root metadata fields
+and metadata-only configure branch before using the new helper; additive overlay
+rollout does not modify its root `CMakeLists.txt`. Copied build and CI helpers
+also require the `ROS2_PROJECT_METADATA_SYNC=1` capability marker, so the older
+version-only implementation of `--sync-ros2` is skipped instead of being
+misreported as a complete metadata refresh.
+
+Run the same command manually after changing root project metadata or tags, and
+before packaging source archives.
 
 ## Rollout to derived repositories
 
@@ -110,6 +141,10 @@ target_link_libraries(my_target PRIVATE space-nav-frontend::space-nav-frontend)
 ```
 
 The copied ROS packages use paths such as `ros2/space_nav_frontend_ros`. Pass `--ros-prefix <name>` when the derived repository needs an explicit ROS package prefix.
+
+`add_ros2_support.sh` owns this one-time package identity mapping. After the
+target adopts the root metadata contract, `./generate_version.sh --sync-ros2`
+handles recurring project metadata without renaming that package identity.
 
 After the script runs, complete the EDIT-ME core-call step in the primary adaptation seam:
 
@@ -142,8 +177,8 @@ The overlay is kept by default during template cleanup. Remove it explicitly:
 
 `.github/workflows/build_ros2_overlay.yml` runs the overlay in the `ros:jazzy` container. It has two jobs:
 
-- `overlay-build`: installs dependencies, runs `rosdep install --from-paths ros2 -i -r -y --rosdistro jazzy`, builds/tests the overlay, then runs the static pytest.
-- `rollout-dogfood`: strips the overlay from a copy, re-adds it with `add_ros2_support.sh --verify`, builds the overlay, and checks a plain standalone CMake build.
+- `overlay-build`: installs dependencies, synchronizes project metadata, runs `rosdep install --from-paths ros2 -i -r -y --rosdistro jazzy`, builds/tests the overlay, then runs the static pytest.
+- `rollout-dogfood`: performs the same pre-`rosdep` metadata sync, strips the overlay from a copy, re-adds it with `add_ros2_support.sh --verify`, builds the overlay, and checks a plain standalone CMake build.
 
 CUDA+ROS is local-only in this repository. The available self-hosted GPU runner does not provide the ROS environment, so CI intentionally avoids `build_ros2.sh --cuda`.
 

@@ -132,10 +132,15 @@ src/template_src_kernels/    --> src/<your_lib>_kernels/    (if using CUDA)
 src/cmake/template_projectConfig.cmake.in  --> src/cmake/<your_project>Config.cmake.in
 ```
 
-**CMakeLists.txt** (root, line 11):
+**CMakeLists.txt** (root project definition):
 
 ```cmake
 set(project_name "your_project_name")
+set(project_description "Short project description")
+set(project_homepage_url "https://example.com/your_project_name")
+set(PROJECT_MAINTAINER_NAME "Project Maintainer" CACHE STRING "Project maintainer name")
+set(PROJECT_MAINTAINER_EMAIL "maintainer@example.com" CACHE STRING "Project maintainer email")
+set(PROJECT_LICENSE "Apache-2.0" CACHE STRING "Project SPDX license identifier")
 ```
 
 **What to keep as-is:** the entire `cmake/` module system, `build_lib.sh`, `configure_devcontainer.sh`, and `generate_version.sh`. Keep `profiling/` only when the project needs the optional Valgrind/perf helper scripts.
