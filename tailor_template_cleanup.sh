@@ -10,6 +10,7 @@ APPLY=0
 ASSUME_YES=0
 LIST_ONLY=0
 KEEP_PROFILING=0
+REMOVE_ROS2=0
 
 info() { printf '\033[34m[INFO]\033[0m %s\n' "$*"; }
 warn() { printf '\033[33m[WARN]\033[0m %s\n' "$*" >&2; }
@@ -19,7 +20,7 @@ usage() {
     cat <<'EOF'
 Usage:
   ./tailor_template_cleanup.sh --list
-  ./tailor_template_cleanup.sh --apply [--yes] [--root <dir>] [--keep-profiling]
+  ./tailor_template_cleanup.sh --apply [--yes] [--root <dir>] [--keep-profiling] [--remove-ros2]
 
 Purpose:
   Remove files that are only useful while developing cpp_cuda_template_project
@@ -32,6 +33,7 @@ Options:
   --root <dir>    Project root to clean. Defaults to the script directory.
   --keep-profiling
                   Keep profiling/ scripts. By default profiling/ is removed.
+  --remove-ros2   Remove the optional ROS 2 overlay. By default the overlay is kept.
   -h, --help      Show this help.
 EOF
 }
@@ -54,6 +56,7 @@ template_development_paths=(
     "tests/cmake/VerifyTemplateProjectNestedDocsIsolation.cmake"
     "tests/cmake/VerifyTemplateProjectNoOptimization.cmake"
     "tests/cmake/VerifyTemplateProjectOptimizedFlags.cmake"
+    "tests/cmake/VerifyTemplateProjectRos2Overlay.cmake"
     "tests/cmake/VerifyTemplateProjectTailoringScript.cmake"
     "tests/cmake/VerifyTemplateProjectVersionSideEffects.cmake"
     "tests/matlab/RunTemplateWrapperRegression.m"
@@ -61,6 +64,27 @@ template_development_paths=(
 
 optional_paths=(
     "profiling"
+)
+
+ros2_overlay_paths=(
+    "ros2"
+    "build_ros2.sh"
+    "add_ros2_support.sh"
+    "python/COLCON_IGNORE"
+    "lib/COLCON_IGNORE"
+    "examples/COLCON_IGNORE"
+    "tests/COLCON_IGNORE"
+    ".github/workflows/build_ros2_overlay.yml"
+    "doc/ros2_overlay.md"
+    "tests/template_test/testRos2OverlayStatic.py"
+)
+
+ros2_overlay_doc_paths=(
+    "README.md"
+    "AGENTS.md"
+    "CLAUDE.md"
+    "doc/bootstrap_prompts.md"
+    "doc/template_usage.md"
 )
 
 print_cleanup_list() {
@@ -77,15 +101,28 @@ EOF
     fi
     cat <<'EOF'
 
+ROS 2 overlay:
+  - ROS 2 overlay KEPT by default; pass --remove-ros2 to strip it.
+EOF
+    if ((REMOVE_ROS2)); then
+        printf '  - --remove-ros2 is set; these paths will be removed when present:\n'
+        for path_ in "${ros2_overlay_paths[@]}"; do
+            printf '    - %s\n' "${path_}"
+        done
+    fi
+    cat <<'EOF'
+
 CMake edits made by --apply:
   - Remove the root CMake include/call for AddMatlabWrapperRegressionTests.cmake.
   - Replace tests/CMakeLists.txt template-validation registrations with the project unit-test section.
+  - With --remove-ros2, strip <!-- ros2-overlay-begin/end --> fenced doc blocks.
 
 Not removed:
   - cmake/, build_lib.sh, generate_version.sh, docs workflow files, issue forms, and docs guides.
   - tests/template_test and tests/template_fixtures, because they are starter project tests.
   - .devcontainer, .vscode, examples/, and toolchains, because they are reusable project infrastructure.
   - profiling/ only when --keep-profiling is set.
+  - ROS 2 overlay files unless --remove-ros2 is set.
 EOF
 }
 
@@ -106,6 +143,10 @@ parse_args() {
                 ;;
             --keep-profiling)
                 KEEP_PROFILING=1
+                shift
+                ;;
+            --remove-ros2)
+                REMOVE_ROS2=1
                 shift
                 ;;
             --root)
@@ -223,6 +264,58 @@ EOF
     fi
 }
 
+strip_ros2_overlay_doc_fences() {
+    local relative_path_
+    local doc_file_
+    local tmp_
+
+    ((REMOVE_ROS2)) || return
+
+    for relative_path_ in "${ros2_overlay_doc_paths[@]}"; do
+        doc_file_="${ROOT_DIR}/${relative_path_}"
+        if [[ ! -f "${doc_file_}" ]]; then
+            info "skip missing ${relative_path_}"
+            continue
+        fi
+
+        if ! grep -q "<!-- ros2-overlay-begin -->" "${doc_file_}" && \
+           ! grep -q "<!-- ros2-overlay-end -->" "${doc_file_}"; then
+            info "no ROS 2 overlay fence in ${relative_path_}"
+            continue
+        fi
+
+        if ((APPLY)); then
+            tmp_="$(mktemp)"
+            if awk '
+                /<!--[[:space:]]*ros2-overlay-begin[[:space:]]*-->/ {
+                    in_ros2_overlay_ = 1
+                    next
+                }
+                /<!--[[:space:]]*ros2-overlay-end[[:space:]]*-->/ {
+                    if (in_ros2_overlay_) {
+                        in_ros2_overlay_ = 0
+                        next
+                    }
+                }
+                !in_ros2_overlay_ { print }
+                END {
+                    if (in_ros2_overlay_) {
+                        exit 1
+                    }
+                }
+            ' "${doc_file_}" > "${tmp_}"; then
+                mv "${tmp_}" "${doc_file_}"
+                info "stripped ROS 2 overlay fence from ${relative_path_}"
+            else
+                rm -f "${tmp_}"
+                die "Malformed ROS 2 overlay fence in ${relative_path_}"
+            fi
+        else
+            info "would strip ROS 2 overlay fence from ${relative_path_}"
+        fi
+    done
+}
+
 confirm_apply() {
     ((APPLY)) || return
     ((ASSUME_YES)) && return
@@ -258,6 +351,15 @@ main() {
         done
     else
         info "keeping profiling/"
+    fi
+
+    if ((REMOVE_ROS2)); then
+        for path_ in "${ros2_overlay_paths[@]}"; do
+            remove_path "${path_}"
+        done
+        strip_ros2_overlay_doc_fences
+    else
+        info "keeping ROS 2 overlay; pass --remove-ros2 to strip it"
     fi
 
     patch_root_cmakelists
