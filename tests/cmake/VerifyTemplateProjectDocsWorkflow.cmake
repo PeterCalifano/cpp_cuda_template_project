@@ -9,6 +9,7 @@ endforeach()
 if(NOT EXISTS "${TEST_TEMPLATE_SOURCE_DIR}/CMakeLists.txt")
   message(FATAL_ERROR "Invalid template source dir: ${TEST_TEMPLATE_SOURCE_DIR}")
 endif()
+get_filename_component(_template_source_dir "${TEST_TEMPLATE_SOURCE_DIR}" REALPATH)
 
 function(_run_step step_name)
   execute_process(
@@ -52,7 +53,7 @@ set(_build_dir "${TEST_BINARY_ROOT}/build")
 _run_step(
     "Configure documentation build"
     ${CMAKE_COMMAND}
-        -S "${TEST_TEMPLATE_SOURCE_DIR}"
+        -S "${_template_source_dir}"
         -B "${_build_dir}"
         -DCMAKE_BUILD_TYPE=RelWithDebInfo
         -DENABLE_TESTS=OFF
@@ -91,16 +92,16 @@ set(_xml_index "${_build_dir}/doc/xml/index.xml")
 
 _assert_file_contains("${_doxyfile}" "GENERATE_HTML[ ]*=[ ]*YES")
 _assert_file_contains("${_doxyfile}" "GENERATE_XML[ ]*=[ ]*YES")
-_assert_file_contains("${_doxyfile}" "INPUT[ ]*=.*${TEST_TEMPLATE_SOURCE_DIR}/README.md.*${TEST_TEMPLATE_SOURCE_DIR}/src.*${TEST_TEMPLATE_SOURCE_DIR}/doc")
-_assert_file_contains("${_doxyfile}" "EXCLUDE[ ]*=.*${TEST_TEMPLATE_SOURCE_DIR}/lib.*${TEST_TEMPLATE_SOURCE_DIR}/doc/developments")
-_assert_file_contains("${_doxyfile}" "USE_MDFILE_AS_MAINPAGE[ ]*=[ ]*${TEST_TEMPLATE_SOURCE_DIR}/doc/main_page.md")
+_assert_file_contains("${_doxyfile}" "INPUT[ ]*=.*${_template_source_dir}/README.md.*${_template_source_dir}/src.*${_template_source_dir}/doc")
+_assert_file_contains("${_doxyfile}" "EXCLUDE[ ]*=.*${_template_source_dir}/lib.*${_template_source_dir}/doc/developments")
+_assert_file_contains("${_doxyfile}" "USE_MDFILE_AS_MAINPAGE[ ]*=[ ]*${_template_source_dir}/doc/main_page.md")
 file(READ "${_doxyfile}" _doxyfile_contents)
 string(REGEX MATCH "INPUT[^\n]*" _doxyfile_input_line "${_doxyfile_contents}")
-if(_doxyfile_input_line MATCHES "${TEST_TEMPLATE_SOURCE_DIR}/lib")
+if(_doxyfile_input_line MATCHES "${_template_source_dir}/lib")
   message(FATAL_ERROR "Doxygen INPUT includes lib directory: ${_doxyfile_input_line}")
 endif()
 string(REGEX MATCH "(^|\n)EXCLUDE[ ]*=[^\n]*" _doxyfile_exclude_line "${_doxyfile_contents}")
-if(NOT _doxyfile_exclude_line MATCHES "${TEST_TEMPLATE_SOURCE_DIR}/doc/developments")
+if(NOT _doxyfile_exclude_line MATCHES "${_template_source_dir}/doc/developments")
   message(FATAL_ERROR "Doxygen EXCLUDE does not include internal development notes: ${_doxyfile_exclude_line}")
 endif()
 

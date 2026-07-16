@@ -1,7 +1,7 @@
 # Basic usage of catch2 for build config:
 # These tests can use the Catch2-provided main
 #add_executable(tests test.cpp)
-#target_link_libraries(tests PRIVATE Catch2::Catch2WithMain) 
+#target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)
 
 # These tests need their own main
 #add_executable(custom-main-tests test.cpp test-main.cpp)
@@ -162,6 +162,21 @@ set_tests_properties(
     TIMEOUT 60
 )
 
+add_test(
+    NAME template_project_ros2_overlay_static_contract
+    COMMAND ${CMAKE_COMMAND}
+        -DTEST_TEMPLATE_SOURCE_DIR=${PROJECT_SOURCE_DIR}
+        -DTEST_BINARY_ROOT=${PROJECT_BINARY_DIR}/ros2_overlay
+        -DEXPECTED_VERSION=${PROJECT_VERSION_CORE}
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyTemplateProjectRos2Overlay.cmake
+)
+set_tests_properties(
+    template_project_ros2_overlay_static_contract
+    PROPERTIES
+    LABELS "ros2;template"
+    TIMEOUT 60
+)
+
 find_program(
     TEMPLATE_NVCC_EXECUTABLE
     NAMES nvcc
@@ -223,7 +238,7 @@ endif()
 
 # Exclude EXCLUDED_LIST from the list of tests
 set(EXCLUDED_LIST "test_to_exclude")  # Specify files to exclude WE
-set(TESTS_LIST "") 
+set(TESTS_LIST "")
 
 # Include the content of the fixtures directory
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})

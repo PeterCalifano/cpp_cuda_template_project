@@ -1,0 +1,678 @@
+cmake_minimum_required(VERSION 3.15)
+
+foreach(required_var TEST_TEMPLATE_SOURCE_DIR TEST_BINARY_ROOT EXPECTED_VERSION)
+  if(NOT DEFINED ${required_var})
+    message(FATAL_ERROR "Missing required variable: ${required_var}")
+  endif()
+endforeach()
+
+if(NOT EXPECTED_VERSION MATCHES "^[0-9]+\\.[0-9]+\\.[0-9]+$")
+  message(FATAL_ERROR "EXPECTED_VERSION must be strict X.Y.Z, got '${EXPECTED_VERSION}'")
+endif()
+
+set(_root "${TEST_TEMPLATE_SOURCE_DIR}")
+
+function(_read_required file_path out_var)
+  if(NOT EXISTS "${file_path}")
+    message(FATAL_ERROR "Required file not found: ${file_path}")
+  endif()
+  file(READ "${file_path}" _contents)
+  set(${out_var} "${_contents}" PARENT_SCOPE)
+endfunction()
+
+function(_assert_matches file_path pattern)
+  _read_required("${file_path}" _contents)
+  if(NOT _contents MATCHES "${pattern}")
+    message(FATAL_ERROR "Expected '${file_path}' to match '${pattern}'")
+  endif()
+endfunction()
+
+function(_assert_not_matches file_path pattern)
+  _read_required("${file_path}" _contents)
+  if(_contents MATCHES "${pattern}")
+    message(FATAL_ERROR "Expected '${file_path}' not to match '${pattern}'")
+  endif()
+endfunction()
+
+function(_assert_ros2_fence relative_path)
+  set(_doc_path "${_root}/${relative_path}")
+  _read_required("${_doc_path}" _contents)
+  if(NOT _contents MATCHES "<!-- ros2-overlay-begin -->")
+    message(FATAL_ERROR "Missing ROS 2 overlay begin fence in ${relative_path}")
+  endif()
+  if(NOT _contents MATCHES "<!-- ros2-overlay-end -->")
+    message(FATAL_ERROR "Missing ROS 2 overlay end fence in ${relative_path}")
+  endif()
+endfunction()
+
+foreach(_required_path
+    ".github/workflows/build_ros2_overlay.yml"
+    "build_ros2.sh"
+    "add_ros2_support.sh"
+    "tailor_template_cleanup.sh"
+    "generate_version.sh"
+    "doc/ros2_overlay.md"
+    "ros2/template_project/CMakeLists.txt"
+    "ros2/template_project/package.xml"
+    "ros2/template_project_interfaces/package.xml"
+    "ros2/template_project_ros/package.xml"
+    "ros2/template_project_spinup/package.xml")
+  if(NOT EXISTS "${_root}/${_required_path}")
+    message(FATAL_ERROR "Missing ROS 2 overlay path: ${_required_path}")
+  endif()
+endforeach()
+
+find_program(_bash_executable NAMES bash)
+if(NOT _bash_executable)
+  message(FATAL_ERROR "bash executable not found; cannot validate build_ros2.sh syntax")
+endif()
+
+execute_process(
+    COMMAND "${_bash_executable}" -n "${_root}/build_ros2.sh"
+    RESULT_VARIABLE _bash_result
+    OUTPUT_VARIABLE _bash_stdout
+    ERROR_VARIABLE _bash_stderr)
+if(NOT _bash_result EQUAL 0)
+  message(FATAL_ERROR
+      "build_ros2.sh syntax check failed with exit code ${_bash_result}.\n"
+      "stdout:\n${_bash_stdout}\n"
+      "stderr:\n${_bash_stderr}")
+endif()
+
+execute_process(
+    COMMAND "${_bash_executable}" -n "${_root}/add_ros2_support.sh"
+    RESULT_VARIABLE _add_bash_result
+    OUTPUT_VARIABLE _add_bash_stdout
+    ERROR_VARIABLE _add_bash_stderr)
+if(NOT _add_bash_result EQUAL 0)
+  message(FATAL_ERROR
+      "add_ros2_support.sh syntax check failed with exit code ${_add_bash_result}.\n"
+      "stdout:\n${_add_bash_stdout}\n"
+      "stderr:\n${_add_bash_stderr}")
+endif()
+
+foreach(_marker
+    "python/COLCON_IGNORE"
+    "lib/COLCON_IGNORE"
+    "examples/COLCON_IGNORE"
+    "tests/COLCON_IGNORE")
+  if(NOT EXISTS "${_root}/${_marker}")
+    message(FATAL_ERROR "Missing required colcon marker: ${_marker}")
+  endif()
+endforeach()
+
+foreach(_package_name
+    template_project
+    template_project_interfaces
+    template_project_ros
+    template_project_spinup)
+  set(_package_xml "${_root}/ros2/${_package_name}/package.xml")
+  _read_required("${_package_xml}" _package_contents)
+  string(REGEX MATCH "<version>[ \t\r\n]*([^< \t\r\n]+)[ \t\r\n]*</version>" _version_match "${_package_contents}")
+  if(NOT _version_match)
+    message(FATAL_ERROR "No <version> tag found in ${_package_xml}")
+  endif()
+  set(_package_version "${CMAKE_MATCH_1}")
+  if(NOT "${_package_version}" STREQUAL "${EXPECTED_VERSION}")
+    message(FATAL_ERROR
+        "Expected ${_package_xml} version '${EXPECTED_VERSION}', got '${_package_version}'")
+  endif()
+endforeach()
+
+set(_interfaces_cmake "${_root}/ros2/template_project_interfaces/CMakeLists.txt")
+set(_interfaces_package "${_root}/ros2/template_project_interfaces/package.xml")
+_assert_not_matches("${_interfaces_cmake}" "std_msgs")
+_assert_not_matches("${_interfaces_package}" "<depend>std_msgs</depend>")
+_assert_not_matches("${_interfaces_package}" "ament_lint_auto|ament_lint_common")
+
+set(_shim_cmake "${_root}/ros2/template_project/CMakeLists.txt")
+_assert_matches("${_shim_cmake}" "CMAKE_MODULE_PATH")
+_assert_matches("${_shim_cmake}" "ENABLE_TESTS[ \t\r\n]+OFF")
+_assert_matches("${_shim_cmake}" "ENABLE_FETCH_CATCH2[ \t\r\n]+OFF")
+_assert_matches("${_shim_cmake}" "_ros2_overlay_legacy_version_file")
+_assert_matches("${_shim_cmake}" "_ros2_overlay_nested_version_file")
+_assert_matches("${_shim_cmake}" "configure_file")
+_assert_not_matches("${_shim_cmake}" "python/")
+
+set(_ros_bridge_cmake "${_root}/ros2/template_project_ros/CMakeLists.txt")
+_assert_matches("${_ros_bridge_cmake}" "Nested and older derived cores")
+_assert_matches(
+    "${_ros_bridge_cmake}"
+    "target_link_libraries\\(template_project_ros_component[^)]*template_project::template_project")
+_assert_matches(
+    "${_ros_bridge_cmake}"
+    "target_include_directories\\(template_project_ros_component[^)]*TEMPLATE_PROJECT_REPOSITORY_ROOT}/src")
+
+set(_conversions_cpp "${_root}/ros2/template_project_ros/src/conversions.cpp")
+_assert_matches("${_conversions_cpp}" "template-core call site \\(EDIT ME")
+_assert_matches("${_conversions_cpp}" "#include \"wrapped_impl/CWrapperPlaceholder\\.h\"")
+_assert_matches("${_conversions_cpp}" "double EvaluateTemplateCore")
+_assert_matches("${_conversions_cpp}" "cpp_playground::CWrapperPlaceholder::multiplyBy2")
+
+set(_standalone_launch "${_root}/ros2/template_project_spinup/launch/template_project.launch.py")
+_assert_matches("${_standalone_launch}" "from launch_ros.actions import LifecycleNode")
+_assert_matches("${_standalone_launch}" "LifecycleNode\\(")
+_assert_matches("${_standalone_launch}" "autostart=True")
+_assert_matches("${_standalone_launch}" "# from launch_ros.actions import Node")
+_assert_matches("${_standalone_launch}" "# Node\\(")
+_assert_matches("${_standalone_launch}" "external lifecycle manager")
+
+set(_composition_launch "${_root}/ros2/template_project_spinup/launch/template_project_composition.launch.py")
+_assert_matches("${_composition_launch}" "from launch_ros.descriptions import ComposableLifecycleNode as _RosComposableLifecycleNode")
+_assert_matches("${_composition_launch}" "ComposableLifecycleNode\\(")
+_assert_matches("${_composition_launch}" "autostart=True")
+_assert_matches("${_composition_launch}" "# from launch_ros.descriptions import ComposableNode")
+_assert_matches("${_composition_launch}" "# ComposableNode\\(")
+_assert_matches("${_composition_launch}" "external lifecycle manager")
+_assert_matches("${_composition_launch}" "class ComposableLifecycleNode\\(_RosComposableLifecycleNode\\)")
+_assert_matches("${_composition_launch}" "LifecycleEventManager")
+_assert_matches("${_composition_launch}" "charFullyQualifiedName_")
+_assert_matches("${_composition_launch}" "make_namespace_absolute")
+_assert_matches("${_composition_launch}" "launch_configurations.get\\(\"ros_namespace\"")
+_assert_matches("${_composition_launch}" "super\\(\\).__init__\\(autostart=False")
+_assert_matches("${_composition_launch}" "LifecycleTransition\\(")
+_assert_matches("${_composition_launch}" "makeAutostartAction")
+
+set(_spinup_config "${_root}/ros2/template_project_spinup/config/template_project.yaml")
+_assert_matches("${_spinup_config}" "/\\*\\*:")
+
+set(_spinup_cmake "${_root}/ros2/template_project_spinup/CMakeLists.txt")
+_assert_matches("${_spinup_cmake}" "find_package\\(launch_testing_ament_cmake REQUIRED\\)")
+_assert_matches("${_spinup_cmake}" "add_launch_test\\(")
+_assert_matches("${_spinup_cmake}" "TIMEOUT")
+
+set(_spinup_package "${_root}/ros2/template_project_spinup/package.xml")
+foreach(_runtime_dependency ament_index_python lifecycle_msgs rclcpp_components)
+  _assert_matches("${_spinup_package}" "<exec_depend>${_runtime_dependency}</exec_depend>")
+endforeach()
+foreach(_test_dependency launch_testing_ament_cmake rclpy lifecycle_msgs template_project_interfaces)
+  _assert_matches("${_spinup_package}" "<test_depend>${_test_dependency}</test_depend>")
+endforeach()
+
+set(_spinup_launch_test "${_root}/ros2/template_project_spinup/test/test_spinup_launch.py")
+_assert_matches("${_spinup_launch_test}" "launch_testing.parametrize")
+_assert_matches("${_spinup_launch_test}" "template_project.launch.py")
+_assert_matches("${_spinup_launch_test}" "template_project_composition.launch.py")
+_assert_matches("${_spinup_launch_test}" "PushRosNamespace")
+_assert_matches("${_spinup_launch_test}" "integration")
+_assert_matches("${_spinup_launch_test}" "PRIMARY_STATE_ACTIVE")
+_assert_matches("${_spinup_launch_test}" "f\"{charNodePath_}/run_algorithm\"")
+_assert_matches("${_spinup_launch_test}" "14.0")
+_assert_matches("${_spinup_launch_test}" "ok")
+
+_read_required("${_root}/generate_version.sh" _generate_version_script)
+if(NOT _generate_version_script MATCHES "--sync-ros2")
+  message(FATAL_ERROR "generate_version.sh does not advertise --sync-ros2")
+endif()
+
+_read_required("${_root}/build_ros2.sh" _build_ros2_script)
+if(NOT _build_ros2_script MATCHES "generate_version\\.sh[^\\n]*--sync-ros2")
+  message(FATAL_ERROR "build_ros2.sh does not invoke generate_version.sh --sync-ros2")
+endif()
+if(NOT _build_ros2_script MATCHES "predates --sync-ros2")
+  message(FATAL_ERROR "build_ros2.sh does not warn when a derived repo has an older version helper")
+endif()
+if(NOT _build_ros2_script MATCHES "test-result --test-result-base")
+  message(FATAL_ERROR "build_ros2.sh does not scope selected-package result checks")
+endif()
+
+_read_required("${_root}/add_ros2_support.sh" _add_ros2_support_script)
+if(NOT _add_ros2_support_script MATCHES "grep -Iq \\. \"\\$\\{file_path_\\}\" \\|\\| return 0")
+  message(FATAL_ERROR "add_ros2_support.sh must suppress grep exit 1 while skipping non-text files.")
+endif()
+if(NOT _add_ros2_support_script MATCHES "--ros-prefix")
+  message(FATAL_ERROR "add_ros2_support.sh must support overriding the derived ROS package prefix.")
+endif()
+if(NOT _add_ros2_support_script MATCHES "cmake_project_name")
+  message(FATAL_ERROR "add_ros2_support.sh must keep the CMake project name separate from the ROS package prefix.")
+endif()
+if(NOT _add_ros2_support_script MATCHES "ros_package_prefix")
+  message(FATAL_ERROR "add_ros2_support.sh must track the ROS package prefix separately.")
+endif()
+if(_add_ros2_support_script MATCHES "target_has_conflicts")
+  message(FATAL_ERROR "add_ros2_support.sh still uses inverted target_has_conflicts naming.")
+endif()
+if(NOT _add_ros2_support_script MATCHES "mktemp -d[^\\n]*add_ros2_support_verify")
+  message(FATAL_ERROR "add_ros2_support.sh verify path does not create an isolated scratch dir.")
+endif()
+if(NOT _add_ros2_support_script MATCHES "trap[^\n]*rm -rf[^\n]*VERIFY_SCRATCH_DIR")
+  message(FATAL_ERROR "add_ros2_support.sh verify scratch dir is not guarded by cleanup.")
+endif()
+
+function(_run_success step_name)
+  execute_process(
+      COMMAND ${ARGN}
+      RESULT_VARIABLE _result
+      OUTPUT_VARIABLE _stdout
+      ERROR_VARIABLE _stderr)
+  if(NOT _result EQUAL 0)
+    message(FATAL_ERROR
+        "${step_name} failed with exit code ${_result}.\n"
+        "stdout:\n${_stdout}\n"
+        "stderr:\n${_stderr}")
+  endif()
+  set(_last_stdout "${_stdout}" PARENT_SCOPE)
+  set(_last_stderr "${_stderr}" PARENT_SCOPE)
+endfunction()
+
+function(_run_failure step_name expected_pattern)
+  execute_process(
+      COMMAND ${ARGN}
+      RESULT_VARIABLE _result
+      OUTPUT_VARIABLE _stdout
+      ERROR_VARIABLE _stderr)
+  if(_result EQUAL 0)
+    message(FATAL_ERROR
+        "${step_name} unexpectedly succeeded.\n"
+        "stdout:\n${_stdout}\n"
+        "stderr:\n${_stderr}")
+  endif()
+  set(_combined_output "${_stdout}\n${_stderr}")
+  if(NOT _combined_output MATCHES "${expected_pattern}")
+    message(FATAL_ERROR
+        "${step_name} failed, but output did not match '${expected_pattern}'.\n"
+        "stdout:\n${_stdout}\n"
+        "stderr:\n${_stderr}")
+  endif()
+endfunction()
+
+function(_create_fake_target fake_root project_name)
+  file(REMOVE_RECURSE "${fake_root}")
+  file(MAKE_DIRECTORY
+      "${fake_root}/.github/workflows"
+      "${fake_root}/doc"
+      "${fake_root}/examples"
+      "${fake_root}/lib"
+      "${fake_root}/python"
+      "${fake_root}/tests")
+  file(WRITE "${fake_root}/build_lib.sh" "#!/usr/bin/env bash\n")
+  file(WRITE "${fake_root}/CMakeLists.txt"
+"cmake_minimum_required(VERSION 3.15)
+set(project_name \"${project_name}\")
+project(\${project_name} LANGUAGES NONE)
+")
+endfunction()
+
+file(REMOVE_RECURSE "${TEST_BINARY_ROOT}")
+set(_fake_list "${TEST_BINARY_ROOT}/fake_list")
+set(_fake_conflict "${TEST_BINARY_ROOT}/fake_conflict")
+set(_fake_doc_conflict "${TEST_BINARY_ROOT}/fake_doc_conflict")
+set(_fake_workflow_conflict "${TEST_BINARY_ROOT}/fake_workflow_conflict")
+set(_fake_workflow_no_ci "${TEST_BINARY_ROOT}/fake_workflow_no_ci")
+set(_fake_apply "${TEST_BINARY_ROOT}/fake_apply")
+set(_fake_boundary "${TEST_BINARY_ROOT}/fake_boundary")
+
+_create_fake_target("${_fake_list}" "my_template_project_x")
+_run_success(
+    "List ROS 2 rollout plan for fake target"
+    "${_bash_executable}" "${_root}/add_ros2_support.sh" --list --root "${_fake_list}")
+if(NOT _last_stdout MATCHES "Detected target project:[ ]+my_template_project_x")
+  message(FATAL_ERROR "add_ros2_support.sh --list did not report the detected target project name.")
+endif()
+if(NOT _last_stdout MATCHES "ROS package prefix:[ ]+my_template_project_x")
+  message(FATAL_ERROR "add_ros2_support.sh --list did not report the derived ROS package prefix.")
+endif()
+if(EXISTS "${_fake_list}/ros2")
+  message(FATAL_ERROR "add_ros2_support.sh --list modified the target by creating ros2/.")
+endif()
+
+_run_failure(
+    "Reject rollout verification without apply mode"
+    "--verify requires --apply"
+    "${_bash_executable}" "${_root}/add_ros2_support.sh" --verify --root "${_fake_list}")
+
+_create_fake_target("${_fake_conflict}" "space_nav")
+file(MAKE_DIRECTORY "${_fake_conflict}/ros2")
+_run_failure(
+    "Refuse target with existing ros2 overlay"
+    "already has ros2"
+    "${_bash_executable}" "${_root}/add_ros2_support.sh" --apply --yes --root "${_fake_conflict}")
+
+_create_fake_target("${_fake_doc_conflict}" "space_nav")
+file(WRITE "${_fake_doc_conflict}/doc/ros2_overlay.md" "target-owned documentation\n")
+_run_failure(
+    "Refuse target with existing ROS 2 overlay documentation"
+    "doc/ros2_overlay.md"
+    "${_bash_executable}" "${_root}/add_ros2_support.sh" --apply --yes --root "${_fake_doc_conflict}")
+if(EXISTS "${_fake_doc_conflict}/ros2" OR EXISTS "${_fake_doc_conflict}/build_ros2.sh")
+  message(FATAL_ERROR "Documentation collision left a partially copied ROS 2 overlay.")
+endif()
+_read_required("${_fake_doc_conflict}/doc/ros2_overlay.md" _target_doc_contents)
+if(NOT _target_doc_contents STREQUAL "target-owned documentation\n")
+  message(FATAL_ERROR "Documentation collision changed the target-owned file.")
+endif()
+
+_create_fake_target("${_fake_workflow_conflict}" "space_nav")
+file(WRITE "${_fake_workflow_conflict}/.github/workflows/build_ros2_overlay.yml" "target-owned workflow\n")
+_run_failure(
+    "Refuse target with existing ROS 2 overlay workflow"
+    "build_ros2_overlay.yml"
+    "${_bash_executable}" "${_root}/add_ros2_support.sh" --apply --yes --root "${_fake_workflow_conflict}")
+if(EXISTS "${_fake_workflow_conflict}/ros2" OR EXISTS "${_fake_workflow_conflict}/build_ros2.sh")
+  message(FATAL_ERROR "Workflow collision left a partially copied ROS 2 overlay.")
+endif()
+_read_required("${_fake_workflow_conflict}/.github/workflows/build_ros2_overlay.yml" _target_workflow_contents)
+if(NOT _target_workflow_contents STREQUAL "target-owned workflow\n")
+  message(FATAL_ERROR "Workflow collision changed the target-owned file.")
+endif()
+
+_create_fake_target("${_fake_workflow_no_ci}" "space_nav")
+file(WRITE "${_fake_workflow_no_ci}/.github/workflows/build_ros2_overlay.yml" "target-owned workflow\n")
+_run_success(
+    "Ignore existing workflow when rollout uses --no-ci"
+    "${_bash_executable}" "${_root}/add_ros2_support.sh" --apply --yes --no-ci --root "${_fake_workflow_no_ci}")
+if(NOT EXISTS "${_fake_workflow_no_ci}/ros2" OR NOT EXISTS "${_fake_workflow_no_ci}/build_ros2.sh")
+  message(FATAL_ERROR "--no-ci rollout did not add the required ROS 2 overlay paths.")
+endif()
+_read_required("${_fake_workflow_no_ci}/.github/workflows/build_ros2_overlay.yml" _no_ci_workflow_contents)
+if(NOT _no_ci_workflow_contents STREQUAL "target-owned workflow\n")
+  message(FATAL_ERROR "--no-ci rollout changed the existing target workflow.")
+endif()
+
+_create_fake_target("${_fake_apply}" "space_nav")
+_run_success(
+    "Apply ROS 2 rollout to fake target"
+    "${_bash_executable}" "${_root}/add_ros2_support.sh" --apply --yes --no-ci --root "${_fake_apply}")
+if(NOT _last_stdout MATCHES "ros2/space_nav_ros/src/conversions\\.cpp")
+  message(FATAL_ERROR "Post-apply checklist does not point at conversions.cpp as the primary seam.")
+endif()
+if(_last_stdout MATCHES "CTemplateLifecycleNode\\.cpp to a real")
+  message(FATAL_ERROR "Post-apply checklist still names CTemplateLifecycleNode.cpp as the primary seam.")
+endif()
+foreach(_expected_path
+    "build_ros2.sh"
+    "ros2/space_nav/package.xml"
+    "ros2/space_nav_interfaces/package.xml"
+    "ros2/space_nav_ros/package.xml"
+    "ros2/space_nav_spinup/package.xml"
+    "python/COLCON_IGNORE"
+    "lib/COLCON_IGNORE"
+    "examples/COLCON_IGNORE"
+    "tests/COLCON_IGNORE")
+  if(NOT EXISTS "${_fake_apply}/${_expected_path}")
+    message(FATAL_ERROR "Expected add_ros2_support.sh to create ${_expected_path}")
+  endif()
+endforeach()
+foreach(_forbidden_path
+    "add_ros2_support.sh"
+    "tests/cmake/VerifyTemplateProjectRos2Overlay.cmake"
+    "ros2/build"
+    "ros2/install"
+    "ros2/log")
+  if(EXISTS "${_fake_apply}/${_forbidden_path}")
+    message(FATAL_ERROR "add_ros2_support.sh unexpectedly copied ${_forbidden_path}")
+  endif()
+endforeach()
+
+file(GLOB_RECURSE _fake_apply_files LIST_DIRECTORIES false "${_fake_apply}/ros2/*")
+foreach(_fake_file IN LISTS _fake_apply_files)
+  file(READ "${_fake_file}" _fake_contents)
+  if(_fake_contents MATCHES "template_project")
+    message(FATAL_ERROR "Placeholder name remained in copied overlay file ${_fake_file}")
+  endif()
+endforeach()
+
+_create_fake_target("${_fake_boundary}" "my_template_project_x")
+_run_success(
+    "Apply ROS 2 rollout to word-boundary fake target"
+    "${_bash_executable}" "${_root}/add_ros2_support.sh" --apply --yes --no-ci --root "${_fake_boundary}")
+if(NOT EXISTS "${_fake_boundary}/ros2/my_template_project_x/package.xml")
+  message(FATAL_ERROR "Expected word-boundary project name to produce my_template_project_x package.")
+endif()
+if(EXISTS "${_fake_boundary}/ros2/my_my_template_project_x_x/package.xml")
+  message(FATAL_ERROR "Project name was recursively or substring-renamed.")
+endif()
+
+set(_fake_cmake_name_split "${TEST_BINARY_ROOT}/fake_cmake_name_split")
+_create_fake_target("${_fake_cmake_name_split}" "space-nav-frontend")
+_run_success(
+    "Apply ROS 2 rollout to fake target with non-ROS CMake package name"
+    "${_bash_executable}" "${_root}/add_ros2_support.sh" --apply --yes --no-ci --root "${_fake_cmake_name_split}")
+foreach(_expected_path
+    "ros2/space_nav_frontend/package.xml"
+    "ros2/space_nav_frontend_interfaces/package.xml"
+    "ros2/space_nav_frontend_ros/package.xml"
+    "ros2/space_nav_frontend_spinup/package.xml")
+  if(NOT EXISTS "${_fake_cmake_name_split}/${_expected_path}")
+    message(FATAL_ERROR "Expected non-ROS CMake name rollout to create ${_expected_path}")
+  endif()
+endforeach()
+_read_required("${_fake_cmake_name_split}/ros2/space_nav_frontend_ros/CMakeLists.txt" _split_bridge_cmake)
+if(NOT _split_bridge_cmake MATCHES "find_package\\(space-nav-frontend REQUIRED\\)")
+  message(FATAL_ERROR "Bridge CMake did not preserve the original core CMake package name.")
+endif()
+if(NOT _split_bridge_cmake MATCHES "space-nav-frontend::space-nav-frontend")
+  message(FATAL_ERROR "Bridge CMake did not preserve the original core CMake target namespace.")
+endif()
+_read_required("${_fake_cmake_name_split}/ros2/space_nav_frontend_ros/package.xml" _split_bridge_package)
+if(NOT _split_bridge_package MATCHES "<depend>space_nav_frontend</depend>")
+  message(FATAL_ERROR "Bridge package.xml does not depend on the ROS-valid shim package name.")
+endif()
+if(_split_bridge_package MATCHES "<depend>space-nav-frontend</depend>")
+  message(FATAL_ERROR "Bridge package.xml used the non-ROS CMake name as a ROS package dependency.")
+endif()
+
+set(_fake_ros_prefix_override "${TEST_BINARY_ROOT}/fake_ros_prefix_override")
+_create_fake_target("${_fake_ros_prefix_override}" "space-nav-frontend")
+_run_success(
+    "Apply ROS 2 rollout with explicit ROS package prefix"
+    "${_bash_executable}" "${_root}/add_ros2_support.sh" --apply --yes --no-ci --root "${_fake_ros_prefix_override}" --ros-prefix snf)
+if(NOT EXISTS "${_fake_ros_prefix_override}/ros2/snf_ros/package.xml")
+  message(FATAL_ERROR "Expected --ros-prefix to control copied ROS package names.")
+endif()
+
+set(_fake_invalid_ros_prefix "${TEST_BINARY_ROOT}/fake_invalid_ros_prefix")
+_create_fake_target("${_fake_invalid_ros_prefix}" "space-nav-frontend")
+_run_failure(
+    "Reject invalid explicit ROS package prefix"
+    "Invalid ROS package prefix"
+    "${_bash_executable}" "${_root}/add_ros2_support.sh" --list --root "${_fake_invalid_ros_prefix}" --ros-prefix bad-name)
+
+set(_fake_rollout_source "${TEST_BINARY_ROOT}/fake_rollout_source")
+set(_fake_filtered_rollout "${TEST_BINARY_ROOT}/fake_filtered_rollout")
+file(REMOVE_RECURSE "${_fake_rollout_source}")
+file(MAKE_DIRECTORY
+    "${_fake_rollout_source}/ros2/template_project/__pycache__")
+configure_file(
+    "${_root}/add_ros2_support.sh"
+    "${_fake_rollout_source}/add_ros2_support.sh"
+    COPYONLY)
+file(WRITE "${_fake_rollout_source}/build_ros2.sh" "#!/usr/bin/env bash\n")
+file(WRITE "${_fake_rollout_source}/ros2/template_project/package.xml"
+    "<package><name>template_project</name></package>\n")
+file(WRITE
+    "${_fake_rollout_source}/ros2/template_project/__pycache__/generated.cpython-312.pyc"
+    "generated bytecode\n")
+file(WRITE
+    "${_fake_rollout_source}/ros2/template_project/generated.pyc"
+    "generated bytecode\n")
+file(WRITE
+    "${_fake_rollout_source}/ros2/template_project/nottemplate_projectile.txt"
+    "boundary fixture\n")
+
+_create_fake_target("${_fake_filtered_rollout}" "space_nav")
+_run_success(
+    "Apply filtered ROS 2 rollout from synthetic source"
+    "${_bash_executable}" "${_fake_rollout_source}/add_ros2_support.sh"
+    --apply --yes --no-ci --root "${_fake_filtered_rollout}")
+if(EXISTS "${_fake_filtered_rollout}/ros2/space_nav/__pycache__"
+    OR EXISTS "${_fake_filtered_rollout}/ros2/space_nav/generated.pyc")
+  message(FATAL_ERROR "Rollout copied generated Python cache artifacts.")
+endif()
+if(NOT EXISTS "${_fake_filtered_rollout}/ros2/space_nav/nottemplate_projectile.txt")
+  message(FATAL_ERROR "Rollout renamed template_project inside an unrelated path substring.")
+endif()
+
+set(_workflow "${_root}/.github/workflows/build_ros2_overlay.yml")
+_assert_matches("${_workflow}" "workflow_dispatch")
+_assert_matches("${_workflow}" "push:")
+_assert_matches("${_workflow}" "pull_request:")
+_assert_matches("${_workflow}" "ros2/\\*\\*")
+_assert_matches("${_workflow}" "build_ros2\\.sh")
+_assert_matches("${_workflow}" "add_ros2_support\\.sh")
+_assert_matches("${_workflow}" "generate_version\\.sh")
+_assert_matches("${_workflow}" "tailor_template_cleanup\\.sh")
+_assert_matches("${_workflow}" "doc/ros2_overlay\\.md")
+_assert_matches("${_workflow}" "doc/template_usage\\.md")
+_assert_matches("${_workflow}" "doc/bootstrap_prompts\\.md")
+_assert_matches("${_workflow}" "tests/cmake/VerifyTemplateProjectRos2Overlay\\.cmake")
+_assert_matches("${_workflow}" "tests/template_test/testRos2OverlayStatic\\.py")
+_assert_matches("${_workflow}" "\\.github/workflows/build_ros2_overlay\\.yml")
+_assert_not_matches("${_workflow}" "src/\\*\\*")
+_assert_matches("${_workflow}" "overlay-build:")
+_assert_matches("${_workflow}" "rollout-dogfood:")
+_assert_matches("${_workflow}" "ubuntu-24\\.04")
+_assert_matches("${_workflow}" "ros:jazzy")
+_assert_matches("${_workflow}" "build-essential")
+_assert_matches("${_workflow}" "cmake")
+_assert_matches("${_workflow}" "libeigen3-dev")
+_assert_matches("${_workflow}" "python3-colcon-common-extensions")
+_assert_matches("${_workflow}" "python3-pytest")
+_assert_matches("${_workflow}" "ros-dev-tools")
+_assert_matches("${_workflow}" "rosdep install --from-paths ros2 -i -r -y --rosdistro jazzy")
+_assert_matches("${_workflow}" "\\./build_ros2\\.sh --clean")
+_assert_matches("${_workflow}" "python3 -m pytest -q tests/template_test/testRos2OverlayStatic\\.py")
+_assert_matches(
+    "${_workflow}"
+    "if \\[\\[ -f tests/template_test/testRos2OverlayStatic\\.py \\]\\]; then[\r\n \t]+python3 -m pytest -q tests/template_test/testRos2OverlayStatic\\.py")
+_assert_matches("${_workflow}" "Skipping template-only pytest checks")
+_assert_matches("${_workflow}" "expected_version")
+_assert_matches("${_workflow}" "ros2/template_project/package\\.xml")
+_assert_matches("${_workflow}" "-DEXPECTED_VERSION")
+_assert_matches("${_workflow}" "-P tests/cmake/VerifyTemplateProjectRos2Overlay\\.cmake")
+_assert_matches(
+    "${_workflow}"
+    "if \\[\\[ -f tests/cmake/VerifyTemplateProjectRos2Overlay\\.cmake \\]\\]; then[\r\n \t]+expected_version=")
+_assert_matches("${_workflow}" "Skipping template-only CMake checks")
+_assert_matches("${_workflow}" "tailor_template_cleanup\\.sh --apply --yes --remove-ros2")
+_assert_matches("${_workflow}" "add_ros2_support\\.sh --root")
+_assert_matches("${_workflow}" "cmake -S \\. -B build_plain -DENABLE_TESTS=OFF")
+_assert_not_matches("${_workflow}" "build_ros2\\.sh[^\\n]*--cuda")
+
+_read_required("${_workflow}" _workflow_contents)
+foreach(_owned_trigger_pattern
+    "README\\.md"
+    "AGENTS\\.md"
+    "CLAUDE\\.md"
+    "python/COLCON_IGNORE"
+    "lib/COLCON_IGNORE"
+    "examples/COLCON_IGNORE"
+    "tests/COLCON_IGNORE")
+  string(REGEX MATCHALL "${_owned_trigger_pattern}" _owned_trigger_paths "${_workflow_contents}")
+  list(LENGTH _owned_trigger_paths _owned_trigger_count)
+  if(NOT _owned_trigger_count EQUAL 2)
+    message(FATAL_ERROR
+        "${_owned_trigger_pattern} must appear in both ROS 2 overlay workflow path filters; "
+        "found ${_owned_trigger_count} occurrences.")
+  endif()
+endforeach()
+string(REGEX MATCHALL "generate_version\\.sh" _version_trigger_paths "${_workflow_contents}")
+list(LENGTH _version_trigger_paths _version_trigger_count)
+if(NOT _version_trigger_count EQUAL 2)
+  message(FATAL_ERROR
+      "generate_version.sh must appear in both ROS 2 overlay workflow path filters; "
+      "found ${_version_trigger_count} occurrences.")
+endif()
+string(REGEX MATCHALL "uses: actions/checkout@v[0-9]+" _checkout_uses "${_workflow_contents}")
+list(LENGTH _checkout_uses _checkout_count)
+string(REGEX MATCHALL "fetch-depth:[ ]*0" _fetch_depth_settings "${_workflow_contents}")
+list(LENGTH _fetch_depth_settings _fetch_depth_count)
+if(NOT _checkout_count EQUAL 2 OR NOT _fetch_depth_count EQUAL _checkout_count)
+  message(FATAL_ERROR
+      "ROS 2 overlay workflow must use fetch-depth: 0 in both checkout steps. "
+      "Found ${_checkout_count} checkout steps and ${_fetch_depth_count} full-depth settings.")
+endif()
+
+_assert_matches("${_workflow}" "id: rollout-tooling")
+_assert_matches(
+    "${_workflow}"
+    "if \\[\\[ -f add_ros2_support\\.sh && -f tailor_template_cleanup\\.sh \\]\\]; then")
+_assert_matches("${_workflow}" "GITHUB_OUTPUT")
+_assert_matches("${_workflow}" "Skipping template-only rollout dogfood")
+string(
+    REGEX MATCHALL
+    "if: steps\\.rollout-tooling\\.outputs\\.available == 'true'"
+    _rollout_tooling_guards
+    "${_workflow_contents}")
+list(LENGTH _rollout_tooling_guards _rollout_tooling_guard_count)
+if(NOT _rollout_tooling_guard_count EQUAL 2)
+  message(FATAL_ERROR
+      "Expected rollout dependency installation and rehearsal to share the template-tooling guard; "
+      "found ${_rollout_tooling_guard_count} guarded steps.")
+endif()
+
+set(_ros2_doc "${_root}/doc/ros2_overlay.md")
+_assert_matches("${_ros2_doc}" "CUDA")
+_assert_matches("${_ros2_doc}" "\\./build_ros2\\.sh --cuda")
+_assert_matches("${_ros2_doc}" "CI")
+_assert_matches("${_ros2_doc}" "Encapsulation contract")
+_assert_matches("${_ros2_doc}" "add_subdirectory")
+_assert_matches("${_ros2_doc}" "template_project::template_project")
+_assert_matches("${_ros2_doc}" "conversions-vs-node")
+_assert_matches("${_ros2_doc}" "source-adjacent")
+_assert_matches("${_ros2_doc}" "build_ros2\\.sh")
+_assert_matches("${_ros2_doc}" "-DTEMPLATE_PROJECT_ENABLE_CUDA=ON")
+_assert_matches("${_ros2_doc}" "ENABLE_CUDA")
+_assert_matches("${_ros2_doc}" "ENABLE_FETCH_SPDLOG=OFF")
+_assert_matches("${_ros2_doc}" "COLCON_IGNORE")
+_assert_matches("${_ros2_doc}" "parent workspace")
+_assert_matches("${_ros2_doc}" "--sync-ros2")
+_assert_matches("${_ros2_doc}" "add_ros2_support\\.sh")
+_assert_matches("${_ros2_doc}" "EDIT-ME core-call")
+_assert_matches("${_ros2_doc}" "conversions\\.cpp")
+_assert_matches("${_ros2_doc}" "ros2/<ros_prefix>_ros/src/conversions\\.cpp")
+_assert_not_matches("${_ros2_doc}" "ros2/<project_name>_ros/src/conversions\\.cpp")
+_assert_matches("${_ros2_doc}" "ROS package prefix")
+_assert_matches("${_ros2_doc}" "CMake package name")
+_assert_matches("${_ros2_doc}" "manual tailoring")
+_assert_matches("${_ros2_doc}" "rename-then-overlay")
+_assert_matches("${_ros2_doc}" "overlay-then-rename")
+_assert_matches("${_ros2_doc}" "--remove-ros2")
+_assert_matches("${_ros2_doc}" "ROS_DISTRO")
+_assert_matches("${_ros2_doc}" "ros:jazzy")
+_assert_matches("${_ros2_doc}" "python/ bindings remain a separate ROS-free optional feature")
+
+foreach(_fenced_doc
+    "README.md"
+    "AGENTS.md"
+    "CLAUDE.md"
+    "doc/bootstrap_prompts.md"
+    "doc/template_usage.md")
+  _assert_ros2_fence("${_fenced_doc}")
+endforeach()
+
+foreach(_entrypoint_doc
+    "README.md"
+    "AGENTS.md"
+    "CLAUDE.md")
+  _assert_matches("${_root}/${_entrypoint_doc}" "doc/ros2_overlay\\.md")
+  _assert_matches("${_root}/${_entrypoint_doc}" "build_lib\\.sh")
+  _assert_matches("${_root}/${_entrypoint_doc}" "build_ros2\\.sh")
+  _assert_matches("${_root}/${_entrypoint_doc}" "never needs ROS")
+endforeach()
+
+foreach(_rollout_doc
+    "doc/bootstrap_prompts.md"
+    "doc/template_usage.md"
+    "doc/ros2_overlay.md")
+  _assert_matches("${_root}/${_rollout_doc}" "conversions\\.cpp")
+  _assert_not_matches("${_root}/${_rollout_doc}" "CTemplateLifecycleNode\\.cpp[^\\n]*call the real library API")
+  _assert_not_matches("${_root}/${_rollout_doc}" "CTemplateLifecycleNode\\.cpp[^\\n]*real API call")
+endforeach()
+
+set(_bootstrap_prompts "${_root}/doc/bootstrap_prompts.md")
+_assert_matches("${_bootstrap_prompts}" "ROS 2 Overlay Rollout Prompt")
+_assert_matches("${_bootstrap_prompts}" "keep/remove")
+_assert_matches("${_bootstrap_prompts}" "script")
+_assert_matches("${_bootstrap_prompts}" "manual")
+_assert_matches("${_bootstrap_prompts}" "node/topic names")
+_assert_matches("${_bootstrap_prompts}" "distro")
+_assert_matches("${_bootstrap_prompts}" "ros2/<ros_prefix>_ros/src/conversions\\.cpp")
+
+set(_template_usage "${_root}/doc/template_usage.md")
+_assert_matches("${_template_usage}" "template_project_ros")
+_assert_matches("${_template_usage}" "template_project_interfaces")
+_assert_matches("${_template_usage}" "template_project_spinup")
+_assert_matches("${_template_usage}" "ros2/template_project")
+_assert_matches("${_template_usage}" "--remove-ros2")
+_assert_matches("${_template_usage}" "ros2/<ros_prefix>_ros/src/conversions\\.cpp")
