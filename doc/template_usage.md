@@ -35,6 +35,29 @@ Use one global replacement pass for the project name, then inspect the changed C
 | `template_src_kernels` | CUDA kernel module directory, or delete if CUDA is not used |
 | `cpp_playground` | Top C++ namespace exposed to wrappers |
 
+<!-- ros2-overlay-begin -->
+When the optional ROS 2 overlay is kept, include these paths and identifiers in the same rename review:
+
+| Template item | Replace with |
+|---|---|
+| `ros2/template_project` | `ros2/<ros_prefix>` shim directory |
+| `template_project_interfaces` | `<ros_prefix>_interfaces` |
+| `template_project_ros` | `<ros_prefix>_ros` |
+| `template_project_spinup` | `<ros_prefix>_spinup` |
+
+The broad `template_project` replacement also updates copied ROS launch/config names, interface package references, and workflow text. After renaming, update the EDIT-ME core-call block in `ros2/<ros_prefix>_ros/src/conversions.cpp`.
+
+When the CMake package name is not a valid ROS package name, keep the original CMake package name for core `find_package(...)` and `<project>::<project>` target links, and use a ROS-valid package prefix for copied ROS package names. For example, `space-nav-frontend` should keep core CMake references to `space-nav-frontend` while using ROS package paths such as `ros2/space_nav_frontend_ros`.
+
+Remove the overlay with:
+
+```bash
+./tailor_template_cleanup.sh --apply --yes --remove-ros2
+```
+
+`--remove-ros2` strips the fenced ROS documentation blocks and removes the overlay files. Leave the flag off when the derived project should keep ROS support.
+<!-- ros2-overlay-end -->
+
 Update these files first:
 
 - `CMakeLists.txt`: `set(project_name "...")`

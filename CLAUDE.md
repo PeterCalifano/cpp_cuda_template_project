@@ -6,6 +6,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 C++ CUDA/OptiX template project (by Pietro Califano) for building GPU-accelerated shared libraries with optional Python/MATLAB bindings. Uses CMake with C++20, Eigen3, and optional CUDA 12+, OptiX, OpenGL, and OpenMP backends.
 
+<!-- ros2-overlay-begin -->
+## Optional ROS 2 Overlay
+
+See `doc/ros2_overlay.md` before changing the optional ROS 2 overlay. `./build_lib.sh` is the C++-first library entry point and never needs ROS. `./build_ros2.sh` is the optional ROS 2 overlay build and test entry point.
+
+Keep ROS-related changes confined to `ros2/` plus the documented root helpers, docs, tests, markers, and the single ROS overlay workflow.
+<!-- ros2-overlay-end -->
+
 ## Build Commands
 
 **Primary build entry point** is `build_lib.sh`:

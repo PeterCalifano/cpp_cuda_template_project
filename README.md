@@ -21,6 +21,17 @@ Tailoring helper:
 
 Run the cleanup before a broad `template_project` replacement, because the script contains template-specific cleanup paths. After cleanup succeeds, delete `tailor_template_cleanup.sh` or exclude it from the rename pass. `profiling/` is removed by default. Use `./tailor_template_cleanup.sh --apply --yes --keep-profiling` when the new project should keep the Valgrind/perf helper scripts.
 
+<!-- ros2-overlay-begin -->
+## Optional ROS 2 Overlay
+
+See [`doc/ros2_overlay.md`](doc/ros2_overlay.md) for the optional ROS 2 overlay architecture, build flow, CI, rollout, and removal policy.
+
+- `./build_lib.sh`: C++-first library entry point; it never needs ROS.
+- `./build_ros2.sh`: optional ROS 2 overlay build and test entry point.
+
+Use `./tailor_template_cleanup.sh --apply --yes --remove-ros2` when a derived project should not carry the overlay.
+<!-- ros2-overlay-end -->
+
 ## Requirements
 
 | Dependency | Version | Notes |
@@ -490,13 +501,22 @@ The project ships a VS Code DevContainer configuration. To reconfigure it (base 
 ./configure_devcontainer.sh
 
 # Non-interactive
-./configure_devcontainer.sh --cuda --base ubuntu-22.04 --ros2 humble
 ./configure_devcontainer.sh --cuda --gpu-runtime podman --base ubuntu-24.04
 ./configure_devcontainer.sh --base ubuntu-22.04 --ros noetic --ros-profile desktop
 ./configure_devcontainer.sh --non-interactive --base ubuntu-24.04
 ```
 
-ROS 1 requires Ubuntu 18.04 (melodic) or 20.04 (noetic). ROS 2 requires Ubuntu 22.04+.
+ROS 1 requires Ubuntu 18.04 (melodic) or 20.04 (noetic).
+
+<!-- ros2-overlay-begin -->
+ROS 2 devcontainer example:
+
+```bash
+./configure_devcontainer.sh --cuda --base ubuntu-22.04 --ros2 humble
+```
+
+ROS 2 requires Ubuntu 22.04+.
+<!-- ros2-overlay-end -->
 
 The configure script only rewrites the keys it manages in `devcontainer.json` (features, GPU run args, CUDA/ROS env); project-specific entries (e.g. `customizations`, extra `remoteEnv` variables) are preserved across reconfigurations. CUDA toolkit version is selected with `--cuda-version <v>` (default 12.9). GPU passthrough args are selected with `--gpu-runtime auto|docker|podman` (default: `auto`, which prefers Docker when both engines are installed).
 
