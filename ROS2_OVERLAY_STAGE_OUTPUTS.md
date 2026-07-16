@@ -1,0 +1,592 @@
+# ROS 2 Overlay Stage Outputs
+
+Temporary repo-local log requested on 2026-07-07. This file backfills the stage closeouts already recorded in `CONTEXT.md` and will be appended at each remaining stage closeout. No commits or pushes are made by Codex.
+
+## Stage 0 - Plan doc + colcon hygiene
+
+Summary:
+- Wrote `doc/developments/ros2_overlay_upgrade_plan.md` as the source of truth.
+- Added colcon ignore markers for `python/`, `lib/`, `examples/`, and `tests/`.
+- Added `ros2/build`, `ros2/install`, and `ros2/log` ignore coverage.
+
+Validation:
+- `./build_lib.sh -B build_stage0 --skip-tests`
+- `git status --short` reviewed for intended additions.
+
+Proposed commit message:
+
+```text
+Document ROS 2 overlay plan and colcon hygiene
+```
+
+## Stage 1 - `ros2/` workspace shim and `build_ros2.sh`
+
+Summary:
+- Added `ros2/template_project/` as the colcon shim package.
+- Added `ros2/template_project_interfaces/` with `AlgorithmStatus.msg` and `RunAlgorithm.srv`.
+- Added root `build_ros2.sh` with ROS environment guard, colcon build/test flow, CUDA/OptiX facade flags, clean mode, and generated-directory `COLCON_IGNORE` handling.
+- Kept the root CMake, `src/`, and `python/` trees untouched.
+
+Validation:
+- `bash -n build_ros2.sh`
+- `./build_ros2.sh --clean`
+- `grep -R "^ENABLE_CUDA:BOOL=OFF$" ros2/build/template_project/CMakeCache.txt`
+- Installed config files checked under `ros2/install/template_project/lib/cmake/template_project/`.
+- `./build_lib.sh -B build_stage1 --skip-tests`
+- `git diff --stat CMakeLists.txt src/ python/`
+- `git diff --check`
+
+Proposed commit message:
+
+```text
+Add ROS 2 overlay workspace shim and build script
+```
+
+## Stage 2 - `template_project_ros` bridge and spinup packages
+
+Summary:
+- Added `ros2/template_project_ros/` with node-free conversions, lifecycle component, executable, and ROS tests.
+- Added `ros2/template_project_spinup/` with standalone and composition launch files plus default config.
+- Kept conversions free of `rclcpp` and confined the template core API touchpoint to the fenced lifecycle-node block.
+- Kept the root CMake, `src/`, and `python/` trees untouched.
+
+Validation:
+- Initial red run: `./build_ros2.sh --clean` failed on missing `template_project_ros` headers.
+- Green run: `./build_ros2.sh --clean` built all four packages and colcon reported `5 tests, 0 errors, 0 failures, 0 skipped`.
+- Standalone launch smoke: `source ros2/install/setup.bash && ros2 launch template_project_spinup template_project.launch.py`.
+- Composition launch smoke loaded `template_project_ros::CTemplateLifecycleNode`.
+- `./build_lib.sh -B build_stage2 --skip-tests`
+- `ctest --test-dir build_stage2 -R tailoring --output-on-failure`
+- `git diff --stat CMakeLists.txt src/ python/`
+- `git diff --check`
+
+Proposed commit message:
+
+```text
+Add ROS 2 bridge and spinup packages
+```
+
+## Stage 3 - Version sync and static validation
+
+Summary:
+- Added `generate_version.sh --sync-ros2` while preserving default `VERSION` behavior.
+- Enforced `build_ros2.sh` automatic guarded `./generate_version.sh --sync-ros2` invocation.
+- Added `tests/cmake/VerifyTemplateProjectRos2Overlay.cmake`.
+- Added auto-registered pytest coverage in `tests/template_test/testRos2OverlayStatic.py`.
+
+Validation:
+- Initial red CMake verifier failed because `generate_version.sh` did not advertise `--sync-ros2`.
+- Initial red pytest failed because `VERSION` was stale and copied ROS manifests were not rewritten.
+- `./generate_version.sh --sync-ros2`
+- `./build_lib.sh -B build_stage3`
+- `ctest --test-dir build_stage3 -R "ros2" --output-on-failure`
+- `git diff --stat CMakeLists.txt src/ python/`
+- `git diff --check`
+- `bash -n generate_version.sh build_ros2.sh`
+
+Proposed commit message:
+
+```text
+Add ROS 2 overlay version sync validation
+```
+
+## Stage 4 - Tailoring keep/remove policy
+
+Summary:
+- Extended `tailor_template_cleanup.sh` so the ROS overlay is kept by default.
+- Added `--remove-ros2` to remove `ros2/`, root overlay entry points, markers, future workflow/doc paths, and static pytest coverage.
+- Added fence stripping for future ROS doc sections while keeping `generate_version.sh` untouched.
+- Extended the tailoring verifier with fake ROS overlay fixtures.
+
+Validation:
+- Initial red CMake verifier failed because cleanup did not mention `tests/cmake/VerifyTemplateProjectRos2Overlay.cmake`.
+- `./build_lib.sh -B build_stage4 --skip-tests`
+- `ctest --test-dir build_stage4 -R tailoring --output-on-failure`
+- Scratch copy `/tmp/cpp_cuda_template_stage4_remove_t7GiKn`: `./tailor_template_cleanup.sh --apply --yes --remove-ros2` then `./build_lib.sh --skip-tests`.
+- `git diff --stat CMakeLists.txt src/ python/`
+- `git diff --check`
+- `bash -n tailor_template_cleanup.sh generate_version.sh build_ros2.sh`
+
+Proposed commit message:
+
+```text
+Add ROS 2 overlay tailoring removal path
+```
+
+## Stage 5 - Additive rollout script
+
+Summary:
+- Added root `add_ros2_support.sh`.
+- Implemented `--list`, `--apply [--yes]`, `--root <dir>`, `--verify`, and `--no-ci`.
+- Made rollout source validation require `ros2/` and `build_ros2.sh`.
+- Made target validation scrape `set(project_name "<name>")`, enforce `[a-z][a-z0-9_]*`, and refuse targets that already contain `ros2/` or `build_ros2.sh`.
+- Kept rollout purely additive: no existing target file edits, no self-copy, no template verifier copy, no generated colcon directory copy.
+- Added identifier-aware rename behavior and CMake configure-only verification.
+- Extended the ROS overlay verifier with fake target rollout coverage.
+
+Validation:
+- Initial red CMake verifier failed because `add_ros2_support.sh` was missing.
+- `./build_lib.sh -B build_stage5 --skip-tests`
+- `ctest --test-dir build_stage5 -R ros2_overlay --output-on-failure`
+- Scratch copy `/tmp/cpp_cuda_template_stage5_dogfood_O1uBWB`: remove overlay, re-add with `add_ros2_support.sh --apply --yes --verify`, then `./build_ros2.sh --clean`.
+- Scratch overlay build reported `5 tests, 0 errors, 0 failures, 0 skipped`.
+- `git diff --stat CMakeLists.txt src/ python/`
+- `git diff --check`
+- `bash -n add_ros2_support.sh tailor_template_cleanup.sh generate_version.sh build_ros2.sh`
+
+Proposed commit message:
+
+```text
+Add additive ROS 2 overlay rollout script
+```
+
+## Stage 6 - ROS 2 overlay CI workflow
+
+Summary:
+- Added `.github/workflows/build_ros2_overlay.yml`.
+- Added the `overlay-build` job for Jazzy container CI: full-depth checkout, ROS dependency install, `./build_ros2.sh --clean`, and static pytest coverage.
+- Added the `rollout-dogfood` job: copy checkout, remove overlay, re-add with `add_ros2_support.sh --verify`, rebuild the ROS overlay, then run a plain standalone CMake build.
+- Added a minimal `doc/ros2_overlay.md` CUDA/CI note: overlay CI is CPU-only; local CUDA/OptiX checks use `./build_ros2.sh --cuda` or `./build_ros2.sh --cuda --optix`.
+- Extended the ROS overlay static verifier for the workflow contract, no `src/**` trigger, checkout depth, dependency commands, no CUDA CI command, and minimal CUDA documentation.
+- Left `build_linux.yml`, `build_linux_cuda.yml`, and `docs_pages.yml` untouched.
+
+Validation:
+- Initial red verifier failed because `.github/workflows/build_ros2_overlay.yml` was missing.
+- Direct Stage 6 CMake verifier passed.
+- `./build_lib.sh -B build_stage6 --skip-tests`
+- `ctest --test-dir build_stage6 -R ros2_overlay --output-on-failure`
+- YAML sanity parse with Python `yaml.safe_load`.
+- `bash -n add_ros2_support.sh tailor_template_cleanup.sh generate_version.sh build_ros2.sh`
+- Docker `ros:jazzy` overlay-build rehearsal: dependency install, `rosdep install`, `./build_ros2.sh --clean`, and pytest; colcon reported `5 tests, 0 errors, 0 failures, 0 skipped`, pytest reported `5 passed`.
+- Docker `ros:jazzy` rollout-dogfood rehearsal: remove overlay, re-add overlay with `--verify`, `./build_ros2.sh --clean`, and plain `cmake -S . -B build_plain -DENABLE_TESTS=OFF && cmake --build build_plain -j2`.
+- `git diff --stat CMakeLists.txt src/ python/`
+- `git diff -- .github/workflows/build_linux.yml .github/workflows/build_linux_cuda.yml .github/workflows/docs_pages.yml`
+- `git diff --check`
+
+Proposed commit message:
+
+```text
+Add ROS 2 overlay CI and rollout dogfood workflow
+```
+
+## Stage 7 - Documentation and rollout instructions
+
+Summary:
+- Expanded `doc/ros2_overlay.md` with the architecture, shim/export contract, conversions-vs-node split, build usage, CUDA option flow, `COLCON_IGNORE` policy, version sync, rollout, removal, CI, and Python-boundary notes.
+- Added removable ROS overlay fences to `README.md`, `AGENTS.md`, `CLAUDE.md`, `doc/bootstrap_prompts.md`, and `doc/template_usage.md`.
+- Added the ROS 2 Overlay Rollout Prompt and the ROS package rename map.
+- Moved the README ROS 2 devcontainer example into a removable fence so `--remove-ros2` leaves no README ROS 2 references.
+- Extended the ROS overlay static verifier to enforce the Stage 7 doc content and fence coverage.
+
+Validation:
+- Initial red verifier failed because `doc/ros2_overlay.md` lacked `Encapsulation contract`.
+- Direct Stage 7 CMake verifier passed.
+- `./build_lib.sh -B build_stage7 --skip-tests`
+- `ctest --test-dir build_stage7 -L "ros2|docs" --output-on-failure` passed `4/4`.
+- `bash -n add_ros2_support.sh tailor_template_cleanup.sh generate_version.sh build_ros2.sh`
+- Scratch copy `/tmp/cpp_cuda_template_stage7_remove_Z6MicP`: `./tailor_template_cleanup.sh --apply --yes --remove-ros2`, `./build_lib.sh --skip-tests`, and grep confirmed no ROS 2 overlay references remained in README; AGENTS/CLAUDE were removed by tailoring.
+- `git diff --stat CMakeLists.txt src/ python/`
+- `git diff --check`
+
+Proposed commit message:
+
+```text
+Document ROS 2 overlay rollout and removal workflow
+```
+
+## Stage 8 - Testfield mirroring (in progress, blocked)
+
+Summary:
+- Applied the overlay to `../cpp_cuda_template_testfield` with `add_ros2_support.sh --apply --yes --verify`.
+- Adapted the fenced testfield lifecycle-node core call to `cpp_playground::CWrapperPlaceholder::multiplyBy2(...)`.
+- Updated the testfield ROS workflow to use its dependency checkout and `TEMPLATE_PROJECT_SOURCE_DIR` convention.
+- Added source-overlay compatibility fixes for older derived repos: shim `VERSION` mirroring and lifecycle-component source include/core link support.
+- Fixed the main docs workflow verifier to canonicalize `TEST_TEMPLATE_SOURCE_DIR` before assertions, so derived/testfield CTest runs that pass `../cpp_cuda_template_project` agree with Doxygen's normalized input paths.
+
+Validation:
+- Red: initial testfield `./build_ros2.sh --clean` failed on missing nested `template_project_core/VERSION`.
+- Red: next testfield `./build_ros2.sh --clean` failed because the lifecycle component could not include `wrapped_impl/CWrapperPlaceholder.h`.
+- Green: latest testfield `./build_ros2.sh --clean` built four packages and reported `5 tests, 0 errors, 0 failures, 0 skipped`.
+- Green: testfield `./build_lib.sh --skip-tests` passed.
+- Green: main direct ROS overlay verifier passed.
+- Green: main `./build_lib.sh -B build_stage8 --skip-tests` passed.
+- Green: main `ctest --test-dir build_stage8 -R ros2_overlay --output-on-failure` passed `1/1`.
+- Green: main `./build_ros2.sh --clean` reported `5 tests, 0 errors, 0 failures, 0 skipped`.
+- Green: workflow YAML parse and bash syntax checks passed.
+- Green: `git diff --check` passed in both repos, and main protected diff `CMakeLists.txt src/ python/` is empty.
+- Green: direct docs verifier reproduction with a `../cpp_cuda_template_project` source path passed after canonicalization.
+- Green: focused testfield docs CTest `ctest --test-dir build -R 'template_project_docs_build_output|testfield_docs_build_output' --output-on-failure` passed `2/2`.
+- Green: latest full testfield `./build_lib.sh` rerun passes both docs tests.
+- Red: a later plain `./build_lib.sh` rerun without cleaning exited 8 with `80% tests passed, 8 tests failed out of 40`; two extra failures were stale-cache wrong-format objects (`EM: 183`) in `build/tests/testfield_subbuild` after cross tests.
+- Red: clean `(cd ../cpp_cuda_template_testfield && ./build_lib.sh --clean)` exited 8 with `85% tests passed, 6 tests failed out of 39`; docs/nested/cross tests passed and the remaining failures were the same wrapper/Python-environment set.
+- Blocked: persistent failing tests are `template_project_python_package_installs_and_imports`, `template_project_python_package_rejects_python311`, `template_project_matlab_wrapper_script_runs`, `testfield_matlab_wrapper_script_runs`, `testfield_matlab_wrapper_tcmalloc_present`, and `template_project_build_lib_python_wrap_succeeds_without_false_warning`.
+- Blocker root causes shown in the fresh output: unresolved conflict markers in `/home/peterc/devDir/dev-tools/wrap/gtwrap/pybind_wrapper.py` and `/home/peterc/devDir/dev-tools/wrap/gtwrap/matlab_wrapper/wrapper.py`, plus missing `pytest` in `/home/peterc/miniconda3/envs/test_env/bin/python3.12`.
+
+Proposed commit message:
+
+```text
+Dogfood ROS 2 overlay rollout in testfield
+```
+
+## Delta fix pass - 2026-07-07
+
+Scope:
+- Closed only the review-delta subsections for Stages 2, 5, 6, and 7.
+- Did not start Stage 8 or Stage 9.
+- Left root `CMakeLists.txt`, `src/`, and `python/` diffs empty.
+
+Summary:
+- Moved the editable core-call seam to `ros2/template_project_ros/src/conversions.cpp`: the wrapped implementation include and `EvaluateTemplateCore` body now carry the fenced EDIT-ME markers.
+- Kept `CTemplateLifecycleNode.cpp` ROS-only, with a short cross-reference to `conversions.cpp`.
+- Documented why `template_project_ros_conversions` and `template_project_ros_component` keep the private source include compatibility path.
+- Hardened `add_ros2_support.sh`: empty/binary copied files no longer abort the rename pass, `target_is_clean()` replaces the inverted conflict helper name, and `--verify` scratch directories are cleaned by an EXIT trap.
+- Updated the rollout checklist and `doc/ros2_overlay.md` to name `conversions.cpp` as the primary adaptation seam.
+- Added `generate_version.sh` to both ROS overlay workflow path filters.
+- Extended `VerifyTemplateProjectRos2Overlay.cmake` so the seam, checklist, helper naming, scratch cleanup, doc pointer, and workflow trigger cannot regress.
+
+Red evidence:
+- Focused verifier failed before the fixes because the Stage 2 guard expected the new compatibility/seam contract and `ros2/template_project_ros/CMakeLists.txt` did not yet contain the `older derived repo` rationale.
+- Scratch reproduction with an empty file in a copied `ros2/` tree exited 1 before the `grep -Iq . "${file_path_}" || return 0` fix.
+
+Green evidence:
+- Direct verifier: `cmake -DTEST_TEMPLATE_SOURCE_DIR="$PWD" -DTEST_BINARY_ROOT="$PWD/build_delta_green/ros2_overlay" -DEXPECTED_VERSION=1.10.3 -P tests/cmake/VerifyTemplateProjectRos2Overlay.cmake`.
+- Empty-file rollout reproduction after the fix passed in `/tmp/ros2_delta_empty_green_my18I3`.
+- `./build_lib.sh -B build_deltas` passed `24/24`.
+- `ctest --test-dir build_deltas -L "ros2|docs|tailoring" --output-on-failure` passed `5/5`.
+- `./build_ros2.sh --clean` passed; colcon reported `5 tests, 0 errors, 0 failures, 0 skipped`.
+- Current-state dogfood loop passed in `/tmp/ros2_delta_dogfood_current_IQoUhA`: scratch copy, `tailor_template_cleanup.sh --apply --yes --remove-ros2`, `add_ros2_support.sh --apply --yes --verify`, `build_ros2.sh --clean`, and `build_lib.sh --skip-tests`.
+- `bash -n build_ros2.sh add_ros2_support.sh` passed.
+- `shellcheck build_ros2.sh add_ros2_support.sh` passed.
+- YAML parse of `.github/workflows/build_ros2_overlay.yml` passed with Python `yaml.safe_load`.
+- `git diff --stat CMakeLists.txt src/ python/` stayed empty.
+- `git diff --check` passed.
+
+Review pass:
+- Searched for stale primary-node EDIT-ME pointers and the old `target_has_conflicts` helper. Only the intentional verifier guard string remains.
+- Confirmed `generate_version.sh` appears exactly twice in `.github/workflows/build_ros2_overlay.yml`, once per path filter block.
+- Confirmed the only remaining unchecked plan items are the explicitly out-of-scope Stage 8 and Stage 9 items.
+
+Proposed commit message:
+
+```text
+Close ROS 2 overlay review deltas
+```
+
+## Stage 8 - Testfield mirroring closure
+
+Summary:
+- Rechecked the previous external blockers and cleared the remaining conflict-marker residue in tracked pybind11 test files:
+  - `/home/peterc/devDir/dev-tools/wrap/pybind11/tests/test_eigen_matrix.cpp`;
+  - `/home/peterc/devDir/dev-tools/cpp_cuda_template_testfield/lib/wrap/pybind11/tests/test_eigen_matrix.cpp`.
+- Confirmed `/home/peterc/miniconda3/envs/test_env/bin/python3.12` now has `pytest`.
+- Brought the testfield ROS overlay into line with the Stage 2 review-delta seam relocation:
+  - `../cpp_cuda_template_testfield/ros2/template_project_ros/src/conversions.cpp` now carries the fenced EDIT-ME include/body seam and calls `cpp_playground::CWrapperPlaceholder::multiplyBy2(...)`;
+  - `../cpp_cuda_template_testfield/ros2/template_project_ros/src/CTemplateLifecycleNode.cpp` delegates to `EvaluateTemplateCore` and stays ROS-only.
+- Added the same source-include compatibility comments to the testfield ROS CMake.
+- Updated the testfield ROS overlay workflow path filters to include `generate_version.sh` while preserving its `TEMPLATE_PROJECT_SOURCE_DIR` sibling-checkout convention.
+
+Validation:
+- Conflict-marker scan for `<<<<<<<`, `>>>>>>>`, and `|||||||` over the template, testfield, and wrap checkouts: no hits.
+- `git -C ../cpp_cuda_template_testfield diff --check`: passed.
+- `bash -n ../cpp_cuda_template_testfield/build_ros2.sh`: passed.
+- YAML parse of `../cpp_cuda_template_testfield/.github/workflows/build_ros2_overlay.yml`: passed.
+- `git -C ../cpp_cuda_template_testfield diff --stat CMakeLists.txt src/ python/`: empty.
+- `(cd ../cpp_cuda_template_testfield && ./build_ros2.sh --clean)`: built four packages and reported `5 tests, 0 errors, 0 failures, 0 skipped`.
+- `(cd ../cpp_cuda_template_testfield && ./build_lib.sh --clean)`: passed `39/39`.
+
+Proposed commit message:
+
+```text
+Mirror ROS 2 overlay into testfield
+```
+
+## Stage 9 - Final audit and verification closure - 2026-07-07
+
+Scope:
+- Closed the final audit/minimization pass after the Stage 2/5/6/7 review deltas and Stage 8 testfield mirror were complete.
+- Left root `CMakeLists.txt`, `src/`, and `python/` diffs empty.
+- Made one final lint-only correction in `generate_version.sh`: quoted the `SCRIPT_DIR` prefix inside parameter expansion so the version-sync path trimming passes shellcheck `SC2295`.
+- No commits or pushes were made.
+
+Review evidence:
+- `rg -n "template_project_nodes|bringup|PROFILE_CORE|dummy" ros2/ doc/ --glob '!doc/developments/ros2_overlay_upgrade_plan.md'`: no matches.
+- `rg -n "rclcpp" ros2/template_project_ros/include/template_project_ros/conversions.h ros2/template_project_ros/src/conversions.cpp`: no matches.
+- `git diff --stat CMakeLists.txt src/ python/`: empty.
+- `bash -n build_ros2.sh add_ros2_support.sh tailor_template_cleanup.sh generate_version.sh`: passed.
+- `shellcheck build_ros2.sh add_ros2_support.sh tailor_template_cleanup.sh generate_version.sh`: passed after the `generate_version.sh` quoting fix.
+- YAML parse of `.github/workflows/build_ros2_overlay.yml` with Python `yaml.safe_load`: passed.
+- Scratch tailoring both ways passed in `/tmp/ros2_stage9_tailoring_quiet_werRGa`: default cleanup kept `ros2/` and `build_ros2.sh`, `--remove-ros2` removed the overlay files, and both resulting trees built with `./build_lib.sh --skip-tests`.
+
+Fresh local test evidence:
+- `./build_lib.sh --clean`: passed.
+- `ctest --test-dir build --output-on-failure`: passed `24/24`.
+- After the shellcheck quoting fix, `ctest --test-dir build --output-on-failure` was rerun and passed `24/24`.
+- `./build_ros2.sh --clean`: passed.
+- After the shellcheck quoting fix, `./build_ros2.sh --clean` was rerun and colcon reported `5 tests, 0 errors, 0 failures, 0 skipped`.
+
+Docker CI rehearsal evidence:
+- Docker version: `29.6.1`.
+- Overlay-build rehearsal in `ros:jazzy` passed in scratch copy `/tmp/ros2_stage9_docker_overlay_ehkFzn`; colcon reported `5 tests, 0 errors, 0 failures, 0 skipped`, and `python3 -m pytest -q tests/template_test/testRos2OverlayStatic.py` reported `5 passed`.
+- Rollout-dogfood rehearsal in `ros:jazzy` passed in scratch copy `/tmp/ros2_stage9_docker_rollout_ndIVMM`; the stripped target re-added the overlay with `add_ros2_support.sh --apply --yes --verify`, `./build_ros2.sh --clean` reported `5 tests, 0 errors, 0 failures, 0 skipped`, and the plain `cmake -S . -B build_plain -DENABLE_TESTS=OFF && cmake --build build_plain -j2` build completed.
+- One earlier rollout-dogfood rehearsal failed because the local rehearsal harness used an over-broad tar exclude that removed `build_lib.sh`; rerunning with the workflow's narrower excludes passed.
+
+Detailed temporary command logs:
+- `/tmp/ros2_overlay_verify_20260707_175226`
+
+Final sanity checks:
+- `git diff --check`: passed.
+- `git diff --stat CMakeLists.txt src/ python/`: empty.
+- `rg -n "^- \[ \]" doc/developments/ros2_overlay_upgrade_plan.md`: no unchecked plan boxes.
+- Conflict marker scan over the template, testfield, and wrap checkouts for `<<<<<<<`, `>>>>>>>`, and `|||||||`: no matches.
+
+Known non-fatal warning:
+- The standalone and Docker builds can still print the existing GCC/spdlog `-Warray-bounds` warning from the core build path; it did not fail any gate.
+
+Proposed commit message:
+
+```text
+Complete optional ROS 2 overlay upgrade
+```
+
+## Delta follow-up fix pass - 2026-07-08
+
+Scope:
+- Fixed the stale rollout EDIT-ME seam pointers that still named `CTemplateLifecycleNode.cpp` in `doc/bootstrap_prompts.md`, `doc/template_usage.md`, and the testfield `doc/ros2_overlay.md`; all now name `ros2/<project>_ros/src/conversions.cpp` as the primary core-call seam.
+- Extended `add_ros2_support.sh` to split the target CMake package name from the copied ROS package prefix:
+  - `space-nav-frontend` now rolls out to ROS package paths such as `ros2/space_nav_frontend_ros`;
+  - bridge CMake still preserves core `find_package(space-nav-frontend REQUIRED)` and `space-nav-frontend::space-nav-frontend` links;
+  - `--ros-prefix <name>` can override the derived ROS prefix.
+- Added static guard coverage so stale seam docs, missing workflow path filters, and the split-name rollout case fail the ROS overlay verifier.
+- Documented the manual tailoring path for derived repos that remove optional CUDA, OptiX, or spdlog support.
+- Ticked the follow-up item in `doc/developments/ros2_overlay_upgrade_plan.md`.
+- No commits or pushes were made.
+
+Red/green evidence:
+- Initial `python3 -m pytest -q tests/template_test/testRos2OverlayStatic.py` failed because `doc/bootstrap_prompts.md` did not mention `conversions.cpp`; after the doc fixes it passed `6 passed`.
+- Initial direct CMake verifier failed because `add_ros2_support.sh` did not support `--ros-prefix`; after the rollout-script fix it passed.
+- The first full docs gate exposed a Doxygen warning on the inline hyphenated CMake target example; moving the example into a fenced CMake block fixed `template_project_docs_build_output`.
+
+Validation:
+- `./build_lib.sh -B build_deltas && ctest --test-dir build_deltas -L "ros2|docs|tailoring" --output-on-failure`: passed; the focused CTest subset passed `5/5`.
+- `./build_ros2.sh --clean`: passed; colcon reported `5 tests, 0 errors, 0 failures, 0 skipped`.
+- Local dogfood loop in `/tmp/ros2_delta_dogfood_uCkGfp/target`: `tailor_template_cleanup.sh --apply --yes --remove-ros2`, `add_ros2_support.sh --apply --yes --verify`, `./build_ros2.sh --clean`, and `./build_lib.sh --skip-tests` all passed. One earlier harness attempt failed because an over-broad tar exclude removed `build_lib.sh`; rerunning with explicit build-directory excludes passed.
+- `bash -n build_ros2.sh add_ros2_support.sh` and `shellcheck build_ros2.sh add_ros2_support.sh`: passed.
+- YAML parse of `.github/workflows/build_ros2_overlay.yml` with Python `yaml.safe_load`: passed.
+- `git diff --stat CMakeLists.txt src/ python/`: empty.
+- `git diff --check`: passed.
+- Exact conflict-marker scan over the template, testfield, and wrap checkouts for `<<<<<<< `, `>>>>>>> `, and `||||||| `: no matches.
+- Testfield: `git diff --check` passed, stale seam grep was clean, and `(cd ../cpp_cuda_template_testfield && ./build_ros2.sh --clean)` reported `5 tests, 0 errors, 0 failures, 0 skipped`.
+- Donor `/home/peterc/devDir/dev-tools/ros2_cpp_cuda_template_project`: clean at `9097f9a` (`Update name to spinup; fix issue with install of rviz`), and `python3 -m pytest -q tests/template_checks` passed `9 passed`.
+
+Known non-fatal warning:
+- The ROS and scratch standalone builds still print the existing GCC/spdlog `-Warray-bounds` warning from the core build path; it did not fail any gate.
+
+Proposed commit message:
+
+```text
+Fix ROS 2 overlay rollout seam guards
+```
+
+## Post-review hardening pass - 2026-07-16
+
+Scope:
+- Made both supplied launch paths operational by autostarting the lifecycle node while retaining complete commented `Node` and `ComposableNode` alternatives for externally managed deployments.
+- Added one parameterized launch integration test covering standalone and composed startup, active-state convergence, and `run_algorithm(3.0) -> 14.0, "ok"`.
+- Added a narrow Jazzy composition compatibility adapter for the fully qualified lifecycle-event identity; the adapter can be removed after the upstream `launch_ros` name-resolution fix is available in the supported distro.
+- Made rollout destination conflicts fail before any copy, preserved `package.xml` mode bits during version synchronization, and expanded workflow ownership/static verification.
+- Mirrored the operational changes into `cpp_cuda_template_testfield` without modifying its adapted `conversions.cpp` core seam.
+
+Red evidence:
+- The first static verifier run failed because the standalone launch still used `Node` and did not declare lifecycle autostart.
+- After registering the launch test but before fixing the launch files, both parameterizations remained in lifecycle state `1` (unconfigured).
+- Native `ComposableLifecycleNode(..., autostart=True)` fixed standalone startup but left the Jazzy composition path unconfigured; inspection traced this to the relative-versus-fully-qualified name mismatch tracked by `ros2/launch_ros#481`.
+- The rollout collision fixture initially left a partially copied `ros2/` tree when `doc/ros2_overlay.md` already existed.
+- The manifest permission fixture initially changed a `0664` package manifest to `0600` after temporary-file replacement.
+- The workflow verifier initially failed because the static step did not derive and pass `EXPECTED_VERSION` to `VerifyTemplateProjectRos2Overlay.cmake`.
+- The testfield launch test reproduced the same two unconfigured launch paths before its mirror was applied.
+
+Green evidence:
+- `python3 -m pytest -q tests/template_test/testRos2OverlayStatic.py`: passed `6/6`.
+- Direct `VerifyTemplateProjectRos2Overlay.cmake`: passed, including documentation/workflow collision atomicity, `--no-ci`, mode preservation, launch guards, and workflow ownership fixtures.
+- `./build_lib.sh -B build_review_fixes`: passed `24/24`.
+- `ctest --test-dir build_review_fixes -L "ros2|docs|tailoring" --output-on-failure`: passed `5/5`.
+- `./build_ros2.sh --clean`: built four packages and reported `8 tests, 0 errors, 0 failures, 0 skipped`; both launch variants configured, activated, and served the algorithm request.
+- Local dogfood `/tmp/ros2_post_review_dogfood_lY4WbJ/target`: remove overlay, additive reapply with `--verify`, ROS build/tests `8/8`, and plain `./build_lib.sh --skip-tests` all passed.
+- `bash -n` and `shellcheck` passed for `build_ros2.sh`, `add_ros2_support.sh`, `tailor_template_cleanup.sh`, and `generate_version.sh`.
+- Workflow YAML, all four package manifests, and all changed launch/test Python files parsed or compiled successfully.
+- Docker `ros:jazzy` rehearsal passed both workflow behaviors; overlay tests reported `8/8`, pytest reported `6/6`, the direct CMake verifier passed, rollout reapplication passed, and the downstream plain CMake build completed. Full temporary log: `/tmp/ros2_post_review_docker_ky8Ckw/docker_rehearsal.log`.
+- Testfield `./build_ros2.sh --clean --cmake-arg -DTEMPLATE_PROJECT_SOURCE_DIR=/home/peterc/devDir/dev-tools/cpp_cuda_template_project`: passed `8/8`.
+- Testfield `./build_lib.sh --clean`: passed `39/39`, including the previously blocked wrapper and Python cases.
+- Testfield shell syntax/lint, workflow YAML, package XML, Python compilation, conflict scan, and `git diff --check` passed; its adapted `conversions.cpp` remained unchanged.
+- Testfield commits created without pushing: `aaf484b` (`Make testfield ROS 2 launch paths operational`) and `282beec` (`Align testfield ROS 2 overlay workflow`).
+- Main `git diff --stat CMakeLists.txt src/ python/` remained empty, `git diff --check` passed, and the main index remained empty.
+
+Review closeout:
+- The review found and fixed one additional type-contract issue: `prefix_namespace()` is typed as optional, so both adapters now fall back to the already resolved node name before calling `.startswith()`.
+- No further relevant correctness, dependency, rollout, workflow, or donor-drift issues were found.
+- The existing GCC/fmt `-Warray-bounds` warning remains non-fatal and is outside the ROS overlay change surface.
+- Main repository changes remain uncommitted and unstaged; no pushes were made.
+
+## Runtime staging review - 2026-07-16
+
+Scope:
+- Reviewed and staged the first functional batch only: the optional ROS 2 workspace, lifecycle bridge and interfaces, standalone/composed launch paths, ROS build helper, package-version synchronization, colcon ignore markers, and overlay output ignores.
+- Kept rollout/tailoring scripts, CI workflow, static verifiers, docs, development plan, review report, editor files, `CONTEXT.md`, and this evidence log unstaged.
+- Added launch coverage for both root and `integration` namespaces after the staging review found that pushed namespaces were not covered.
+- Kept `ComposableLifecycleNode(..., autostart=True)` as the template-facing composition API and retained the complete commented `ComposableNode` alternative for externally managed lifecycle deployments.
+
+Red evidence:
+- The first four-case launch run failed `2/4` cases: standalone under `integration` loaded default gain/bias, and composed autostart targeted `/integrationtemplate_algorithm` while the loaded component was `/integration/template_algorithm`.
+- Inspection of Jazzy `LoadComposableNodes.execute()` confirmed that its autostart path concatenates `request.node_namespace + request.node_name` without a separator.
+- After switching the parameter selector to `/**/template_algorithm`, standalone namespace loading passed but composed loading used default parameters because Jazzy's composable parameter normalizer recognizes `**` and exact node paths, not that selector.
+
+Green evidence:
+- The local composition compatibility action now replaces only Jazzy's malformed built-in transition target, joins the launch-context and component namespaces with `prefix_namespace()`, and emits configure/activate transitions for the exact fully qualified name.
+- The parameter file uses `/**`, which works for both standalone and composed nodes at root and pushed namespaces.
+- Focused `./build_ros2.sh --packages-select template_project_spinup --no-version-sync`: passed all four launch parameterizations and reported `5 tests, 0 errors, 0 failures, 0 skipped`.
+- Fresh `./build_ros2.sh --clean`: built all four packages and reported `10 tests, 0 errors, 0 failures, 0 skipped`.
+- `bash -n` and `shellcheck` passed for `build_ros2.sh` and `generate_version.sh`.
+- Launch/test Python compilation, all four package XML parses, the direct ROS overlay verifier, cached whitespace checks, and root CMake/core-source invariant checks passed.
+- `env -u ROS_DISTRO -u AMENT_PREFIX_PATH -u COLCON_PREFIX_PATH ./build_lib.sh -B build_runtime_batch --skip-tests`: passed, confirming the standalone library path remains ROS-independent.
+
+Known non-fatal warning:
+- The existing GCC/fmt/spdlog `-Warray-bounds` warning remains visible in core builds and is outside the ROS overlay change surface.
+
+## Rollout and tailoring staging review - 2026-07-16
+
+Scope:
+- Staged the additive `add_ros2_support.sh` rollout tool, reversible `tailor_template_cleanup.sh --remove-ros2` behavior, and the focused tailoring regression.
+- Kept the ROS static verifier, workflow, general test registration, documentation, agent guidance, reports, context, and evidence unstaged for later functional batches.
+- Hardened rollout during review so `--verify` requires `--apply`, generated Python bytecode is never copied, and placeholder replacement respects token boundaries in path components.
+
+Red/green evidence:
+- The new verifier guard first failed because `add_ros2_support.sh --verify` silently printed list mode and exited successfully; after explicit mode validation it failed as required with `--verify requires --apply`.
+- The synthetic rollout source then failed because `__pycache__` and `*.pyc` artifacts were copied; after filtering interpreter-generated cache artifacts, the fixture passed.
+- The same synthetic source proves `nottemplate_projectile.txt` remains unchanged while real `template_project` package paths are renamed.
+- Direct `VerifyTemplateProjectRos2Overlay.cmake`: passed after the rollout fixes.
+- Direct `VerifyTemplateProjectTailoringScript.cmake`: passed for default overlay retention, profiling retention, and explicit ROS overlay removal.
+- `bash -n` and `shellcheck`: passed for `add_ros2_support.sh` and `tailor_template_cleanup.sh`.
+- Scratch target `/tmp/ros2_rollout_batch2_3QVBFe/target`: template cleanup with `--remove-ros2`, additive reapplication with `--verify --no-ci`, generated-cache scan, and a standalone build from inside the target all passed.
+- Cached whitespace and staged/unstaged overlap checks passed.
+
+Known non-fatal warning:
+- The scratch standalone build emitted the existing GCC/fmt/spdlog `-Warray-bounds` warning from the core path.
+
+## Documentation and agent-guidance staging review - 2026-07-16
+
+Scope:
+- Staged only the ROS overlay architecture/rollout documentation, removable guidance fences in the repository entry points, and the completed implementation plan.
+- Kept the ROS CI workflow, static verifiers, test registration, reports, editor files, `CONTEXT.md`, and this evidence log unstaged.
+- Clarified that the bridge is source-adjacent, that an installed-only bridge needs an exported core header, and that derived repositories use the reported `<ros_prefix>` for ROS package paths while retaining their CMake package identity.
+
+Validation evidence:
+- Direct `VerifyTemplateProjectDocsStatic.cmake`: passed.
+- Direct `VerifyTemplateProjectRos2Overlay.cmake`: passed, including the `conversions.cpp` adaptation-seam, source-adjacent boundary, hermetic spdlog, and `<ros_prefix>` documentation guards.
+- `git diff --cached --check`: passed.
+- The staged set contains exactly seven files and has no overlap with the unstaged working-tree diff.
+- A clean `/tmp/ros2_docs_batch_S3iBs7` snapshot assembled from `HEAD` plus the staged patch passed the docs static verifier, `cmake --preset docs`, and `cmake --build --preset docs`; Doxygen discovered and rendered `doc/ros2_overlay.md`.
+- The archive snapshot has no `.git` metadata or `VERSION`, so configure emitted the expected version fallback warning and used `0.0.0`; normal repository checkouts retain Git metadata.
+
+Proposed commit message:
+
+```text
+Document optional ROS 2 overlay workflow
+```
+
+## Static verification and ROS CI staging review - 2026-07-16
+
+Scope:
+- Staged the ROS-free CMake overlay contract, the auto-discovered pytest contract, their CTest registration, the Jazzy overlay workflow, and the docs verifier path-canonicalization fix.
+- Kept editor state, reports, `CONTEXT.md`, and this evidence log unstaged.
+- Hardened the workflow copied by `add_ros2_support.sh`: template-only pytest/CMake checks now run only when their files exist, and the rollout-dogfood job skips dependency installation and rehearsal when the template rollout helpers are absent.
+
+Red evidence:
+- A real fake derived target created by `add_ros2_support.sh` reproduced the copied-workflow defects: `python3 -m pytest -q tests/template_test/testRos2OverlayStatic.py` exited `4` because the template-only test is intentionally not copied, and `./tailor_template_cleanup.sh --apply --yes --remove-ros2` exited `127` because rollout helpers are intentionally not shipped.
+- After extending `VerifyTemplateProjectRos2Overlay.cmake` first, the direct verifier failed on the missing pytest existence guard.
+
+Green evidence:
+- Direct `VerifyTemplateProjectRos2Overlay.cmake`: passed after the workflow guards were added.
+- Executing the source workflow's parsed static shell block ran pytest `6/6` and the CMake verifier successfully.
+- A copied additive-rollout workflow executed both static skip branches and exported `available=false` from its rollout-tooling detector.
+- A default-tailored template executed pytest `6/6`, skipped only the removed CMake verifier, and exported `available=true` while both rollout helpers remained.
+- `./build_lib.sh -B build_static_ci`: passed `24/24` tests.
+- `ctest --test-dir build_static_ci -L "ros2|docs|tailoring" --output-on-failure`: passed `5/5` tests.
+- `./build_ros2.sh --clean`: passed with `10 tests, 0 errors, 0 failures, 0 skipped`.
+- Full scratch dogfood at `/tmp/ros2_static_ci_dogfood_RfLDAB/target`: remove overlay, additive reapply with `--verify`, copied-workflow skip checks, ROS build/tests `10/10`, and `./build_lib.sh --skip-tests` all passed.
+- `ros:jazzy` static workflow rehearsal at `/tmp/ros2_static_ci_docker_NvoyJL/source`: workflow dependency installation, pytest `6/6`, and the direct CMake verifier passed.
+- Direct docs workflow verification with a non-canonical `../cpp_cuda_template_project` source path passed after canonicalization.
+- YAML/package XML/Python parsing, `bash -n`, `shellcheck`, conflict scan, cached whitespace, and root CMake/core-source invariants passed.
+
+Known non-fatal output:
+- The standalone and ROS builds retain the existing GCC/fmt/spdlog `-Warray-bounds` warning.
+- Git-free scratch copies report expected version-control lookup warnings and use their copied `VERSION` file.
+
+Proposed commit message:
+
+```text
+Add static verification and CI for ROS 2 overlay
+```
+
+## Root workspace-file cleanup - 2026-07-16
+
+Scope:
+- Staged removal of `cpp_cuda_template_project.code-workspace` from Git tracking while preserving the local file.
+- Added the root-scoped `/*.code-workspace` ignore rule.
+- Left `.vscode/c_cpp_properties.json`, reports, context, and this evidence log unstaged.
+
+Validation evidence:
+- Local file checksum before and after `git rm --cached`: `b1a34db06f0d134d4bdb9368fa458a7a592d8081d025354db6ada8628c9acd98`.
+- `git check-ignore -v cpp_cuda_template_project.code-workspace`: matched `.gitignore:29:/*.code-workspace`.
+- `git ls-files --error-unmatch cpp_cuda_template_project.code-workspace`: exited `1`, confirming the staged index no longer tracks the file.
+- `git diff --cached --check`: passed.
+- Cached scope contains exactly `.gitignore` and the tracked workspace-file deletion.
+
+Proposed commit message:
+
+```text
+Ignore local VS Code workspace files
+```
+
+## Project metadata flowdown - 2026-07-16
+
+Scope:
+- Made the root CMake project the source of truth for standard description and homepage fields plus cache-backed maintainer, contact, and SPDX license metadata.
+- Added `PROJECT_METADATA_ONLY=ON`, which resolves project identity and version with `LANGUAGES NONE` and returns before dependencies, targets, wrappers, tests, docs, or packaging.
+- Added structured `xml.etree.ElementTree` synchronization for all immediate ROS package manifests while preserving package names, dependencies, non-website URLs, XML processing instructions, and modes.
+- Kept package identity as a one-time rollout decision; recurring synchronization updates only version, role-specific description, maintainer, license, and website.
+- Reused the same project metadata for CPack and added guarded pre-`rosdep` synchronization to both ROS workflow jobs.
+
+Red/green evidence:
+- The first extended pytest run failed on the absent root metadata contract, helper, and workflow ordering; the direct CMake verifier also failed on the missing helper.
+- A review guard exposed that checking only for `--sync-ros2` misclassified the older version-only generator as full-metadata capable. `ROS2_PROJECT_METADATA_SYNC=1` now distinguishes the expanded contract in local builds and copied workflows.
+- A fresh configure exposed a root install-prefix regression to `/usr/local` after moving `project()`. Restoring the repository-local prefix default before `project()` returned the default to `<repo>/install`; the verifier now enforces that ordering.
+- The in-tree CTest fixture initially inherited the parent repository Git version instead of its synthetic `VERSION`. `GIT_CEILING_DIRECTORIES` now keeps the fake target hermetic, and the focused failing CTest passed.
+- Final review added a failing guard for an incomplete rollout checklist, then updated the checklist to require the root CMake metadata contract, including `PROJECT_METADATA_ONLY`, before upgrading the sync helper.
+
+Validation evidence:
+- `python3 -m pytest -q tests/template_test/testRos2OverlayStatic.py`: passed `8/8`.
+- Direct `VerifyTemplateProjectRos2Overlay.cmake`: passed, including metadata-only configure, exact manifest comparison, rollout synchronization, workflow ordering, and install-prefix guards.
+- `./build_lib.sh -B build_metadata_flowdown`: built successfully; fresh `ctest --test-dir build_metadata_flowdown --output-on-failure` passed `24/24`.
+- `ctest --test-dir build_metadata_flowdown -L "ros2|docs|tailoring" --output-on-failure`: passed `5/5`.
+- `./build_ros2.sh --clean`: built all four packages and reported `10 tests, 0 errors, 0 failures, 0 skipped`; metadata synchronization ran before colcon.
+- Scratch dogfood at `/tmp/cpp_cuda_template_metadata_dogfood_ngSamb/target` passed cleanup with `--remove-ros2`, additive reapplication with `--verify`, clean ROS build/tests, and ROS-free `./build_lib.sh --skip-tests`.
+- The scratch target used CMake name `space-nav-frontend`, ROS prefix `space_nav_frontend`, description `Non-default navigation frontend metadata dogfood project`, homepage `https://example.test/space-nav-frontend`, maintainer `Dogfood Maintainer <dogfood@example.test>`, and license `Apache-2.0`; all four package names and adapted core CMake links remained correct.
+- `bash -n` and `shellcheck` passed for `build_ros2.sh`, `add_ros2_support.sh`, and `generate_version.sh`.
+- Strict mypy, Python bytecode compilation, workflow YAML parsing, and all four package XML parses passed.
+- Repeated synchronization was byte-idempotent; manifest SHA-256 hashes and modes were unchanged on the second run. Source modes remained `0664`, while Git records the expected non-executable `100644` mode.
+- Exact conflict-marker scan and `git diff --check` passed. `src/` and `python/` have no diff; the root `CMakeLists.txt` diff is limited to the approved metadata-only project contract and CPack reuse.
+
+Known non-fatal output:
+- Standalone and ROS builds retain the existing GCC/fmt/spdlog `-Warray-bounds` warning.
+- Git-free scratch builds emit expected version lookup warnings and use the copied `VERSION` file.
+
+Proposed commit message:
+
+```text
+Flow project metadata into the ROS 2 overlay
+- Export root metadata through standard CMake fields and CPack.
+
+- Synchronize ROS manifests without changing package identity.
+
+- Guard derived-project rollout and CI compatibility.
+```
