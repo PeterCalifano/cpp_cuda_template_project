@@ -16,6 +16,39 @@ DEFAULT_PATCH=0
 # Helpers (matching build_lib.sh style)
 info() { echo -e "\e[34m[INFO]\e[0m $*"; }
 warn() { echo -e "\e[33m[WARN]\e[0m $*" >&2; }
+die() { echo -e "\e[31m[ERROR]\e[0m $*" >&2; exit 1; }
+
+usage() {
+    cat <<'EOF'
+Usage:
+  ./generate_version.sh [options]
+
+Options:
+  --sync-ros2  After writing VERSION, synchronize ros2/*/package.xml versions.
+  -h, --help   Show this help.
+EOF
+}
+
+sync_ros2=false
+
+parse_args() {
+    while (($# > 0)); do
+        case "$1" in
+            --sync-ros2)
+                sync_ros2=true
+                shift
+                ;;
+            -h|--help)
+                usage
+                exit 0
+                ;;
+            *)
+                die "Unknown argument: $1"
+                ;;
+        esac
+    done
+}
+
 read_version_field() {
     local version_file_="$1"
     local field_name_="$2"
@@ -46,6 +79,8 @@ set_version_components() {
     version_core="${version_major}.${version_minor}.${version_patch}"
     full_version="$(compose_full_version "$version_core" "$version_prerelease" "$version_metadata")"
 }
+
+parse_args "$@"
 
 version_major=""
 version_minor=""
@@ -163,3 +198,70 @@ fi
 } > "$VERSION_FILE"
 
 info "Version ${full_version} (from ${source}) written to ${VERSION_FILE}"
+
+sync_ros2_package_versions() {
+    if [[ "${sync_ros2}" != true ]]; then
+        return
+    fi
+
+    local ros2_dir_="${SCRIPT_DIR}/ros2"
+    if [[ ! -d "${ros2_dir_}" ]]; then
+        info "ROS 2 overlay not present; skipping package version sync"
+        return
+    fi
+
+    if [[ "${source}" == "hardcoded default" ]]; then
+        warn "Skipping ROS 2 package version sync because the version came from the hardcoded default"
+        return
+    fi
+
+    if [[ ! "${version_core}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        warn "Skipping ROS 2 package version sync because '${version_core}' is not strict X.Y.Z"
+        return
+    fi
+
+    local package_file_
+    local package_tmp_
+    local synced_count_=0
+
+    shopt -s nullglob
+    for package_file_ in "${ros2_dir_}"/*/package.xml; do
+        if ! grep -Eq '<version>[^<]+</version>' "${package_file_}"; then
+            warn "No <version> tag found in ${package_file_#"${SCRIPT_DIR}"/}; skipping"
+            continue
+        fi
+
+        package_tmp_="$(mktemp "${package_file_}.tmp.XXXXXX")" || {
+            warn "Could not create temporary file for ${package_file_#"${SCRIPT_DIR}"/}; skipping"
+            continue
+        }
+
+        if awk -v version_="${version_core}" '
+            !updated_ && $0 ~ /<version>[^<]+<\/version>/ {
+                sub(/<version>[^<]+<\/version>/, "<version>" version_ "</version>")
+                updated_ = 1
+            }
+            { print }
+            END { if (!updated_) exit 1 }
+        ' "${package_file_}" > "${package_tmp_}"; then
+            if cmp -s "${package_file_}" "${package_tmp_}"; then
+                rm -f "${package_tmp_}"
+            else
+                chmod --reference="${package_file_}" "${package_tmp_}"
+                mv "${package_tmp_}" "${package_file_}"
+            fi
+            ((synced_count_ += 1))
+            info "Synchronized ${package_file_#"${SCRIPT_DIR}"/} to ${version_core}"
+        else
+            warn "Could not rewrite first <version> tag in ${package_file_#"${SCRIPT_DIR}"/}; skipping"
+            rm -f "${package_tmp_}"
+        fi
+    done
+    shopt -u nullglob
+
+    if ((synced_count_ == 0)); then
+        warn "No ROS 2 package.xml files were synchronized under ros2/"
+    fi
+}
+
+sync_ros2_package_versions

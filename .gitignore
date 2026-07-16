@@ -2,6 +2,11 @@
 /*debug*/
 /*install*/
 
+# ROS 2 overlay colcon outputs (root patterns above are anchored and do not cover subdirs)
+/ros2/build/
+/ros2/install/
+/ros2/log/
+
 VERSION
 **/*bak*
 .gitmodules
