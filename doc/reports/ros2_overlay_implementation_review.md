@@ -220,3 +220,65 @@ Suggested order; (P) = touches the plan's frozen invariant and should be an expl
 8. Optional hardening: service-call gtest + composition launch smoke in CI; weekly `schedule:` trigger. (m5, m11)
 
 Items 1-2 are the only ones I would treat as blocking for merging the branch as a *template* (they define what every future derived repo inherits); 3-4 are blocking for the first release tag after merge; the rest are quality follow-ups.
+
+---
+
+## 6. GPT5.6-Sol max independent re-evaluation
+
+This addendum preserves the original review above as a point-in-time assessment and records an independent source-and-runtime re-evaluation against commit `c70d4b6` on 2026-07-16. Status terms below distinguish defects that remain open from findings already fixed in the reviewed `HEAD`.
+
+### Housekeeping note
+
+**GPT5.6-Sol max:** Confirmed open. `doc/CMakeLists.txt` includes the whole `doc/` tree and excludes `doc/developments`, but not `doc/reports`; tailoring likewise removes `doc/developments` but not reports. Keep the report in source control for auditability, exclude `doc/reports` from generated API documentation, and remove it from tailored downstream projects. Move `ROS2_OVERLAY_STAGE_OUTPUTS.md` under `doc/developments/` so it follows the existing development-evidence policy. **Confidence: 100/100.**
+
+### Summary and positive design points
+
+- **Overall verdict. GPT5.6-Sol max:** The high implementation-fidelity assessment is justified, but the original robustness score is now optimistic for the advertised CUDA path: a clean CUDA overlay build can pass without compiling the project CUDA source. The design itself remains sound; the main corrective work is build-contract hardening rather than an overlay redesign. **Confidence: 98/100.**
+- **S1, colcon-only enablement. GPT5.6-Sol max:** Confirmed and should be retained. The shim is the correct ownership boundary and keeps the standalone build ROS-free. M1 limits the stronger installed-header consumer claim, not the colcon-only architecture. **Confidence: 98/100.**
+- **S2, conversions-vs-node split. GPT5.6-Sol max:** Confirmed. The core adaptation seam is node-free, the lifecycle node remains transport-focused, and the static verifier guards the seam location. **Confidence: 100/100.**
+- **S3, fixture-driven rollout verification. GPT5.6-Sol max:** Confirmed. This is high-value behavioral coverage because it executes the script against copied trees rather than checking shell text alone. **Confidence: 100/100.**
+- **S4, CMake-name/ROS-prefix split. GPT5.6-Sol max:** Confirmed. The separation preserves non-ROS CMake identities while making ROS package names valid, and the fixture coverage exercises default, override, and rejection paths. **Confidence: 99/100.**
+- **S5, keep-by-default tailoring and fenced docs. GPT5.6-Sol max:** Confirmed in principle. The policy and unclosed-begin failure are correct; m8 is a narrow malformed-input hole and does not invalidate the design. **Confidence: 97/100.**
+
+### Major findings
+
+- **M1, nested header installation. GPT5.6-Sol max:** Confirmed open and broader than reported. The same bad `CMAKE_SOURCE_DIR` coupling exists in six module files, not four: `src/wrapped_impl`, `src/utils`, `src/utils/logging`, `src/utils/wrap_adapters`, `src/template_src`, and `src/template_src_kernels`. The current colcon install places public headers at the prefix root, and a direct installed-consumer compile cannot resolve `wrapped_impl/CWrapperPlaceholder.h`. Replace the coupling in all six files, prove the installed layout with a nested-build consumer test, and retain the private source include only as explicitly labeled legacy compatibility. **Confidence: 100/100.**
+- **M2, copied bytecode. GPT5.6-Sol max:** The historical reproduction is credible, but the defect is resolved in current `HEAD`. `add_ros2_support.sh` removes `__pycache__`, `*.pyc`, and `*.pyo` from copied output, and the verifier creates synthetic cache/bytecode paths and asserts that they do not survive. No further implementation change is warranted; prune-before-copy would be an optimization, not a correctness requirement. **Confidence: 100/100.**
+- **M3, release-tag coupling. GPT5.6-Sol max:** Confirmed open. Keep the strict manifest-version contract, but correct the suggested sequence: the final release tag must point at a commit that already contains synchronized manifests. A temporary unpublished local tag can supply the intended version to `generate_version.sh`; remove it, commit the generated metadata, recreate the final annotated tag on that commit, run gates, then push branch and tag atomically. Merely syncing after publishing the tag leaves the tagged source permanently inconsistent. **Confidence: 99/100.**
+- **M4, CUDA/OptiX execution. GPT5.6-Sol max:** Partially resolved and materially expanded. `./build_ros2.sh --clean --cuda` completed on this machine with CUDA 12.9 and activated `ENABLE_CUDA=ON`; ROS reported 10 passing tests. However, no project `.cu` object was built, so this validates facade propagation and CUDA compiler activation only. OptiX remains unvalidated because no local SDK/header was available. **Confidence: 100/100.**
+- **N1, CUDA source discovery false positive. GPT5.6-Sol max:** New major finding. Seven CMake files express the glob as `"*.cpp; *.cu"`; the leading space in the second list item prevents `placeholder.cu` from entering the target. Compiler-ID CUDA artifacts made the build look CUDA-active even though no project CUDA translation unit compiled. Fix all source-discovery sites, explicitly exclude dedicated `*.ptx.cu` inputs from ordinary library compilation, and make the CUDA gate assert a real project CUDA source/object rather than only cache flags. **Confidence: 100/100.**
+
+### Minor findings
+
+- **m1, spdlog hermeticity note. GPT5.6-Sol max:** Resolved in current `HEAD`. `doc/ros2_overlay.md` documents `ENABLE_FETCH_SPDLOG=OFF`, and the static verifier requires the note. **Confidence: 100/100.**
+- **m2, stage-output evidence location. GPT5.6-Sol max:** Confirmed open in revised form. The file is now tracked rather than untracked, but it remains at the repository root and outside Doxygen/tailoring policy. Move it to `doc/developments/` and update all references. **Confidence: 100/100.**
+- **m3, path rename boundaries. GPT5.6-Sol max:** Resolved. Path-component replacement now uses the same identifier-boundary discipline as content replacement, and the verifier includes a boundary fixture. **Confidence: 100/100.**
+- **m4, interface package dependencies. GPT5.6-Sol max:** Resolved. The unused `std_msgs` and lint dependency declarations are absent, and the static contract rejects their return. **Confidence: 100/100.**
+- **m5, service/publish coverage. GPT5.6-Sol max:** Partially resolved. Parameterized launch tests now exercise standalone and composition modes, root and namespaced launches, lifecycle activation, component discovery, and `run_algorithm(3.0) == 14.0` with status `ok`. The `~/status` lifecycle topic is still not subscribed to or asserted, so message delivery and fields remain uncovered. Add that assertion to the existing launch test; changing service availability by lifecycle state is a separate architecture policy and is not required for this improvement pass. **Confidence: 100/100.**
+- **m6, `build_ros2.sh` behavior. GPT5.6-Sol max:** Resolved for the substantive items. Older version-only metadata helpers produce a warning, and selected-package test-result handling is scoped. The remaining array-expansion difference is valid Bash and not worth churn. **Confidence: 100/100.**
+- **m7, manifest metadata placeholders. GPT5.6-Sol max:** Resolved by the project-metadata flowdown contract. Root CMake owns project metadata and the typed sync helper updates all manifests while preserving package-specific fields and modes. **Confidence: 100/100.**
+- **m8, orphan fence end-marker. GPT5.6-Sol max:** Confirmed open. The awk stripper rejects nested/unclosed begin markers but prints an orphan end marker. Add a red fixture, then fail when an end marker is seen outside a fence. **Confidence: 99/100.**
+- **m9, `--verify` mode. GPT5.6-Sol max:** Resolved. Usage documents verification as an apply-time operation, the script rejects `--verify` without `--apply`, and the verifier covers the rejection. **Confidence: 100/100.**
+- **m10, documentation precision. GPT5.6-Sol max:** Partially resolved. `<ros_prefix>` terminology and metadata-renaming guidance are current. Still document manual removal for already-tailored repositories, state that facade option names intentionally survive project renames, and warn that direct `-DENABLE_CUDA`/`-DENABLE_OPTIX` arguments are overridden by the shim so users must select the facade flags. **Confidence: 98/100.**
+- **m11, overlay drift detection. GPT5.6-Sol max:** Confirmed open. A weekly schedule is useful, but M1/N1 show that excluding `src/**` and `cmake/**` from event filters creates avoidable blind spots. Trigger on those owned core inputs and add a scheduled run as a backstop for toolchain/ROS drift. **Confidence: 100/100.**
+
+### Plan-level gaps
+
+- **P1, incomplete `CMAKE_SOURCE_DIR` sweep. GPT5.6-Sol max:** Confirmed, with six affected module files rather than four. The remediation test must enumerate or behaviorally cover every nested install path. **Confidence: 100/100.**
+- **P2, invariant without an exception protocol. GPT5.6-Sol max:** Confirmed. The original invariant served the rollout well, but a plan needs an explicit process for relaxing it when empirical evidence places the root cause inside the frozen area. Limit the exception to reviewed CMake build-contract fixes in `src/`. **Confidence: 99/100.**
+- **P3, package-local generated artifacts. GPT5.6-Sol max:** Confirmed as a historical planning gap; the implementation now closes it with copied-tree cleanup and regression fixtures. **Confidence: 100/100.**
+- **P4, release lifecycle omitted. GPT5.6-Sol max:** Confirmed. Build-time synchronization is not a substitute for defining which commit a release tag must reference. **Confidence: 100/100.**
+- **P5, documentation substituted for GPU validation. GPT5.6-Sol max:** Confirmed. The subsequent CUDA run also demonstrates that a command-level green result is insufficient unless the gate proves that a real project CUDA translation unit compiled. **Confidence: 100/100.**
+
+### Original action-checklist disposition
+
+- **A1. GPT5.6-Sol max:** Open; expand the fix from four to six module files and add an installed-consumer test before changing implementation. **Confidence: 100/100.**
+- **A2. GPT5.6-Sol max:** Complete in current `HEAD`; retain its verifier coverage. **Confidence: 100/100.**
+- **A3. GPT5.6-Sol max:** Partially complete; facade activation passed, real CUDA source compilation did not occur, and OptiX awaits an SDK-equipped host. **Confidence: 100/100.**
+- **A4. GPT5.6-Sol max:** Open; replace the original sync-after-tag wording with a tag-on-synchronized-commit release procedure. **Confidence: 99/100.**
+- **A5. GPT5.6-Sol max:** Open; relocate the evidence file and formalize report exclusion/removal. **Confidence: 100/100.**
+- **A6. GPT5.6-Sol max:** Complete in current `HEAD`. **Confidence: 100/100.**
+- **A7. GPT5.6-Sol max:** Mostly complete; only the orphan-end-marker guard and remaining m10 documentation clarifications warrant action. **Confidence: 99/100.**
+- **A8. GPT5.6-Sol max:** Partially complete; component/service launch coverage exists, while status-topic coverage and drift triggers remain worthwhile. **Confidence: 100/100.**
+
+The implementation plan for all open, worthwhile items is maintained separately in `doc/developments/ros2_overlay_review_remediation_plan.md`.
