@@ -45,6 +45,7 @@ template_development_paths=(
     "TODO"
     "cpp_cuda_template_project.code-workspace"
     "doc/developments"
+    "doc/reports"
     "tests/cmake/AddMatlabWrapperRegressionTests.cmake"
     "tests/cmake/CheckTcmallocDependency.cmake"
     "tests/cmake/VerifyTemplateProjectAddTestsProperties.cmake"
@@ -371,14 +372,18 @@ strip_ros2_overlay_doc_fences() {
             tmp_="$(mktemp)"
             if awk '
                 /<!--[[:space:]]*ros2-overlay-begin[[:space:]]*-->/ {
+                    if (in_ros2_overlay_) {
+                        exit 1
+                    }
                     in_ros2_overlay_ = 1
                     next
                 }
                 /<!--[[:space:]]*ros2-overlay-end[[:space:]]*-->/ {
-                    if (in_ros2_overlay_) {
-                        in_ros2_overlay_ = 0
-                        next
+                    if (!in_ros2_overlay_) {
+                        exit 1
                     }
+                    in_ros2_overlay_ = 0
+                    next
                 }
                 !in_ros2_overlay_ { print }
                 END {

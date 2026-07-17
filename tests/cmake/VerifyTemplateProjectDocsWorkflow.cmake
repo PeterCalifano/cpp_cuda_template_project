@@ -93,7 +93,7 @@ set(_xml_index "${_build_dir}/doc/xml/index.xml")
 _assert_file_contains("${_doxyfile}" "GENERATE_HTML[ ]*=[ ]*YES")
 _assert_file_contains("${_doxyfile}" "GENERATE_XML[ ]*=[ ]*YES")
 _assert_file_contains("${_doxyfile}" "INPUT[ ]*=.*${_template_source_dir}/README.md.*${_template_source_dir}/src.*${_template_source_dir}/doc")
-_assert_file_contains("${_doxyfile}" "EXCLUDE[ ]*=.*${_template_source_dir}/lib.*${_template_source_dir}/doc/developments")
+_assert_file_contains("${_doxyfile}" "EXCLUDE[ ]*=.*${_template_source_dir}/lib.*${_template_source_dir}/doc/developments.*${_template_source_dir}/doc/reports")
 _assert_file_contains("${_doxyfile}" "USE_MDFILE_AS_MAINPAGE[ ]*=[ ]*${_template_source_dir}/doc/main_page.md")
 file(READ "${_doxyfile}" _doxyfile_contents)
 string(REGEX MATCH "INPUT[^\n]*" _doxyfile_input_line "${_doxyfile_contents}")
@@ -103,6 +103,9 @@ endif()
 string(REGEX MATCH "(^|\n)EXCLUDE[ ]*=[^\n]*" _doxyfile_exclude_line "${_doxyfile_contents}")
 if(NOT _doxyfile_exclude_line MATCHES "${_template_source_dir}/doc/developments")
   message(FATAL_ERROR "Doxygen EXCLUDE does not include internal development notes: ${_doxyfile_exclude_line}")
+endif()
+if(NOT _doxyfile_exclude_line MATCHES "${_template_source_dir}/doc/reports")
+  message(FATAL_ERROR "Doxygen EXCLUDE does not include internal implementation reports: ${_doxyfile_exclude_line}")
 endif()
 
 if(NOT EXISTS "${_html_index}")
@@ -136,7 +139,9 @@ endforeach()
 foreach(_internal_text
     "MATLAB wrapper crash investigation"
     "Documentation workflow rollout"
-    "docs_workflow_rollout")
+    "docs_workflow_rollout"
+    "ROS 2 Overlay Implementation Review"
+    "ros2_overlay_implementation_review")
   if(_combined_html MATCHES "${_internal_text}")
     message(FATAL_ERROR "Generated HTML documentation contains internal note '${_internal_text}'")
   endif()

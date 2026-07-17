@@ -62,6 +62,14 @@ CUDA and OptiX flow through a workspace option facade:
 | `--cuda` | `-DTEMPLATE_PROJECT_ENABLE_CUDA=ON` | cache-forces `ENABLE_CUDA` | `ENABLE_CUDA=ON` |
 | `--optix` | `-DTEMPLATE_PROJECT_ENABLE_OPTIX=ON` and CUDA ON | cache-forces `ENABLE_OPTIX` | `ENABLE_OPTIX=ON` |
 
+`TEMPLATE_PROJECT_ENABLE_CUDA` and `TEMPLATE_PROJECT_ENABLE_OPTIX` are stable
+overlay facade names. They intentionally survive CMake project and ROS package
+renaming so build automation has one consistent interface across derived
+repositories. The shim cache-forces the core options from these facade values,
+so direct `--cmake-arg -DENABLE_CUDA=ON` or
+`--cmake-arg -DENABLE_OPTIX=ON` values are overwritten by the shim. Use
+`--cuda`, `--optix`, or set the corresponding facade variables instead.
+
 For a hermetic build that must not fetch spdlog, pass `--cmake-arg -DENABLE_FETCH_SPDLOG=OFF` and provide a discoverable system/package-manager spdlog installation when logging support is required. If spdlog is unavailable with fetching disabled, the core template disables its logging utilities.
 
 Use a ROS 2 Jazzy environment or the ROS devcontainer for local GPU checks:
@@ -206,6 +214,19 @@ The overlay is kept by default during template cleanup. Remove it explicitly:
 ```
 
 `--remove-ros2` deletes `ros2/`, `build_ros2.sh`, `add_ros2_support.sh`, the colcon markers, the ROS overlay CI workflow, this file, and the ROS static pytest. It also strips `<!-- ros2-overlay-begin -->` / `<!-- ros2-overlay-end -->` fenced blocks from the template docs. `generate_version.sh` is left in place because `--sync-ros2` already no-ops without `ros2/`.
+
+For an already-tailored repository that removed
+`tailor_template_cleanup.sh`, perform manual removal: delete `ros2/`,
+`build_ros2.sh`, `add_ros2_support.sh`, the ROS workflow and any remaining
+`.tpl`, this document, and the ROS static pytest. Remove the four
+`COLCON_IGNORE` markers only when the overlay introduced them and the derived
+project does not otherwise need them. Finally, remove the complete
+`<!-- ros2-overlay-begin -->` through `<!-- ros2-overlay-end -->` blocks from
+`README.md`, agent guidance, `doc/bootstrap_prompts.md`,
+`doc/template_usage.md`, and `doc/versioning.md`. Reject orphaned, nested, or
+unclosed markers rather than deleting an ambiguous span. Keep
+`generate_version.sh`; its ROS sync path is already a no-op when `ros2/` is
+absent.
 
 ## CI
 

@@ -954,3 +954,114 @@ Compile CUDA sources and fix OptiX package exports
 
 - Verify CUDA and OptiX compile and install contracts.
 ```
+
+## 2026-07-17 - Review remediation Stages 3-5
+
+Scope:
+- Stage 3: define and test a tag-safe ROS package-metadata release process.
+- Stage 4: assert lifecycle status publication through all four launch cases.
+- Stage 5: reject malformed documentation fences and make reports/evidence
+  internal to template development.
+- Stage 6 and later stages were not started.
+
+Red evidence:
+- The docs static verifier rejected the missing
+  `Release tagging with the ROS 2 overlay` contract.
+- The ROS static verifier rejected the launch test before it imported and
+  subscribed to `AlgorithmStatus`.
+- The tailoring verifier demonstrated that both orphan end markers and nested
+  begin markers were accepted by the old awk state handling. The existing
+  unclosed-begin failure was retained as the third regression case.
+- The docs build verifier rejected the Doxyfile before `doc/reports` was
+  excluded.
+- After initial green launch runs, a repeated direct run reproduced a real
+  composition-plus-namespace discovery race: the service completed but the
+  single volatile status publication was missed. A new static guard failed
+  before the bounded post-discovery settle interval was added.
+
+Implemented contracts:
+- Added a local-only release rehearsal that clones without local object sharing,
+  removes its remote, configures isolated Git identity/signing behavior, creates
+  a synthetic preparation commit and temporary lightweight tag, proves stale
+  manifests fail, synchronizes and commits all four manifests, creates a final
+  annotated tag, inspects every tagged manifest with `git show`, and runs the
+  complete ROS overlay verifier against the tagged tree. Source tag refs are
+  compared before and after.
+- Documented the temporary-tag/synchronized-commit/final-tag sequence, final
+  local release gates, atomic branch-and-tag push, invalid GitHub-UI-first flow,
+  and no-Git source-archive `VERSION` requirement. The section is fenced so a
+  non-ROS tailored project does not retain ROS release instructions.
+- Extended the existing launch test without changing lifecycle architecture.
+  Every standalone/composition and root/namespaced case now subscribes before
+  the request, waits for discovery to settle, and asserts response plus all
+  `AlgorithmStatus` fields and timestamp with case-specific diagnostics.
+- Hardened fence stripping to reject nested begin, orphan end, and unclosed
+  begin markers. Documented manual overlay removal and stable CUDA/OptiX facade
+  semantics, including rejection of direct core-option overrides.
+- Moved this log under `doc/developments`, excluded `doc/reports` from Doxygen,
+  and removed reports plus the new release verifier during project tailoring.
+
+Validation evidence:
+- `./build_lib.sh -B build_review_remediation --clean`: passed `27/27` tests,
+  including the new `release;version;ros2` test.
+- Final focused CTest gate for `release|version|ros2|docs|tailoring`: passed
+  `7/7` tests.
+- Final `./build_ros2.sh --clean`: built four packages and reported `10 tests,
+  0 errors, 0 failures, 0 skipped`; all four status-observing launch cases
+  passed.
+- The direct launch target passed five consecutive full parameterized runs
+  after the discovery-settle fix, for 20 additional case executions.
+- The direct release, docs-static, docs-build, tailoring, and ROS overlay
+  verifiers passed. Static ROS/workflow pytest passed `11/11`.
+- Default tailoring removed development plans/reports while retaining the
+  overlay and fenced release guidance. `--remove-ros2` also removed the overlay,
+  workflow, overlay docs, and fenced release guidance while preserving general
+  user documentation.
+- `bash -n` and `shellcheck` passed on all four root scripts. Eight workflows
+  parsed as YAML and four manifests parsed as XML.
+- Root `CMakeLists.txt`, `src/`, and `python/` remained unchanged. Conflict
+  markers, ROS source-tree bytecode, machine-local added paths, whitespace
+  errors, and lingering release-test processes were absent in the final audit.
+
+Extensive review corrections:
+- Made the synthetic release preparation one commit newer than inherited tags,
+  preventing ambiguous `git describe` selection on release-tag checkouts.
+- Replaced a shell-invalid branch placeholder with the current branch variable.
+- Added `doc/versioning.md` to the overlay fence-removal contract.
+- Added case context to lifecycle-state timeout failures.
+- Reproduced and fixed the asymmetric DDS discovery race without changing QoS,
+  service availability, launch autostart, or component architecture.
+
+Full temporary command logs:
+- `/tmp/ros2_review_stage3_docs_red.log`
+- `/tmp/ros2_review_stage3_docs_green.log`
+- `/tmp/ros2_review_stage3_release_process_green.log`
+- `/tmp/ros2_review_stage4_status_red.log`
+- `/tmp/ros2_review_stage4_discovery_settle_red.log`
+- `/tmp/ros2_review_stage4_discovery_settle_green.log`
+- `/tmp/ros2_review_stage4_build_ros2_final.log`
+- `/tmp/ros2_review_stage4_launch_stress.log`
+- `/tmp/ros2_review_stage5_orphan_fence_red.log`
+- `/tmp/ros2_review_stage5_nested_fence_red.log`
+- `/tmp/ros2_review_stage5_tailoring_green.log`
+- `/tmp/ros2_review_stage5_docs_red.log`
+- `/tmp/ros2_review_stage5_docs_green.log`
+- `/tmp/ros2_review_stage5_tailor_default.log`
+- `/tmp/ros2_review_stage5_tailor_remove_ros2.log`
+- `/tmp/ros2_review_stages3_5_build_lib.log`
+- `/tmp/ros2_review_stages3_5_ctest_focused_final.log`
+- `/tmp/ros2_review_stages3_5_pytest_final.log`
+
+Known non-fatal output:
+- GCC 13 still emits the pre-existing fmt/spdlog `-Warray-bounds` warning.
+
+Proposed commit message:
+
+```text
+Harden ROS overlay tailoring and documentation hygiene
+- Reject malformed ROS documentation fences during tailoring.
+
+- Document stable CUDA and OptiX facade behavior and manual overlay removal.
+
+- Keep implementation reports and stage evidence internal to template development.
+```

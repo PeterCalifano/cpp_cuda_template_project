@@ -31,6 +31,9 @@ set(_fake_default "${TEST_BINARY_ROOT}/fake_default")
 set(_fake_keep "${TEST_BINARY_ROOT}/fake_keep")
 set(_fake_remove_ros2 "${TEST_BINARY_ROOT}/fake_remove_ros2")
 set(_fake_missing_template "${TEST_BINARY_ROOT}/fake_missing_template")
+set(_fake_orphan_fence "${TEST_BINARY_ROOT}/fake_orphan_fence")
+set(_fake_nested_fence "${TEST_BINARY_ROOT}/fake_nested_fence")
+set(_fake_unclosed_fence "${TEST_BINARY_ROOT}/fake_unclosed_fence")
 set(_workflow_names
     "build_linux.yml"
     "build_linux_cuda.yml"
@@ -71,6 +74,7 @@ endforeach()
 function(_create_fake_project fake_root)
   file(MAKE_DIRECTORY "${fake_root}/.github/workflows")
   file(MAKE_DIRECTORY "${fake_root}/doc/developments")
+  file(MAKE_DIRECTORY "${fake_root}/doc/reports")
   file(MAKE_DIRECTORY "${fake_root}/tests/cmake")
   file(MAKE_DIRECTORY "${fake_root}/tests/matlab")
   file(MAKE_DIRECTORY "${fake_root}/tests/template_test")
@@ -114,6 +118,7 @@ endif()
       "TODO"
       "cpp_cuda_template_project.code-workspace"
       "doc/developments/plan.md"
+      "doc/reports/implementation_review.md"
       "tests/cmake/AddMatlabWrapperRegressionTests.cmake"
       "tests/cmake/CheckTcmallocDependency.cmake"
       "tests/cmake/VerifyTemplateProjectBuildTreePackage.cmake"
@@ -181,6 +186,7 @@ function(_assert_fake_project_cleaned fake_root expect_profiling)
   foreach(_removed
       "AGENTS.md"
       "doc/developments"
+      "doc/reports"
       "tests/cmake/VerifyTemplateProjectCudaSources.cmake"
       "tests/cmake/VerifyTemplateProjectDocsWorkflow.cmake"
       "tests/cmake/VerifyTemplateProjectOptixInstallExport.cmake"
@@ -343,6 +349,44 @@ function(_assert_ros2_overlay_removed fake_root)
     endif()
   endforeach()
 endfunction()
+
+function(_assert_malformed_fence_rejected fake_root readme_contents case_name)
+  _create_fake_project("${fake_root}")
+  file(WRITE "${fake_root}/README.md" "${readme_contents}")
+  execute_process(
+      COMMAND bash "${_script}" --apply --yes --remove-ros2 --root "${fake_root}"
+      RESULT_VARIABLE _malformed_result
+      OUTPUT_VARIABLE _malformed_stdout
+      ERROR_VARIABLE _malformed_stderr)
+  if(_malformed_result EQUAL 0)
+    message(FATAL_ERROR "Tailoring accepted ${case_name} ROS 2 overlay fences")
+  endif()
+  if(NOT _malformed_stderr MATCHES "Malformed ROS 2 overlay fence in README.md")
+    message(FATAL_ERROR
+        "Tailoring rejected ${case_name} fences for the wrong reason.\n"
+        "stdout:\n${_malformed_stdout}\n"
+        "stderr:\n${_malformed_stderr}")
+  endif()
+endfunction()
+
+_assert_malformed_fence_rejected(
+    "${_fake_nested_fence}"
+    "before\n<!-- ros2-overlay-begin -->\nouter\n<!-- ros2-overlay-begin -->\ninner\n<!-- ros2-overlay-end -->\n<!-- ros2-overlay-end -->\nafter\n"
+    "nested-begin")
+_assert_malformed_fence_rejected(
+    "${_fake_orphan_fence}"
+    "before\n<!-- ros2-overlay-end -->\nafter\n"
+    "orphan-end")
+_assert_malformed_fence_rejected(
+    "${_fake_unclosed_fence}"
+    "before\n<!-- ros2-overlay-begin -->\nunclosed\n"
+    "unclosed-begin")
+
+foreach(_expected "doc/reports" "tests/cmake/VerifyTemplateProjectReleaseTagSync.cmake")
+  if(NOT _list_stdout MATCHES "${_expected}")
+    message(FATAL_ERROR "Cleanup list output did not contain '${_expected}'")
+  endif()
+endforeach()
 
 _create_fake_project("${_fake_default}")
 

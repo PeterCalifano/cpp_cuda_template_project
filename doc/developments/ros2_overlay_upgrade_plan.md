@@ -202,7 +202,7 @@ Stage 8 friction note, 2026-07-07:
 
 - [x] Document supplied-launch autostart versus externally managed lifecycle startup in `doc/ros2_overlay.md`.
 - [x] Mirror and red-green test the operational changes in `cpp_cuda_template_testfield` without changing its adapted `conversions.cpp` seam.
-- [x] Run the full standalone, ROS, dogfood, lint, parse, invariant, and Docker gates; append evidence to `ROS2_OVERLAY_STAGE_OUTPUTS.md`.
+- [x] Run the full standalone, ROS, dogfood, lint, parse, invariant, and Docker gates; append evidence to `doc/developments/ROS2_OVERLAY_STAGE_OUTPUTS.md`.
 - [x] Perform an extensive correctness and design review, then create only the two approved testfield commits without pushing.
 
 ## 2026-07-16 project metadata flowdown
@@ -230,14 +230,14 @@ Stage 8 friction note, 2026-07-07:
 
 - [x] Run the metadata-only configure probe, direct helper/pytest/CMake verifiers, full standalone tests, clean ROS tests, and scratch remove/re-add dogfood with non-default metadata and a non-ROS CMake name.
 - [x] Run shell lint, YAML/XML/Python parsing, manifest mode checks, conflict scan, and confirm `src/` and `python/` remain untouched; the only root CMake change must be the approved metadata contract.
-- [x] Perform a final correctness/design review, tick this section, and append validation evidence to `ROS2_OVERLAY_STAGE_OUTPUTS.md` and `CONTEXT.md` without staging those bookkeeping files.
+- [x] Perform a final correctness/design review, tick this section, and append validation evidence to `doc/developments/ROS2_OVERLAY_STAGE_OUTPUTS.md` and `CONTEXT.md` without staging those bookkeeping files.
 
 ## 2026-07-17 implementation-review remediation
 
 The source of truth for this follow-up is
 `doc/developments/ros2_overlay_review_remediation_plan.md`. Work proceeds one
 approved stage at a time, test-first where behavior changes, with command and
-result evidence appended to `ROS2_OVERLAY_STAGE_OUTPUTS.md` before staging each
+result evidence appended to `doc/developments/ROS2_OVERLAY_STAGE_OUTPUTS.md` before staging each
 stage for review.
 
 ### Stage R0 - Baseline and narrow invariant exception
@@ -264,7 +264,7 @@ stage for review.
     exception. Root `CMakeLists.txt` remains outside the expected change set.
 - [x] Require each later stage to record the expected red guard before its fix,
   the matching green result afterward, and the final regression gates in
-  `ROS2_OVERLAY_STAGE_OUTPUTS.md`.
+  `doc/developments/ROS2_OVERLAY_STAGE_OUTPUTS.md`.
 
 ### Stage R1 - Nested header installation and installed consumption
 
@@ -300,7 +300,8 @@ stage for review.
   required.
 - [x] Pass standalone `26/26`, clean ROS `10/10`, tailored CUDA `9/9`, normal
   tailoring/docs, remove/re-add rollout, YAML, shell-lint, conflict, and frozen
-  surface gates; record red-green evidence in `ROS2_OVERLAY_STAGE_OUTPUTS.md`.
+  surface gates; record red-green evidence in
+  `doc/developments/ROS2_OVERLAY_STAGE_OUTPUTS.md`.
 
 ### Stage R2 - Truthful CUDA and relocatable OptiX package evidence
 

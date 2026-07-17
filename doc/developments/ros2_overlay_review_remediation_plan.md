@@ -212,7 +212,8 @@ gaps, and bounds core-to-overlay CI drift.
   verifiers; run full standalone CTest and clean ROS tests.
 - [x] Assert the tailored scratch tree contains runnable YAML workflows only,
   no `.tpl`, and no template-development verifier or placeholder checks.
-- [x] Append red-green evidence to `ROS2_OVERLAY_STAGE_OUTPUTS.md`, update the
+- [x] Append red-green evidence to
+  `doc/developments/ROS2_OVERLAY_STAGE_OUTPUTS.md`, update the
   upgrade-plan trace, and stage the complete ownership transition for review
   without committing or pushing.
 
@@ -382,50 +383,50 @@ gaps, and bounds core-to-overlay CI drift.
 
 ### Orphan fence regression
 
-- [ ] Extend `VerifyTemplateProjectTailoringScript.cmake` with a scratch document
+- [x] Extend `VerifyTemplateProjectTailoringScript.cmake` with a scratch document
   containing an orphan `<!-- ros2-overlay-end -->` marker and require
   `--apply --yes --remove-ros2` to fail nonzero.
-- [ ] Record the expected red result, then update the awk end-marker branch in
+- [x] Record the expected red result, then update the awk end-marker branch in
   `strip_ros2_overlay_doc_fences()` to fail when it is not inside a fence.
-- [ ] Retain the existing nested-begin and unclosed-begin behavior and rerun all
+- [x] Retain the existing nested-begin and unclosed-begin behavior and rerun all
   three malformed-fence cases.
 
 ### Documentation precision
 
-- [ ] Update `doc/ros2_overlay.md` to explain manual removal paths for a derived
+- [x] Update `doc/ros2_overlay.md` to explain manual removal paths for a derived
   repository that already removed `tailor_template_cleanup.sh`.
-- [ ] State that `TEMPLATE_PROJECT_ENABLE_CUDA` and
+- [x] State that `TEMPLATE_PROJECT_ENABLE_CUDA` and
   `TEMPLATE_PROJECT_ENABLE_OPTIX` are stable overlay-facade names and
   intentionally survive project/package renaming.
-- [ ] Warn that direct `--cmake-arg -DENABLE_CUDA=ON` or
+- [x] Warn that direct `--cmake-arg -DENABLE_CUDA=ON` or
   `-DENABLE_OPTIX=ON` is overwritten by the shim; users must select `--cuda`,
   `--optix`, or the documented facade variables.
-- [ ] Extend `VerifyTemplateProjectRos2Overlay.cmake` with exact semantic guards
+- [x] Extend `VerifyTemplateProjectRos2Overlay.cmake` with exact semantic guards
   for all three clarifications.
 
 ### Reports and stage-output ownership
 
-- [ ] Move `ROS2_OVERLAY_STAGE_OUTPUTS.md` to
+- [x] Move the root stage-output log to
   `doc/developments/ROS2_OVERLAY_STAGE_OUTPUTS.md` with `git mv`; update every
   tracked reference and continue appending validation evidence there.
-- [ ] Add `doc/reports` to both `EXCLUDE_DIRS` and `EXCLUDE_PATTERNS` in
+- [x] Add `doc/reports` to both `EXCLUDE_DIRS` and `EXCLUDE_PATTERNS` in
   `doc/CMakeLists.txt` so implementation audits do not become public API pages.
-- [ ] Add `doc/reports` to `template_development_paths` in
+- [x] Add `doc/reports` to `template_development_paths` in
   `tailor_template_cleanup.sh` so reports do not ship in instantiated projects.
-- [ ] Extend `VerifyTemplateProjectDocsStatic.cmake` to require both Doxygen
+- [x] Extend `VerifyTemplateProjectDocsStatic.cmake` to require both Doxygen
   exclusions and the tailoring ownership entry.
-- [ ] Extend the tailoring fixture with a fake report and assert that default
+- [x] Extend the tailoring fixture with a fake report and assert that default
   tailoring removes it through the template-development cleanup set.
-- [ ] Build the Doxygen output and assert that the report title/file is absent
+- [x] Build the Doxygen output and assert that the report title/file is absent
   while normal user documentation remains present.
 
 ### Stage validation
 
-- [ ] Run `bash -n` and `shellcheck` on `tailor_template_cleanup.sh`,
+- [x] Run `bash -n` and `shellcheck` on `tailor_template_cleanup.sh`,
   `add_ros2_support.sh`, `build_ros2.sh`, and `generate_version.sh`.
-- [ ] Run the tailoring, docs-static, docs-build, and ROS overlay verifiers
+- [x] Run the tailoring, docs-static, docs-build, and ROS overlay verifiers
   directly and through CTest.
-- [ ] Re-run a default-tailoring scratch and a `--remove-ros2` scratch; confirm
+- [x] Re-run a default-tailoring scratch and a `--remove-ros2` scratch; confirm
   reports/development evidence are absent and user-facing docs remain coherent.
 
 ---

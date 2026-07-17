@@ -3,7 +3,7 @@
 - **Date:** 2026-07-16
 - **Scope:** review of the `feature/ros2-overlay` working tree against `doc/developments/ros2_overlay_upgrade_plan.md` (Stages 0-9 + review deltas + the "Next fix" follow-up).
 - **Method:** every plan checkbox was cross-checked against the actual files; the static verifier (`tests/cmake/VerifyTemplateProjectRos2Overlay.cmake`), the pytest (`tests/template_test/testRos2OverlayStatic.py`), and `shellcheck` were re-executed during this review; the colcon install tree produced by the last `./build_ros2.sh` run was inspected; the rollout script was exercised via the verifier's fixture targets and its outputs examined on disk.
-- **Housekeeping note:** `doc/reports/` is a new directory. The Doxygen configuration excludes `doc/developments` but not `doc/reports`, so this report will leak into the generated documentation site unless `doc/reports` is added to the Doxygen `EXCLUDE` list (or to the tailoring cleanup set). Handle this before the next docs build.
+- **Housekeeping status:** remediation Stage 5 excludes `doc/reports/` from Doxygen and removes it during project tailoring, so this audit remains internal to template development.
 
 ---
 
@@ -123,13 +123,13 @@ Note also that a source tarball (no `.git`, no gitignored `VERSION` file) resolv
 
 ### M4 — The CUDA/OptiX facade is advertised everywhere but has never been executed end-to-end
 
-**Severity: Major (untested advertised feature on the riskiest path). Confidence: High that no evidence of a `--cuda` run exists (CONTEXT.md, ROS2_OVERLAY_STAGE_OUTPUTS.md, and all CMake caches checked); Medium that it would actually fail.**
+**Severity: Major (untested advertised feature on the riskiest path). Confidence: High that no evidence of a `--cuda` run exists (CONTEXT.md, `doc/developments/ROS2_OVERLAY_STAGE_OUTPUTS.md`, and all CMake caches checked); Medium that it would actually fail.**
 
-**Evidence.** The only facade validation on record is the Stage 1 *negative* check: `grep "^ENABLE_CUDA:BOOL=OFF$" ros2/build/template_project/CMakeCache.txt`. There is no record — in `CONTEXT.md`, `ROS2_OVERLAY_STAGE_OUTPUTS.md`, or any build cache — of `./build_ros2.sh --cuda` ever completing. The ON path is exactly where nested-build risk concentrates: CUDA language enablement happens inside the *nested* `project()` call under a `LANGUAGES NONE` shim, GPU architecture auto-detection (`HandleCUDA.cmake`) runs in that nested scope, and the PTX-embedding pipeline (`cmake_cuda_ptx_tools.cmake`) has never run under colcon. The plan consciously excluded CUDA from CI (no ROS on the GPU runner — reasonable), but "no CI" quietly became "no validation at all", and `doc/ros2_overlay.md` §Build usage presents `./build_ros2.sh --cuda` as a working command.
+**Evidence.** The only facade validation on record is the Stage 1 *negative* check: `grep "^ENABLE_CUDA:BOOL=OFF$" ros2/build/template_project/CMakeCache.txt`. There is no record — in `CONTEXT.md`, `doc/developments/ROS2_OVERLAY_STAGE_OUTPUTS.md`, or any build cache — of `./build_ros2.sh --cuda` ever completing. The ON path is exactly where nested-build risk concentrates: CUDA language enablement happens inside the *nested* `project()` call under a `LANGUAGES NONE` shim, GPU architecture auto-detection (`HandleCUDA.cmake`) runs in that nested scope, and the PTX-embedding pipeline (`cmake_cuda_ptx_tools.cmake`) has never run under colcon. The plan consciously excluded CUDA from CI (no ROS on the GPU runner — reasonable), but "no CI" quietly became "no validation at all", and `doc/ros2_overlay.md` §Build usage presents `./build_ros2.sh --cuda` as a working command.
 
 **Suggested actions:**
 
-1. Run `./build_ros2.sh --clean --cuda` (and `--cuda --optix` if the OptiX SDK is present) once on the local GPU machine; record the result in `ROS2_OVERLAY_STAGE_OUTPUTS.md`/`CONTEXT.md` the same way every other gate was recorded. If it fails, the shim is the likely fix site (e.g. deferred language enablement or architecture flags), not the root CMake.
+1. Run `./build_ros2.sh --clean --cuda` (and `--cuda --optix` if the OptiX SDK is present) once on the local GPU machine; record the result in `doc/developments/ROS2_OVERLAY_STAGE_OUTPUTS.md`/`CONTEXT.md` the same way every other gate was recorded. If it fails, the shim is the likely fix site (e.g. deferred language enablement or architecture flags), not the root CMake.
 2. Until (1) happens, add one honest sentence to `doc/ros2_overlay.md`: the CUDA/OptiX overlay path is validated manually, not in CI — and state the last validated date/hardware. The doc already says CI is CPU-only; it does not say the GPU path is otherwise unverified.
 3. Cheap permanent guard: the facade *plumbing* (flag → colcon → shim cache-FORCE → core cache) can be regression-tested without a GPU by asserting `ENABLE_CUDA:BOOL=ON` appears in the shim's CMakeCache after a configure-only run that is allowed to fail at compiler detection. Worth considering, not mandatory.
 
@@ -141,7 +141,7 @@ Note also that a source tarball (no `.git`, no gitignored `VERSION` file) resolv
 
 Plan §Risks: "note `ENABLE_FETCH_SPDLOG OFF` as hermeticity knob in docs." No such note exists in `doc/ros2_overlay.md` (checked by grep; the string appears only in build caches). Consequence: the overlay build silently requires network for the spdlog FetchContent even in "offline" workflows, and the escape hatch is undocumented. **Action:** one paragraph in `doc/ros2_overlay.md` §Build usage: `./build_ros2.sh --cmake-arg -DENABLE_FETCH_SPDLOG=OFF` for hermetic builds (requires a system/preinstalled spdlog or accepts the no-spdlog path, whichever the core supports).
 
-### m2 — `ROS2_OVERLAY_STAGE_OUTPUTS.md` is untracked, not gitignored, and outside every cleanup set
+### m2 — The original root stage-output log was outside every cleanup set
 
 It sits at the repo root, self-describes as "temporary", is not matched by `.gitignore`, and is not in `tailor_template_cleanup.sh`'s removal lists — so if it gets committed (easy to do with a broad `git add`), it ships into every tailored derived repo forever. **Action:** move it to `doc/developments/` (already removed by tailoring and excluded from Doxygen) before committing the branch, or delete it once its content is fully mirrored in `CONTEXT.md` (it largely is).
 
@@ -214,7 +214,7 @@ Suggested order; (P) = touches the plan's frozen invariant and should be an expl
 2. **Prune `__pycache__`/`*.pyc` in `copy_ros2_tree()`** and add a recursive name-based assertion to the verifier fixture. (M2)
 3. **Run `./build_ros2.sh --clean --cuda` once** on the GPU box; record the outcome; add the "validated locally on <date>" note (or the failure follow-up) to `doc/ros2_overlay.md`. (M4)
 4. **Document the release-tag step** (sync + commit manifests) in `doc/versioning.md` / `doc/ros2_overlay.md`. (M3)
-5. **Relocate or delete `ROS2_OVERLAY_STAGE_OUTPUTS.md`**; add `doc/reports` to Doxygen `EXCLUDE` (and decide whether tailoring should remove it). (m2, header note)
+5. **Relocate the stage-output log under `doc/developments/`**; add `doc/reports` to Doxygen `EXCLUDE` (and decide whether tailoring should remove it). (m2, header note)
 6. Add the `ENABLE_FETCH_SPDLOG` hermeticity paragraph. (m1)
 7. Batch of small script/doc fixes: warn on old-script sync skip, orphan-end-marker `exit 1`, usage-text `--verify`, `<ros_prefix>` wording, facade-name invariance note, maintainer/license rename-map row, basename-rename boundary alignment. (m3, m6-m10)
 8. Optional hardening: service-call gtest + composition launch smoke in CI; weekly `schedule:` trigger. (m5, m11)
@@ -229,7 +229,7 @@ This addendum preserves the original review above as a point-in-time assessment 
 
 ### Housekeeping note
 
-**GPT5.6-Sol max:** Confirmed open. `doc/CMakeLists.txt` includes the whole `doc/` tree and excludes `doc/developments`, but not `doc/reports`; tailoring likewise removes `doc/developments` but not reports. Keep the report in source control for auditability, exclude `doc/reports` from generated API documentation, and remove it from tailored downstream projects. Move `ROS2_OVERLAY_STAGE_OUTPUTS.md` under `doc/developments/` so it follows the existing development-evidence policy. **Confidence: 100/100.**
+**GPT5.6-Sol max:** Confirmed open at review time. `doc/CMakeLists.txt` included the whole `doc/` tree and excluded `doc/developments`, but not `doc/reports`; tailoring likewise removed `doc/developments` but not reports. Keep the report in source control for auditability, exclude `doc/reports` from generated API documentation, and remove it from tailored downstream projects. Store the stage-output log under `doc/developments/` so it follows the existing development-evidence policy. **Confidence: 100/100.**
 
 ### Summary and positive design points
 
