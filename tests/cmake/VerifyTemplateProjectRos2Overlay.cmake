@@ -968,7 +968,8 @@ foreach(_fenced_doc
     "AGENTS.md"
     "CLAUDE.md"
     "doc/bootstrap_prompts.md"
-    "doc/template_usage.md")
+    "doc/template_usage.md"
+    "doc/versioning.md")
   _assert_ros2_fence("${_fenced_doc}")
 endforeach()
 

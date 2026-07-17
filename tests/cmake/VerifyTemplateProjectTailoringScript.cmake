@@ -120,6 +120,7 @@ endif()
       "tests/cmake/VerifyTemplateProjectCudaSources.cmake"
       "tests/cmake/VerifyTemplateProjectDocsWorkflow.cmake"
       "tests/cmake/VerifyTemplateProjectOptixInstallExport.cmake"
+      "tests/cmake/VerifyTemplateProjectReleaseTagSync.cmake"
       "tests/cmake/VerifyTemplateProjectRos2Overlay.cmake"
       "tests/cmake/VerifyTemplateProjectTailoringScript.cmake"
       "tests/template_test/testRos2OverlayStatic.py"
@@ -136,7 +137,8 @@ endif()
       "AGENTS.md"
       "CLAUDE.md"
       "doc/bootstrap_prompts.md"
-      "doc/template_usage.md")
+      "doc/template_usage.md"
+      "doc/versioning.md")
     get_filename_component(_path_dir "${fake_root}/${_path}" DIRECTORY)
     file(MAKE_DIRECTORY "${_path_dir}")
     file(WRITE "${fake_root}/${_path}"
@@ -182,6 +184,7 @@ function(_assert_fake_project_cleaned fake_root expect_profiling)
       "tests/cmake/VerifyTemplateProjectCudaSources.cmake"
       "tests/cmake/VerifyTemplateProjectDocsWorkflow.cmake"
       "tests/cmake/VerifyTemplateProjectOptixInstallExport.cmake"
+      "tests/cmake/VerifyTemplateProjectReleaseTagSync.cmake"
       "tests/cmake/VerifyTemplateProjectRos2Overlay.cmake"
       "tests/template_test/testRos2OverlayStatic.py"
       "tests/template_test/testWorkflowTemplates.py")
@@ -290,7 +293,8 @@ function(_assert_ros2_overlay_kept fake_root)
   foreach(_doc_path
       "README.md"
       "doc/bootstrap_prompts.md"
-      "doc/template_usage.md")
+      "doc/template_usage.md"
+      "doc/versioning.md")
     file(READ "${fake_root}/${_doc_path}" _doc_contents)
     if(NOT _doc_contents MATCHES "ros2-overlay-begin|remove this ros2 overlay block|ros2-overlay-end")
       message(FATAL_ERROR "Expected default cleanup to keep ROS 2 fence in ${_doc_path}")
@@ -325,7 +329,8 @@ function(_assert_ros2_overlay_removed fake_root)
       "AGENTS.md"
       "CLAUDE.md"
       "doc/bootstrap_prompts.md"
-      "doc/template_usage.md")
+      "doc/template_usage.md"
+      "doc/versioning.md")
     if(NOT EXISTS "${fake_root}/${_doc_path}")
       continue()
     endif()

@@ -58,6 +58,7 @@ template_development_paths=(
     "tests/cmake/VerifyTemplateProjectNoOptimization.cmake"
     "tests/cmake/VerifyTemplateProjectOptixInstallExport.cmake"
     "tests/cmake/VerifyTemplateProjectOptimizedFlags.cmake"
+    "tests/cmake/VerifyTemplateProjectReleaseTagSync.cmake"
     "tests/cmake/VerifyTemplateProjectRos2Overlay.cmake"
     "tests/cmake/VerifyTemplateProjectTailoringScript.cmake"
     "tests/cmake/VerifyTemplateProjectVersionSideEffects.cmake"
@@ -98,6 +99,7 @@ ros2_overlay_doc_paths=(
     "CLAUDE.md"
     "doc/bootstrap_prompts.md"
     "doc/template_usage.md"
+    "doc/versioning.md"
 )
 
 print_cleanup_list() {

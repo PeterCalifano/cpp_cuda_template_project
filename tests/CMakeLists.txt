@@ -191,6 +191,20 @@ set_tests_properties(
     TIMEOUT 60
 )
 
+add_test(
+    NAME template_project_release_tag_sync
+    COMMAND ${CMAKE_COMMAND}
+        -DTEST_TEMPLATE_SOURCE_DIR=${PROJECT_SOURCE_DIR}
+        -DTEST_BINARY_ROOT=${PROJECT_BINARY_DIR}/release_tag_sync
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyTemplateProjectReleaseTagSync.cmake
+)
+set_tests_properties(
+    template_project_release_tag_sync
+    PROPERTIES
+    LABELS "release;version;ros2"
+    TIMEOUT 180
+)
+
 if(ENABLE_CUDA)
     add_test(
         NAME template_project_cuda_sources

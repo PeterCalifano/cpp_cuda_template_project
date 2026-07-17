@@ -146,7 +146,8 @@ version-only implementation of `--sync-ros2` is skipped instead of being
 misreported as a complete metadata refresh.
 
 Run the same command manually after changing root project metadata or tags, and
-before packaging source archives.
+before packaging source archives. Releases need the tag-safe preparation order
+described in [Release tagging with the ROS 2 overlay](versioning.md#release-tagging-with-the-ros-2-overlay).
 
 ## Rollout to derived repositories
 

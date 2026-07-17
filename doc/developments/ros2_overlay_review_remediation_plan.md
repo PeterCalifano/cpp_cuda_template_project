@@ -300,45 +300,45 @@ gaps, and bounds core-to-overlay CI drift.
 
 ### Documentation contract
 
-- [ ] Add a `Release tagging with the ROS 2 overlay` subsection to
+- [x] Add a `Release tagging with the ROS 2 overlay` subsection to
   `doc/versioning.md` and cross-link it from the version-sync section in
   `doc/ros2_overlay.md`.
-- [ ] Document why a release tag must reference a commit whose four
+- [x] Document why a release tag must reference a commit whose four
   `package.xml` files already contain that exact release version.
-- [ ] Document this release-preparation sequence without publishing the
+- [x] Document this release-preparation sequence without publishing the
   temporary tag:
   create a temporary local lightweight `vX.Y.Z` tag on the release-prep HEAD;
   run `./generate_version.sh --sync-ros2`; delete the temporary tag; review and
   commit synchronized manifests/metadata; create the final annotated tag on
   that commit; run all release gates with the final local tag present; then push
   the branch and tag atomically with `git push --atomic`.
-- [ ] State that creating the final tag first in the GitHub UI and synchronizing
+- [x] State that creating the final tag first in the GitHub UI and synchronizing
   afterward is invalid because it leaves the tagged source stale permanently.
-- [ ] State that the synchronized release-preparation commit is expected to fail
+- [x] State that the synchronized release-preparation commit is expected to fail
   the strict version check until the final local tag is created on that commit;
   do not publish that intermediate state without the final tag. Run release
   gates only after the final local tag exists, then push branch and tag together.
-- [ ] Clarify that a release source archive must include the synchronized
+- [x] Clarify that a release source archive must include the synchronized
   manifests and resolved release metadata; an arbitrary no-Git tree without
   either is not a valid release input.
 
 ### Red-green process test
 
-- [ ] Add `tests/cmake/VerifyTemplateProjectReleaseTagSync.cmake`, using a local
+- [x] Add `tests/cmake/VerifyTemplateProjectReleaseTagSync.cmake`, using a local
   scratch clone so it never creates, moves, or deletes tags in the working
   repository.
-- [ ] In the scratch clone, create an isolated synthetic release tag, demonstrate
+- [x] In the scratch clone, create an isolated synthetic release tag, demonstrate
   that the existing strict verifier rejects stale manifests, then run the
   documented temporary-tag sync sequence.
-- [ ] Commit the synchronized manifests in the scratch clone, create the final
+- [x] Commit the synchronized manifests in the scratch clone, create the final
   annotated tag on that commit, and assert with `git show <tag>:<path>` that all
   four tagged manifests contain the synthetic version.
-- [ ] Run `VerifyTemplateProjectRos2Overlay.cmake` against the final tagged
+- [x] Run `VerifyTemplateProjectRos2Overlay.cmake` against the final tagged
   scratch tree with the synthetic version as `EXPECTED_VERSION` and require it
   to pass.
-- [ ] Register the test with labels `release;version;ros2`; configure local Git
+- [x] Register the test with labels `release;version;ros2`; configure local Git
   identity inside the scratch clone and require no network access.
-- [ ] Extend `VerifyTemplateProjectDocsStatic.cmake` or the ROS overlay verifier
+- [x] Extend `VerifyTemplateProjectDocsStatic.cmake` or the ROS overlay verifier
   to require the temporary-tag, synchronized-commit, final annotated-tag, and
   atomic-push concepts in the release documentation.
 
