@@ -10,6 +10,7 @@ ROS integration lives in `ros2/` plus the root overlay helpers:
 - `add_ros2_support.sh`
 - the four root `COLCON_IGNORE` markers
 - `.github/workflows/build_ros2_overlay.yml`
+- `.github/workflows/build_ros2_overlay.yml.tpl`
 - this documentation and the template-development checks
 
 There is no root `package.xml` and no `ENABLE_ROS2` CMake option. The shim package at `ros2/template_project/` is the only package that includes the core library. Its `CMakeLists.txt` preloads the real root `cmake/` directory, then calls `add_subdirectory()` on the repository root so the usual install/export rules publish `template_project::template_project` into the colcon install prefix.
@@ -133,6 +134,14 @@ Use `add_ros2_support.sh` from this template checkout when a derived repository 
 
 The rollout script is purely additive. It refuses targets that already have `ros2/` or `build_ros2.sh`, copies the overlay files, renames copied ROS package paths and copied file contents from `template_project` to a ROS package prefix, and leaves existing target files untouched.
 
+For CI, rollout reads the dormant generic
+`.github/workflows/build_ros2_overlay.yml.tpl` and writes it to the target as
+the runnable `.github/workflows/build_ros2_overlay.yml`. It does not copy the
+active template-validation workflow, which contains checks for this template's
+rollout machinery and placeholder implementation. The rollout helper requires
+the generic ownership marker before copying, so a misplaced active workflow
+cannot be delivered under the `.tpl` filename.
+
 By default, the ROS package prefix is derived from the target CMake package name in `set(project_name "...")`. If the CMake package name is already ROS-valid, the two names match. If the CMake package name is not ROS-valid, the script keeps core CMake references pointed at the original CMake package name while using a ROS-valid package prefix for ROS package names. For example, a target CMake package named `space-nav-frontend` keeps this core CMake shape:
 
 ```cmake
@@ -175,10 +184,17 @@ The overlay is kept by default during template cleanup. Remove it explicitly:
 
 ## CI
 
-`.github/workflows/build_ros2_overlay.yml` runs the overlay in the `ros:jazzy` container. It has two jobs:
+The active `.github/workflows/build_ros2_overlay.yml` is owned by this template
+repository and runs the overlay in the `ros:jazzy` container. It has two jobs:
 
 - `overlay-build`: installs dependencies, synchronizes project metadata, runs `rosdep install --from-paths ros2 -i -r -y --rosdistro jazzy`, builds/tests the overlay, then runs the static pytest.
-- `rollout-dogfood`: performs the same pre-`rosdep` metadata sync, strips the overlay from a copy, re-adds it with `add_ros2_support.sh --verify`, builds the overlay, and checks a plain standalone CMake build.
+- `rollout-dogfood`: makes a full-history clone of the exact CI revision, performs the same pre-`rosdep` metadata sync, strips the overlay from the clone, re-adds it with `add_ros2_support.sh --verify`, builds the overlay, and checks a plain standalone CMake build.
+
+The dormant `.github/workflows/build_ros2_overlay.yml.tpl` is the generic
+single-project workflow delivered by tailoring or additive rollout. It watches
+the derived project's source and overlay paths, synchronizes metadata, installs
+ROS dependencies, and runs `./build_ros2.sh --clean`; it does not contain
+template-only static or rollout checks.
 
 CUDA+ROS is local-only in this repository. The available self-hosted GPU runner does not provide the ROS environment, so CI intentionally avoids `build_ros2.sh --cuda`.
 

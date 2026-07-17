@@ -283,3 +283,21 @@ stage for review.
   reject the former package-prefix-root leak.
 - [x] Pass the fresh standalone `25/25` CTest suite, clean ROS `10/10` suite,
   installed target inspection, and an installed-only colcon consumer probe.
+
+### Stage R1A - Template-validation and tailored-project CI ownership
+
+- [x] Keep the four runnable workflows template-owned and add four dormant,
+  generic `.yml.tpl` project workflows with explicit ownership markers.
+- [x] Materialize generic workflows atomically during cleanup, preserve modes,
+  support idempotent reapplication, and remove both ROS workflow forms with
+  `--remove-ros2`.
+- [x] Make additive ROS rollout validate and materialize only the dormant
+  generic workflow, never the active template-validation workflow.
+- [x] Add auto-discovered YAML/ownership tests plus byte-equivalent tailoring
+  and additive-rollout fixtures so dormant templates cannot rot silently.
+- [x] Dogfood materialized CPU/docs, CUDA, and ROS project paths from active
+  template CI, using full-history scratch clones where version provenance is
+  required.
+- [x] Pass standalone `26/26`, clean ROS `10/10`, tailored CUDA `9/9`, normal
+  tailoring/docs, remove/re-add rollout, YAML, shell-lint, conflict, and frozen
+  surface gates; record red-green evidence in `ROS2_OVERLAY_STAGE_OUTPUTS.md`.

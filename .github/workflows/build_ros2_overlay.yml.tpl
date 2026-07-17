@@ -1,0 +1,71 @@
+# project-ci-template: generic
+name: build_ros2_overlay
+run-name: Build optional ROS 2 overlay
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "master"
+      - "main"
+      - "develop"
+    paths:
+      - CMakeLists.txt
+      - cmake/**
+      - src/**
+      - lib/**
+      - ros2/**
+      - build_ros2.sh
+      - generate_version.sh
+      - .github/workflows/build_ros2_overlay.yml
+  pull_request:
+    branches:
+      - "master"
+      - "main"
+      - "develop"
+      - "dev*"
+    paths:
+      - CMakeLists.txt
+      - cmake/**
+      - src/**
+      - lib/**
+      - ros2/**
+      - build_ros2.sh
+      - generate_version.sh
+      - .github/workflows/build_ros2_overlay.yml
+
+jobs:
+  overlay-build:
+    runs-on: ubuntu-24.04
+    container:
+      image: ros:jazzy
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Install ROS 2 overlay dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends build-essential cmake git libeigen3-dev python3-colcon-common-extensions ros-dev-tools
+
+      - name: Synchronize ROS package metadata
+        shell: bash
+        run: |
+          if [[ -x ./generate_version.sh ]] \
+              && grep -q -- "--sync-ros2" ./generate_version.sh \
+              && grep -q -- "ROS2_PROJECT_METADATA_SYNC=1" ./generate_version.sh; then
+            ./generate_version.sh --sync-ros2
+          else
+            echo "Skipping ROS package metadata sync; generate_version.sh is missing or predates project metadata sync."
+          fi
+
+      - name: Resolve ROS 2 package dependencies
+        run: |
+          rosdep update
+          rosdep install --from-paths ros2 -i -r -y --rosdistro jazzy
+
+      - name: Build and test ROS 2 overlay
+        shell: bash
+        run: ./build_ros2.sh --clean

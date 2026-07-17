@@ -90,13 +90,39 @@ ctest --test-dir build --output-on-failure -R "docs|pages|issue_templates|versio
 
 ## CI Workflows
 
+Template-validation workflows are the active `.github/workflows/*.yml` files in
+this repository. They verify template-owned contracts such as cleanup,
+rollout, static CMake checks, and fixture builds; they are not the workflows
+delivered unchanged to a derived project.
+
+Derived-project workflow templates are stored as dormant matching
+`.github/workflows/*.yml.tpl` files. `tailor_template_cleanup.sh` materializes
+them as the runnable `.yml` files and removes the `.tpl` sources. The
+`testWorkflowTemplates.py` contract parses every active/dormant pair, rejects
+template-only checks from the dormant definitions, and requires the generic
+CPU, CUDA, docs, and ROS gates.
+
+Dormant workflow templates must not rely on parse-only coverage. The active
+Linux `tailored-project-dogfood` job applies cleanup in a full-history scratch
+clone of the exact CI revision,
+parses the materialized workflows, builds/tests the tailored C++ fixture, and
+builds its docs. The active ROS workflow separately removes and re-adds the
+overlay in scratch, materializes the generic ROS workflow, and exercises the
+resulting ROS and standalone builds. The active CUDA workflow runs the common
+workflow-template contract, materializes the project in both jobs, and then
+builds/tests that tailored source tree on the GPU runner.
+
 The Linux workflows keep CPU tuning portable because build artifacts are tested in a separate job. Do not re-enable `CPU_ENABLE_NATIVE_TUNING=ON` in GitHub Actions unless build and test run on the same pinned CPU family.
 
-GitHub-hosted Linux jobs install `python3-pytest`, Doxygen, and Graphviz because
-the default CTest suite can include pytest-backed `test*.py` files and
-documentation CTests. Self-hosted and CUDA workflows validate the same tools with
-`python3 -m pytest --version`, `command -v doxygen`, and `command -v dot` before
-configuring or running tests.
+Template-validation Linux and ROS jobs install `python3-pytest` and
+`python3-yaml`; PyYAML parses the active/dormant workflow pairs. Jobs that run
+documentation CTests also install Doxygen and Graphviz. Self-hosted and CUDA
+template workflows validate the same requirements with
+`python3 -m pytest --version`, `python3 -c 'import yaml'`,
+`command -v doxygen`, and `command -v dot` before configuring or running tests.
+Cleanup removes the workflow-template
+pytest, so generic tailored-project CI does not inherit the PyYAML dependency
+unless the project adds its own YAML-backed tests.
 
 The Pages workflow is separate from the C++ build workflow. It has these stages:
 

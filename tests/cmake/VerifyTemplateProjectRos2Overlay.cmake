@@ -62,6 +62,7 @@ endfunction()
 foreach(_required_path
     "CMakeLists.txt"
     ".github/workflows/build_ros2_overlay.yml"
+    ".github/workflows/build_ros2_overlay.yml.tpl"
     "build_ros2.sh"
     "add_ros2_support.sh"
     "tailor_template_cleanup.sh"
@@ -299,6 +300,9 @@ _read_required("${_root}/add_ros2_support.sh" _add_ros2_support_script)
 if(NOT _add_ros2_support_script MATCHES "grep -Iq \\. \"\\$\\{file_path_\\}\" \\|\\| return 0")
   message(FATAL_ERROR "add_ros2_support.sh must suppress grep exit 1 while skipping non-text files.")
 endif()
+if(NOT _add_ros2_support_script MATCHES "project-ci-template: generic")
+  message(FATAL_ERROR "add_ros2_support.sh must validate generic workflow ownership before rollout.")
+endif()
 if(NOT _add_ros2_support_script MATCHES "--ros-prefix")
   message(FATAL_ERROR "add_ros2_support.sh must support overriding the derived ROS package prefix.")
 endif()
@@ -461,6 +465,7 @@ set(_fake_doc_conflict "${TEST_BINARY_ROOT}/fake_doc_conflict")
 set(_fake_workflow_conflict "${TEST_BINARY_ROOT}/fake_workflow_conflict")
 set(_fake_workflow_no_ci "${TEST_BINARY_ROOT}/fake_workflow_no_ci")
 set(_fake_apply "${TEST_BINARY_ROOT}/fake_apply")
+set(_fake_apply_ci "${TEST_BINARY_ROOT}/fake_apply_ci")
 set(_fake_boundary "${TEST_BINARY_ROOT}/fake_boundary")
 
 _create_fake_target("${_fake_list}" "my_template_project_x")
@@ -559,6 +564,40 @@ foreach(_expected_path
     "tests/COLCON_IGNORE")
   if(NOT EXISTS "${_fake_apply}/${_expected_path}")
     message(FATAL_ERROR "Expected add_ros2_support.sh to create ${_expected_path}")
+  endif()
+endforeach()
+
+_create_fake_target("${_fake_apply_ci}" "space_nav")
+_run_success(
+    "Apply ROS 2 rollout with generic CI workflow"
+    "${_bash_executable}" "${_root}/add_ros2_support.sh"
+    --apply --yes --root "${_fake_apply_ci}")
+set(_copied_project_workflow
+    "${_fake_apply_ci}/.github/workflows/build_ros2_overlay.yml")
+if(NOT EXISTS "${_copied_project_workflow}")
+  message(FATAL_ERROR "ROS rollout did not materialize the generic project workflow")
+endif()
+if(EXISTS "${_fake_apply_ci}/.github/workflows/build_ros2_overlay.yml.tpl")
+  message(FATAL_ERROR "ROS rollout copied a dormant .tpl file into the target")
+endif()
+_read_required("${_copied_project_workflow}" _copied_project_workflow_contents)
+foreach(_template_only_pattern
+    "VerifyTemplateProject"
+    "testRos2OverlayStatic"
+    "tailor_template_cleanup"
+    "CWrapperPlaceholder"
+    "rollout-dogfood")
+  if(_copied_project_workflow_contents MATCHES "${_template_only_pattern}")
+    message(FATAL_ERROR
+        "Copied project workflow retained template-only pattern '${_template_only_pattern}'")
+  endif()
+endforeach()
+foreach(_project_gate
+    "rosdep install --from-paths ros2"
+    "\\./build_ros2\\.sh --clean"
+    "src/\\*\\*")
+  if(NOT _copied_project_workflow_contents MATCHES "${_project_gate}")
+    message(FATAL_ERROR "Copied project workflow is missing '${_project_gate}'")
   endif()
 endforeach()
 foreach(_forbidden_path
@@ -691,8 +730,11 @@ _assert_matches("${_workflow}" "doc/template_usage\\.md")
 _assert_matches("${_workflow}" "doc/bootstrap_prompts\\.md")
 _assert_matches("${_workflow}" "tests/cmake/VerifyTemplateProjectRos2Overlay\\.cmake")
 _assert_matches("${_workflow}" "tests/template_test/testRos2OverlayStatic\\.py")
+_assert_matches("${_workflow}" "tests/template_test/testWorkflowTemplates\\.py")
 _assert_matches("${_workflow}" "\\.github/workflows/build_ros2_overlay\\.yml")
-_assert_not_matches("${_workflow}" "src/\\*\\*")
+_assert_matches("${_workflow}" "\\.github/workflows/build_ros2_overlay\\.yml\\.tpl")
+_assert_matches("${_workflow}" "src/\\*\\*")
+_assert_matches("${_workflow}" "cmake/\\*\\*")
 _assert_matches("${_workflow}" "overlay-build:")
 _assert_matches("${_workflow}" "rollout-dogfood:")
 _assert_matches("${_workflow}" "ubuntu-24\\.04")
@@ -710,7 +752,6 @@ _assert_matches("${_workflow}" "grep -q -- \"ROS2_PROJECT_METADATA_SYNC=1\"")
 _assert_matches("${_workflow}" "\\./generate_version\\.sh --sync-ros2")
 _assert_matches("${_workflow}" "\\./build_ros2\\.sh --clean")
 _assert_matches("${_workflow}" "name: Verify installed core header layout")
-_assert_matches("${_workflow}" "src/wrapped_impl/CWrapperPlaceholder\\.h")
 _assert_matches("${_workflow}" "core_cmake_name_=")
 _assert_matches("${_workflow}" "_ros2_overlay_nested_version_file")
 _assert_matches(
@@ -719,19 +760,14 @@ _assert_matches(
 _assert_matches(
     "${_workflow}"
     "test ! -e[^\n]*wrapped_impl/CWrapperPlaceholder\\.h")
-_assert_matches("${_workflow}" "python3 -m pytest -q tests/template_test/testRos2OverlayStatic\\.py")
-_assert_matches(
-    "${_workflow}"
-    "if \\[\\[ -f tests/template_test/testRos2OverlayStatic\\.py \\]\\]; then[\r\n \t]+python3 -m pytest -q tests/template_test/testRos2OverlayStatic\\.py")
-_assert_matches("${_workflow}" "Skipping template-only pytest checks")
+_assert_matches("${_workflow}" "tests/template_test/testRos2OverlayStatic\\.py")
+_assert_matches("${_workflow}" "tests/template_test/testWorkflowTemplates\\.py")
+_assert_not_matches("${_workflow}" "Skipping template-only pytest checks")
 _assert_matches("${_workflow}" "expected_version")
 _assert_matches("${_workflow}" "ros2/template_project/package\\.xml")
 _assert_matches("${_workflow}" "-DEXPECTED_VERSION")
 _assert_matches("${_workflow}" "-P tests/cmake/VerifyTemplateProjectRos2Overlay\\.cmake")
-_assert_matches(
-    "${_workflow}"
-    "if \\[\\[ -f tests/cmake/VerifyTemplateProjectRos2Overlay\\.cmake \\]\\]; then[\r\n \t]+expected_version=")
-_assert_matches("${_workflow}" "Skipping template-only CMake checks")
+_assert_not_matches("${_workflow}" "Skipping template-only CMake checks")
 _assert_matches("${_workflow}" "tailor_template_cleanup\\.sh --apply --yes --remove-ros2")
 _assert_matches("${_workflow}" "add_ros2_support\\.sh --root")
 _assert_matches("${_workflow}" "cmake -S \\. -B build_plain -DENABLE_TESTS=OFF")
@@ -793,22 +829,65 @@ if(NOT _checkout_count EQUAL 2 OR NOT _fetch_depth_count EQUAL _checkout_count)
       "Found ${_checkout_count} checkout steps and ${_fetch_depth_count} full-depth settings.")
 endif()
 
-_assert_matches("${_workflow}" "id: rollout-tooling")
-_assert_matches(
-    "${_workflow}"
-    "if \\[\\[ -f add_ros2_support\\.sh && -f tailor_template_cleanup\\.sh \\]\\]; then")
-_assert_matches("${_workflow}" "GITHUB_OUTPUT")
-_assert_matches("${_workflow}" "Skipping template-only rollout dogfood")
-string(
-    REGEX MATCHALL
-    "if: steps\\.rollout-tooling\\.outputs\\.available == 'true'"
-    _rollout_tooling_guards
-    "${_workflow_contents}")
-list(LENGTH _rollout_tooling_guards _rollout_tooling_guard_count)
-if(NOT _rollout_tooling_guard_count EQUAL 4)
+_assert_not_matches("${_workflow}" "id: rollout-tooling")
+_assert_not_matches("${_workflow}" "steps\\.rollout-tooling")
+_assert_not_matches("${_workflow}" "Skipping template-only rollout dogfood")
+
+set(_workflow_template
+    "${_root}/.github/workflows/build_ros2_overlay.yml.tpl")
+_assert_matches("${_workflow_template}" "# project-ci-template: generic")
+_assert_matches("${_workflow_template}" "workflow_dispatch")
+_assert_matches("${_workflow_template}" "push:")
+_assert_matches("${_workflow_template}" "pull_request:")
+_assert_matches("${_workflow_template}" "CMakeLists\\.txt")
+_assert_matches("${_workflow_template}" "cmake/\\*\\*")
+_assert_matches("${_workflow_template}" "src/\\*\\*")
+_assert_matches("${_workflow_template}" "lib/\\*\\*")
+_assert_matches("${_workflow_template}" "ros2/\\*\\*")
+_assert_matches("${_workflow_template}" "build_ros2\\.sh")
+_assert_matches("${_workflow_template}" "generate_version\\.sh")
+_assert_matches("${_workflow_template}" "overlay-build:")
+_assert_matches("${_workflow_template}" "rosdep install --from-paths ros2 -i -r -y --rosdistro jazzy")
+_assert_matches("${_workflow_template}" "\\./build_ros2\\.sh --clean")
+foreach(_template_only_pattern
+    "Verify installed core header layout"
+    "VerifyTemplateProject"
+    "testRos2OverlayStatic"
+    "testWorkflowTemplates"
+    "tailor_template_cleanup"
+    "add_ros2_support"
+    "CWrapperPlaceholder"
+    "rollout-dogfood")
+  _assert_not_matches("${_workflow_template}" "${_template_only_pattern}")
+endforeach()
+
+_read_required("${_workflow_template}" _workflow_template_contents)
+string(REGEX MATCHALL
+    "\\./generate_version\\.sh --sync-ros2"
+    _project_workflow_metadata_syncs
+    "${_workflow_template_contents}")
+list(LENGTH _project_workflow_metadata_syncs _project_workflow_metadata_sync_count)
+if(NOT _project_workflow_metadata_sync_count EQUAL 1)
   message(FATAL_ERROR
-      "Expected rollout dependency installation, metadata sync, rosdep, and rehearsal to share the template-tooling guard; "
-      "found ${_rollout_tooling_guard_count} guarded steps.")
+      "Generic ROS workflow must synchronize metadata exactly once; "
+      "found ${_project_workflow_metadata_sync_count} invocations.")
+endif()
+string(REGEX MATCHALL
+    "uses: actions/checkout@v[0-9]+"
+    _project_workflow_checkouts
+    "${_workflow_template_contents}")
+list(LENGTH _project_workflow_checkouts _project_workflow_checkout_count)
+string(REGEX MATCHALL
+    "fetch-depth:[ ]*0"
+    _project_workflow_fetch_depths
+    "${_workflow_template_contents}")
+list(LENGTH _project_workflow_fetch_depths _project_workflow_fetch_depth_count)
+if(NOT _project_workflow_checkout_count EQUAL 1
+    OR NOT _project_workflow_fetch_depth_count EQUAL 1)
+  message(FATAL_ERROR
+      "Generic ROS workflow must have one full-depth checkout; found "
+      "${_project_workflow_checkout_count} checkouts and "
+      "${_project_workflow_fetch_depth_count} full-depth settings.")
 endif()
 
 set(_ros2_doc "${_root}/doc/ros2_overlay.md")

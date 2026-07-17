@@ -199,3 +199,32 @@ By default this also removes `profiling/`. Keep those scripts only when the new 
 The script removes agent/context notes, internal development notes, workflow snapshot files, template-specific validation CTest scripts, optional profiling scripts, and the workspace file tied to this template checkout. It keeps reusable project infrastructure such as `cmake/`, `build_lib.sh`, docs workflow files, issue forms, examples, toolchains, starter unit tests, `.devcontainer/`, and `.vscode/`.
 
 It also removes the root CMake hook for the template MATLAB regression helper and rewrites `tests/CMakeLists.txt` so only starter project unit tests remain registered.
+
+### Workflow materialization
+
+The runnable `.github/workflows/*.yml` files in this repository validate the
+template itself. Generic workflows for a tailored project are stored beside
+them as dormant `.tpl` files so GitHub does not execute both definitions:
+
+| Dormant project workflow | Materialized tailored workflow |
+|---|---|
+| `build_linux.yml.tpl` | `build_linux.yml` |
+| `build_linux_cuda.yml.tpl` | `build_linux_cuda.yml` |
+| `docs_pages.yml.tpl` | `docs_pages.yml` |
+| `build_ros2_overlay.yml.tpl` | `build_ros2_overlay.yml` |
+
+Normal cleanup validates that each active/dormant pair exists, atomically
+replaces each active template-validation workflow with its generic project
+workflow, and removes every `.tpl` file. The resulting checkout therefore has
+only runnable project CI and no dormant workflow templates.
+
+Each generic workflow carries the `# project-ci-template: generic` ownership
+marker. Cleanup preserves that marker and the source file mode, allowing the
+same cleanup mode to be reapplied safely while still rejecting an active
+template-validation workflow whose matching `.tpl` was lost before
+materialization.
+
+With `--remove-ros2`, cleanup materializes the three non-ROS workflows and
+removes both forms of the ROS workflow. Without that flag, all four project
+workflows are materialized. Make project-specific runner, dependency, and
+deployment changes in the resulting `.yml` files after cleanup.

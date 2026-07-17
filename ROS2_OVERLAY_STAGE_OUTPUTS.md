@@ -722,3 +722,110 @@ Known non-fatal output:
 - The existing GCC 13/fmt/spdlog `-Warray-bounds` warning remains visible in
   standalone and colcon builds. It predates this stage and did not fail any
   gate.
+
+## Review remediation Stage 1A workflow ownership - 2026-07-17
+
+Scope:
+- Split all four CI surfaces into active template-validation workflows and
+  dormant generic project workflows: Linux CPU, Linux CUDA, Doxygen/Pages, and
+  the optional ROS 2 overlay.
+- Made `tailor_template_cleanup.sh` atomically materialize generic `.yml.tpl`
+  sources as runnable `.yml` files, remove dormant files, preserve modes, and
+  safely accept repeated keep-ROS or remove-ROS cleanup runs.
+- Added the `# project-ci-template: generic` ownership marker so cleanup can
+  distinguish an already materialized workflow from an active template
+  verifier whose dormant source was lost.
+- Made `add_ros2_support.sh` require that marker and copy only the dormant
+  generic ROS workflow into derived projects.
+- Made active CPU/docs and ROS dogfood use full-history clones of the exact CI
+  revision. CUDA build and test jobs now materialize the tailored project
+  before configuring or testing it.
+
+Red evidence:
+- `testWorkflowTemplates.py` first failed because
+  `.github/workflows/build_linux.yml.tpl` did not exist.
+- The tailoring verifier first failed because cleanup did not advertise or
+  perform workflow materialization.
+- The ROS verifier first failed because
+  `.github/workflows/build_ros2_overlay.yml.tpl` did not exist and rollout
+  still sourced the active workflow.
+- The active-workflow ownership test first failed because Linux CI had no
+  `tailored-project-dogfood` job.
+- A new archive guard failed on `--exclude='./build*'`, which could exclude
+  `build_lib.sh`; a second clean-source audit found that excluding `.git` also
+  allowed a clean runner to lose version provenance. Both active dogfood jobs
+  now use local full-history clones instead of archives.
+- The CUDA ownership test failed before its build and test jobs materialized
+  the project source tree.
+- Reapplying cleanup failed on the consumed
+  `.github/workflows/build_linux.yml.tpl`; the idempotency fixture now runs both
+  keep-ROS and remove-ROS cleanup twice.
+- A missing-template fixture showed that active-only state was ambiguous and
+  initially accepted. Explicit ownership markers now reject an unmaterialized
+  active verifier without its generic source.
+- The ROS verifier failed before additive rollout validated the generic
+  ownership marker.
+- The docs verifier failed before the active-versus-derived ownership and
+  materialization contract was documented.
+- A final docs guard failed before `python3-yaml` was documented as a
+  template-validation dependency rather than a tailored-project dependency.
+- Compatibility review found and removed a test-only
+  `COMMAND_ERROR_IS_FATAL` use newer than the CMake 3.15 project floor; the
+  mode fixture now checks `RESULT_VARIABLE` explicitly.
+
+Validation evidence:
+- `python3 -m pytest -q tests/template_test/testWorkflowTemplates.py
+  tests/template_test/testRos2OverlayStatic.py`: passed `11/11`.
+- Direct `VerifyTemplateProjectTailoringScript.cmake` passed byte-equivalent
+  materialization, mode `0640` preservation, idempotent reapplication, missing
+  generic-source rejection, both ROS retention modes, and the CMake 3.15-safe
+  error-checking path.
+- Direct `VerifyTemplateProjectRos2Overlay.cmake` passed generic-marker
+  validation, additive workflow materialization, target-content guards, and
+  the existing overlay contracts.
+- Direct docs and CI workflow CMake verifiers passed.
+- `./build_lib.sh -B build_workflow_split --clean` passed `26/26`; a final
+  source-state `ctest --test-dir build_workflow_split --output-on-failure
+  --parallel 6 --no-tests=error` also passed `26/26`.
+- Normal tailoring scratch at
+  `/tmp/cpp_cuda_template_tailored.W3hpQn/target` produced four runnable YAML
+  workflows, no `.tpl` or template-only workflow checks, passed standalone
+  CTest `7/7`, and built Doxygen HTML/XML.
+- The same tailored scratch configured with CUDA `12.9.41` for `sm_120`, built
+  successfully, and passed `9/9` tests including CUDA initialization and the
+  device-memory round trip.
+- `./build_ros2.sh --clean` built all four packages and reported `10 tests, 0
+  errors, 0 failures, 0 skipped`.
+- Remove/re-add rollout scratch at
+  `/tmp/cpp_cuda_template_rollout.fnHQZP/target` first produced exactly three
+  non-ROS workflows, then restored the generic ROS workflow byte-for-byte from
+  `.yml.tpl`; clean ROS tests passed `10/10` and the standalone build passed.
+- `bash -n`, `shellcheck`, `git diff --check`, exact conflict-marker scan, and
+  parsing all eight workflow files passed. Exactly four workflow files carry
+  the generic marker.
+- Root `CMakeLists.txt`, `src/`, and `python/` have no Stage 1A diff.
+
+Full temporary red command logs recovered from the implementation pass:
+- `/tmp/workflow_split_pytest_red.log`
+- `/tmp/workflow_split_tailoring_red.log`
+- `/tmp/workflow_split_ros_red.log`
+- `/tmp/workflow_split_active_red.log`
+
+Known non-fatal output and deferred scope:
+- Standalone, CUDA, and ROS builds retain the existing GCC 13/fmt/spdlog
+  `-Warray-bounds` warning.
+- The tailored CUDA configure still reports no ordinary CUDA source in the
+  core library. This is the pre-existing compile-graph defect explicitly owned
+  by remediation Stage 2; Stage 1A proves the materialized CUDA CI path without
+  claiming that Stage 2 is complete.
+
+Proposed commit message:
+
+```text
+Separate template and project CI workflows
+- Materialize generic workflows during project tailoring.
+
+- Dogfood tailored CPU, CUDA, docs, and ROS paths.
+
+- Guard workflow ownership and cleanup idempotency.
+```

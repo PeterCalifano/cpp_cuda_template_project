@@ -14,6 +14,7 @@ LIST_ONLY=1
 VERIFY=0
 NO_CI=0
 ROS_PREFIX_OVERRIDE=""
+PROJECT_WORKFLOW_MARKER="# project-ci-template: generic"
 cmake_project_name=""
 ros_package_prefix=""
 
@@ -113,6 +114,13 @@ validate_ros_prefix() {
 validate_source() {
   [[ -d "${SOURCE_DIR}/ros2" ]] || die "Source checkout is missing ros2/: ${SOURCE_DIR}"
   [[ -f "${SOURCE_DIR}/build_ros2.sh" ]] || die "Source checkout is missing build_ros2.sh: ${SOURCE_DIR}"
+  if ((NO_CI == 0)); then
+    [[ -f "${SOURCE_DIR}/.github/workflows/build_ros2_overlay.yml.tpl" ]] \
+      || die "Source checkout is missing generic ROS 2 workflow template"
+    grep -Fqx -- "${PROJECT_WORKFLOW_MARKER}" \
+      "${SOURCE_DIR}/.github/workflows/build_ros2_overlay.yml.tpl" \
+      || die "ROS 2 workflow template is missing its generic ownership marker"
+  fi
 }
 
 validate_target() {
@@ -156,7 +164,7 @@ target_is_clean() {
 
   optional_target_="${ROOT_DIR}/.github/workflows/build_ros2_overlay.yml"
   if ((NO_CI == 0)) \
-      && [[ -f "${SOURCE_DIR}/.github/workflows/build_ros2_overlay.yml" \
+      && [[ -f "${SOURCE_DIR}/.github/workflows/build_ros2_overlay.yml.tpl" \
       && -d "${ROOT_DIR}/.github/workflows" \
       && ( -e "${optional_target_}" || -L "${optional_target_}" ) ]]; then
     warn "Target already has .github/workflows/build_ros2_overlay.yml: ${optional_target_}"
@@ -190,7 +198,7 @@ Required copies:
 
 Optional copies when source and target directories exist:
   - doc/ros2_overlay.md
-  - .github/workflows/build_ros2_overlay.yml
+  - generic .github/workflows/build_ros2_overlay.yml.tpl materialized as build_ros2_overlay.yml
   - python/COLCON_IGNORE, lib/COLCON_IGNORE, examples/COLCON_IGNORE, tests/COLCON_IGNORE
 
 Never copied:
@@ -386,7 +394,7 @@ copy_overlay() {
   if ((NO_CI)); then
     info "skipping CI workflow because --no-ci is set"
   else
-    copy_optional_file_if_possible ".github/workflows/build_ros2_overlay.yml" ".github/workflows/build_ros2_overlay.yml"
+    copy_optional_file_if_possible ".github/workflows/build_ros2_overlay.yml.tpl" ".github/workflows/build_ros2_overlay.yml"
   fi
 
   copy_colcon_marker_if_possible "python/COLCON_IGNORE"

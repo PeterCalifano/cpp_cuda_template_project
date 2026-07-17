@@ -1,5 +1,6 @@
-name: verify_cpp_template
-run-name: Verify C++ project template
+# project-ci-template: generic
+name: build_cpplinux
+run-name: Build and test C++ library
 
 on:
   workflow_dispatch:
@@ -25,9 +26,7 @@ on:
       - cmake/**
       - CMakeLists.txt
       - build_lib.sh
-      - tailor_template_cleanup.sh
       - .github/workflows/build_linux.yml
-      - .github/workflows/*.yml.tpl
   pull_request:
     branches:
       - "master"
@@ -42,9 +41,7 @@ on:
       - cmake/**
       - CMakeLists.txt
       - build_lib.sh
-      - tailor_template_cleanup.sh
       - .github/workflows/build_linux.yml
-      - .github/workflows/*.yml.tpl
 
 jobs:
   build:
@@ -64,7 +61,7 @@ jobs:
         if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.runner == 'github-hosted' }}
         run: |
           sudo apt update
-          sudo apt install -y cmake ninja-build g++ ccache libboost-all-dev libeigen3-dev libtbb-dev python3-dev python3-pytest python3-yaml doxygen graphviz
+          sudo apt install -y cmake ninja-build g++ ccache libboost-all-dev libeigen3-dev libtbb-dev python3-dev python3-pytest
 
       - name: Validate self-hosted prerequisites
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.runner == 'self-hosted' }}
@@ -75,22 +72,18 @@ jobs:
           command -v ccache
           command -v python3
           python3 -m pytest --version
-          python3 -c 'import yaml'
-          command -v doxygen
-          command -v dot
 
       - name: Restore compiler cache
         uses: actions/cache@v4
         with:
           path: ~/.ccache
-          key: ccache-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', 'src/**', 'tests/**', 'tailor_template_cleanup.sh', '.github/workflows/*.yml.tpl') }}
+          key: ccache-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', 'src/**', 'tests/**') }}
           restore-keys: |
             ccache-${{ runner.os }}-${{ github.ref_name }}-
             ccache-${{ runner.os }}-
 
       - name: Configure
         run: |
-          # Build artifacts are tested in a separate job, so keep CPU flags portable.
           cmake -S . -B "${BUILD_DIR}" -GNinja \
             -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
             -DENABLE_TESTS=ON \
@@ -132,7 +125,7 @@ jobs:
         if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.runner == 'github-hosted' }}
         run: |
           sudo apt update
-          sudo apt install -y cmake ninja-build g++ libboost-all-dev libeigen3-dev libtbb-dev python3-dev python3-pytest python3-yaml doxygen graphviz
+          sudo apt install -y cmake ninja-build g++ libboost-all-dev libeigen3-dev libtbb-dev python3-dev python3-pytest
 
       - name: Validate self-hosted prerequisites
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.runner == 'self-hosted' }}
@@ -141,9 +134,6 @@ jobs:
           command -v ctest
           command -v python3
           python3 -m pytest --version
-          python3 -c 'import yaml'
-          command -v doxygen
-          command -v dot
 
       - name: Download build artifacts
         uses: actions/download-artifact@v4
@@ -165,45 +155,7 @@ jobs:
 
       - name: Restore test executable permissions
         run: |
-          # GitHub artifact download may drop executable bits from binaries.
           find "${CTEST_DIR}" -type f -path "*/tests/*" -exec chmod +x {} + || true
 
       - name: Test
         run: ctest --test-dir "${CTEST_DIR}" --output-on-failure --parallel 2 --no-tests=error
-
-  tailored-project-dogfood:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Install tailored-project dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y cmake ninja-build g++ libboost-all-dev libeigen3-dev python3-dev python3-pytest python3-yaml doxygen graphviz
-
-      - name: Materialize and exercise project workflows
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          scratch_dir="$(mktemp -d "${RUNNER_TEMP}/tailored-project-dogfood.XXXXXX")"
-          target_dir="${scratch_dir}/target"
-          git clone --no-local "${GITHUB_WORKSPACE}" "${target_dir}"
-          git -C "${target_dir}" checkout --detach "${GITHUB_SHA}"
-
-          (
-            cd "${target_dir}"
-            ./tailor_template_cleanup.sh --apply --yes
-            test -z "$(find .github/workflows -maxdepth 1 -name '*.tpl' -print -quit)"
-            if grep -R -E 'VerifyTemplateProject|testWorkflowTemplates|testRos2OverlayStatic|CWrapperPlaceholder|rollout-dogfood' .github/workflows; then
-              echo "Tailored workflows retain template-only validation." >&2
-              exit 1
-            fi
-            python3 -c 'import pathlib, yaml; [yaml.safe_load(path.read_text()) for path in pathlib.Path(".github/workflows").glob("*.yml")]'
-            ./build_lib.sh -B build_tailored_ci
-            cmake --preset docs
-            cmake --build --preset docs
-          )

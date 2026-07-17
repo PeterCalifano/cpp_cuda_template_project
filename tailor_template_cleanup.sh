@@ -59,12 +59,22 @@ template_development_paths=(
     "tests/cmake/VerifyTemplateProjectRos2Overlay.cmake"
     "tests/cmake/VerifyTemplateProjectTailoringScript.cmake"
     "tests/cmake/VerifyTemplateProjectVersionSideEffects.cmake"
+    "tests/template_test/testRos2OverlayStatic.py"
+    "tests/template_test/testWorkflowTemplates.py"
     "tests/matlab/RunTemplateWrapperRegression.m"
 )
 
 optional_paths=(
     "profiling"
 )
+
+project_workflow_names=(
+    "build_linux.yml"
+    "build_linux_cuda.yml"
+    "docs_pages.yml"
+    "build_ros2_overlay.yml"
+)
+project_workflow_marker="# project-ci-template: generic"
 
 ros2_overlay_paths=(
     "ros2"
@@ -75,6 +85,7 @@ ros2_overlay_paths=(
     "examples/COLCON_IGNORE"
     "tests/COLCON_IGNORE"
     ".github/workflows/build_ros2_overlay.yml"
+    ".github/workflows/build_ros2_overlay.yml.tpl"
     "doc/ros2_overlay.md"
     "tests/template_test/testRos2OverlayStatic.py"
 )
@@ -116,6 +127,11 @@ CMake edits made by --apply:
   - Remove the root CMake include/call for AddMatlabWrapperRegressionTests.cmake.
   - Replace tests/CMakeLists.txt template-validation registrations with the project unit-test section.
   - With --remove-ros2, strip <!-- ros2-overlay-begin/end --> fenced doc blocks.
+
+Workflow edits made by --apply:
+  - Materialize generic project CI workflows from the dormant *.yml.tpl files.
+  - Remove active template-validation workflow content and all *.yml.tpl files.
+  - With --remove-ros2, omit the runnable and dormant ROS 2 workflow.
 
 Not removed:
   - cmake/, build_lib.sh, generate_version.sh, docs workflow files, issue forms, and docs guides.
@@ -170,6 +186,69 @@ validate_root() {
     ROOT_DIR="$(cd "${ROOT_DIR}" && pwd)"
     [[ -f "${ROOT_DIR}/CMakeLists.txt" ]] || die "Missing CMakeLists.txt in root: ${ROOT_DIR}"
     [[ -f "${ROOT_DIR}/build_lib.sh" ]] || die "Missing build_lib.sh in root: ${ROOT_DIR}"
+}
+
+validate_workflow_templates() {
+    local workflow_name_
+    local active_workflow_
+    local workflow_template_
+
+    for workflow_name_ in "${project_workflow_names[@]}"; do
+        active_workflow_="${ROOT_DIR}/.github/workflows/${workflow_name_}"
+        workflow_template_="${active_workflow_}.tpl"
+
+        if [[ -f "${workflow_template_}" ]]; then
+            [[ -f "${active_workflow_}" ]] \
+                || die "Generic workflow template has no active pair: .github/workflows/${workflow_name_}.tpl"
+            grep -Fqx -- "${project_workflow_marker}" "${workflow_template_}" \
+                || die "Generic workflow template is missing its ownership marker: .github/workflows/${workflow_name_}.tpl"
+            continue
+        fi
+
+        if [[ -f "${active_workflow_}" ]]; then
+            grep -Fqx -- "${project_workflow_marker}" "${active_workflow_}" \
+                || die "Active template-validation workflow has no generic template: .github/workflows/${workflow_name_}"
+            continue
+        fi
+
+        if ((REMOVE_ROS2)) && [[ "${workflow_name_}" == "build_ros2_overlay.yml" ]]; then
+            continue
+        fi
+
+        die "Missing runnable workflow and generic template: .github/workflows/${workflow_name_}"
+    done
+}
+
+materialize_project_workflows() {
+    local workflow_name_
+    local active_workflow_
+    local workflow_template_
+    local tmp_
+
+    for workflow_name_ in "${project_workflow_names[@]}"; do
+        if ((REMOVE_ROS2)) && [[ "${workflow_name_}" == "build_ros2_overlay.yml" ]]; then
+            continue
+        fi
+
+        active_workflow_="${ROOT_DIR}/.github/workflows/${workflow_name_}"
+        workflow_template_="${active_workflow_}.tpl"
+        if [[ ! -f "${workflow_template_}" ]]; then
+            [[ -f "${active_workflow_}" ]] \
+                || die "Cannot materialize missing workflow: .github/workflows/${workflow_name_}"
+            info "project workflow already materialized .github/workflows/${workflow_name_}"
+            continue
+        fi
+
+        if ((APPLY)); then
+            tmp_="$(mktemp "${active_workflow_}.tmp.XXXXXX")"
+            cp -p -- "${workflow_template_}" "${tmp_}"
+            mv -f -- "${tmp_}" "${active_workflow_}"
+            rm -f -- "${workflow_template_}"
+            info "materialized project workflow .github/workflows/${workflow_name_}"
+        else
+            info "would materialize project workflow .github/workflows/${workflow_name_}"
+        fi
+    done
 }
 
 remove_path() {
@@ -339,6 +418,7 @@ main() {
     fi
 
     validate_root
+    validate_workflow_templates
     print_cleanup_list
     confirm_apply
 
@@ -361,6 +441,8 @@ main() {
     else
         info "keeping ROS 2 overlay; pass --remove-ros2 to strip it"
     fi
+
+    materialize_project_workflows
 
     patch_root_cmakelists
     patch_tests_cmakelists

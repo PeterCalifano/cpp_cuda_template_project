@@ -30,6 +30,12 @@ file(REMOVE_RECURSE "${TEST_BINARY_ROOT}")
 set(_fake_default "${TEST_BINARY_ROOT}/fake_default")
 set(_fake_keep "${TEST_BINARY_ROOT}/fake_keep")
 set(_fake_remove_ros2 "${TEST_BINARY_ROOT}/fake_remove_ros2")
+set(_fake_missing_template "${TEST_BINARY_ROOT}/fake_missing_template")
+set(_workflow_names
+    "build_linux.yml"
+    "build_linux_cuda.yml"
+    "docs_pages.yml"
+    "build_ros2_overlay.yml")
 
 _run_step("Validate script syntax" bash -n "${_script}")
 
@@ -51,7 +57,9 @@ foreach(_expected
     "profiling"
     "tests/cmake/VerifyTemplateProjectDocsWorkflow.cmake"
     "tests/cmake/VerifyTemplateProjectRos2Overlay.cmake"
+    "tests/template_test/testWorkflowTemplates.py"
     "ROS 2 overlay KEPT by default; pass --remove-ros2 to strip it"
+    "Materialize generic project CI workflows"
     "CMake edits made by --apply")
   if(NOT _list_stdout MATCHES "${_expected}")
     message(FATAL_ERROR "Cleanup list output did not contain '${_expected}'")
@@ -110,6 +118,8 @@ endif()
       "tests/cmake/VerifyTemplateProjectDocsWorkflow.cmake"
       "tests/cmake/VerifyTemplateProjectRos2Overlay.cmake"
       "tests/cmake/VerifyTemplateProjectTailoringScript.cmake"
+      "tests/template_test/testRos2OverlayStatic.py"
+      "tests/template_test/testWorkflowTemplates.py"
       "tests/matlab/RunTemplateWrapperRegression.m"
       "profiling/run_ops_profiling.sh")
     get_filename_component(_path_dir "${fake_root}/${_path}" DIRECTORY)
@@ -143,9 +153,22 @@ after ros2 fence
   endforeach()
 
   file(WRITE "${fake_root}/ros2/template_project/package.xml" "<package><version>1.2.3</version></package>\n")
-  file(WRITE "${fake_root}/.github/workflows/build_ros2_overlay.yml" "name: ROS 2 overlay\n")
+  foreach(_workflow_name IN LISTS _workflow_names)
+    file(WRITE
+        "${fake_root}/.github/workflows/${_workflow_name}"
+        "name: template-only-${_workflow_name}\n")
+    configure_file(
+        "${TEST_TEMPLATE_SOURCE_DIR}/.github/workflows/${_workflow_name}.tpl"
+        "${fake_root}/.github/workflows/${_workflow_name}.tpl"
+        COPYONLY)
+  endforeach()
+  execute_process(
+      COMMAND chmod 0640 "${fake_root}/.github/workflows/build_linux.yml.tpl"
+      RESULT_VARIABLE _chmod_result)
+  if(NOT _chmod_result EQUAL 0)
+    message(FATAL_ERROR "Failed to set fake workflow template mode for preservation test")
+  endif()
   file(WRITE "${fake_root}/doc/ros2_overlay.md" "ROS 2 overlay docs\n")
-  file(WRITE "${fake_root}/tests/template_test/testRos2OverlayStatic.py" "def test_placeholder():\n    pass\n")
 endfunction()
 
 function(_assert_fake_project_cleaned fake_root expect_profiling)
@@ -153,7 +176,9 @@ function(_assert_fake_project_cleaned fake_root expect_profiling)
       "AGENTS.md"
       "doc/developments"
       "tests/cmake/VerifyTemplateProjectDocsWorkflow.cmake"
-      "tests/cmake/VerifyTemplateProjectRos2Overlay.cmake")
+      "tests/cmake/VerifyTemplateProjectRos2Overlay.cmake"
+      "tests/template_test/testRos2OverlayStatic.py"
+      "tests/template_test/testWorkflowTemplates.py")
     if(EXISTS "${fake_root}/${_removed}")
       message(FATAL_ERROR "Expected cleanup to remove '${_removed}'")
     endif()
@@ -190,6 +215,39 @@ function(_assert_fake_project_cleaned fake_root expect_profiling)
   if(_tests_cmake MATCHES "--output-on-failure|--reporter=compact")
     message(FATAL_ERROR "tests/CMakeLists.txt still passes CTest/Catch2 runner flags as Catch2 test properties.")
   endif()
+
+  foreach(_workflow_name build_linux.yml build_linux_cuda.yml docs_pages.yml)
+    set(_materialized_workflow "${fake_root}/.github/workflows/${_workflow_name}")
+    set(_workflow_template "${fake_root}/.github/workflows/${_workflow_name}.tpl")
+    if(NOT EXISTS "${_materialized_workflow}")
+      message(FATAL_ERROR "Expected tailored workflow '${_workflow_name}'")
+    endif()
+    if(EXISTS "${_workflow_template}")
+      message(FATAL_ERROR "Tailoring left dormant workflow '${_workflow_name}.tpl'")
+    endif()
+    file(READ "${_materialized_workflow}" _materialized_contents)
+    file(READ
+        "${TEST_TEMPLATE_SOURCE_DIR}/.github/workflows/${_workflow_name}.tpl"
+        _expected_contents)
+    if(NOT _materialized_contents STREQUAL _expected_contents)
+      message(FATAL_ERROR "Tailoring did not materialize ${_workflow_name} byte-for-byte")
+    endif()
+    if(_materialized_contents MATCHES
+        "template-only|VerifyTemplateProject|tailor_template_cleanup|CWrapperPlaceholder")
+      message(FATAL_ERROR "Tailored workflow ${_workflow_name} contains template-only CI")
+    endif()
+    if(_workflow_name STREQUAL "build_linux.yml")
+      execute_process(
+          COMMAND stat -c %a "${_materialized_workflow}"
+          RESULT_VARIABLE _mode_result
+          OUTPUT_VARIABLE _materialized_mode
+          OUTPUT_STRIP_TRAILING_WHITESPACE)
+      if(NOT _mode_result EQUAL 0 OR NOT _materialized_mode STREQUAL "640")
+        message(FATAL_ERROR
+            "Tailoring did not preserve build_linux.yml.tpl mode 0640; got '${_materialized_mode}'")
+      endif()
+    endif()
+  endforeach()
 endfunction()
 
 function(_assert_ros2_overlay_kept fake_root)
@@ -200,11 +258,28 @@ function(_assert_ros2_overlay_kept fake_root)
       "lib/COLCON_IGNORE"
       "examples/COLCON_IGNORE"
       "tests/COLCON_IGNORE"
-      "tests/template_test/testRos2OverlayStatic.py")
+      ".github/workflows/build_ros2_overlay.yml")
     if(NOT EXISTS "${fake_root}/${_kept}")
       message(FATAL_ERROR "Expected default cleanup to keep '${_kept}'")
     endif()
   endforeach()
+
+  set(_materialized_ros_workflow
+      "${fake_root}/.github/workflows/build_ros2_overlay.yml")
+  if(EXISTS "${fake_root}/.github/workflows/build_ros2_overlay.yml.tpl")
+    message(FATAL_ERROR "Default tailoring left the dormant ROS workflow template")
+  endif()
+  file(READ "${_materialized_ros_workflow}" _materialized_ros_contents)
+  file(READ
+      "${TEST_TEMPLATE_SOURCE_DIR}/.github/workflows/build_ros2_overlay.yml.tpl"
+      _expected_ros_contents)
+  if(NOT _materialized_ros_contents STREQUAL _expected_ros_contents)
+    message(FATAL_ERROR "Default tailoring did not materialize the generic ROS workflow")
+  endif()
+  if(_materialized_ros_contents MATCHES
+      "VerifyTemplateProject|testRos2OverlayStatic|tailor_template_cleanup|CWrapperPlaceholder|rollout-dogfood")
+    message(FATAL_ERROR "Tailored ROS workflow contains template-only CI")
+  endif()
 
   foreach(_doc_path
       "README.md"
@@ -227,6 +302,7 @@ function(_assert_ros2_overlay_removed fake_root)
       "examples/COLCON_IGNORE"
       "tests/COLCON_IGNORE"
       ".github/workflows/build_ros2_overlay.yml"
+      ".github/workflows/build_ros2_overlay.yml.tpl"
       "doc/ros2_overlay.md"
       "tests/template_test/testRos2OverlayStatic.py")
     if(EXISTS "${fake_root}/${_removed}")
@@ -264,6 +340,11 @@ _run_step(
     bash "${_script}" --apply --yes --root "${_fake_default}")
 _assert_fake_project_cleaned("${_fake_default}" FALSE)
 _assert_ros2_overlay_kept("${_fake_default}")
+_run_step(
+    "Reapply tailoring cleanup to an already materialized project"
+    bash "${_script}" --apply --yes --root "${_fake_default}")
+_assert_fake_project_cleaned("${_fake_default}" FALSE)
+_assert_ros2_overlay_kept("${_fake_default}")
 
 _create_fake_project("${_fake_keep}")
 
@@ -280,3 +361,28 @@ _run_step(
     bash "${_script}" --apply --yes --remove-ros2 --root "${_fake_remove_ros2}")
 _assert_fake_project_cleaned("${_fake_remove_ros2}" FALSE)
 _assert_ros2_overlay_removed("${_fake_remove_ros2}")
+_run_step(
+    "Reapply tailoring cleanup after ROS 2 removal"
+    bash "${_script}" --apply --yes --remove-ros2 --root "${_fake_remove_ros2}")
+_assert_fake_project_cleaned("${_fake_remove_ros2}" FALSE)
+_assert_ros2_overlay_removed("${_fake_remove_ros2}")
+
+_create_fake_project("${_fake_missing_template}")
+file(REMOVE
+    "${_fake_missing_template}/.github/workflows/build_linux.yml.tpl")
+execute_process(
+    COMMAND bash "${_script}" --apply --yes --root "${_fake_missing_template}"
+    RESULT_VARIABLE _missing_template_result
+    OUTPUT_VARIABLE _missing_template_stdout
+    ERROR_VARIABLE _missing_template_stderr)
+if(_missing_template_result EQUAL 0)
+  message(FATAL_ERROR
+      "Tailoring accepted an active template-validation workflow whose generic .tpl was missing")
+endif()
+if(NOT _missing_template_stderr MATCHES
+    "Active template-validation workflow has no generic template")
+  message(FATAL_ERROR
+      "Tailoring rejected the missing template for the wrong reason.\n"
+      "stdout:\n${_missing_template_stdout}\n"
+      "stderr:\n${_missing_template_stderr}")
+endif()

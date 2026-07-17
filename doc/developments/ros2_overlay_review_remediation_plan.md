@@ -146,6 +146,78 @@ gaps, and bounds core-to-overlay CI drift.
 
 ---
 
+## Stage 1A - Separate template-validation CI from tailored project CI
+
+### Ownership contract
+
+- [x] Keep the four runnable `.github/workflows/*.yml` files owned by this
+  template repository. They may exercise `src/` as a fixture, but their purpose
+  is to verify template CMake, tailoring, rollout, documentation, CUDA, and ROS
+  contracts rather than a derived project's implementation.
+- [x] Add one dormant generic workflow template for each runnable workflow:
+  `build_linux.yml.tpl`, `build_linux_cuda.yml.tpl`, `docs_pages.yml.tpl`, and
+  `build_ros2_overlay.yml.tpl`. GitHub must not execute these files in the
+  template checkout.
+- [x] Keep project-facing build, test, documentation, deployment, CUDA, and ROS
+  commands in the generic templates. Exclude `VerifyTemplateProject*`,
+  template static pytest, tailoring/rollout dogfood, placeholder-header checks,
+  and template-documentation content assertions.
+- [x] Treat the generic templates as the downstream CI source of truth. Active
+  template workflows must validate their syntax, required semantic gates, and
+  materialization behavior so dormant files cannot rot silently.
+
+### Red tests first
+
+- [x] Extend `VerifyTemplateProjectTailoringScript.cmake` so its fake project
+  carries all four active workflows plus the four real generic templates. After
+  ordinary cleanup, require byte-equivalent materialized `.yml` files, no
+  remaining `.tpl`, and no template-only workflow content.
+- [x] Extend `VerifyTemplateProjectRos2Overlay.cmake` so additive rollout must
+  source `build_ros2_overlay.yml.tpl`, materialize it as the target's runnable
+  `.yml`, and prove the copied workflow contains no template-only header,
+  verifier, pytest, or rollout-dogfood stages.
+- [x] Add an auto-discovered template-only workflow contract test that parses
+  every active and dormant workflow as YAML, checks the four one-to-one pairs,
+  and verifies the CPU, CUDA, docs, and ROS generic semantic gates.
+- [x] Record the expected red failures from ordinary tailoring retaining active
+  template CI and additive rollout copying the active ROS workflow.
+
+### Materialization implementation
+
+- [x] Update `tailor_template_cleanup.sh` to validate all expected workflow
+  pairs before destructive cleanup, atomically replace each active template
+  workflow with its generic template, and remove every `.tpl` afterward.
+- [x] With `--remove-ros2`, materialize the three non-ROS workflows and remove
+  both the active and dormant ROS workflow. Keep the operation idempotent and
+  preserve workflow file modes.
+- [x] Update `add_ros2_support.sh` to copy only the dormant generic ROS template
+  into a derived target as `.github/workflows/build_ros2_overlay.yml`; never
+  copy the active template-validation workflow or the `.tpl` suffix.
+- [x] Remove runtime skip guards that existed only because active template
+  workflows were copied downstream. Template-only active jobs should fail when
+  their required template tooling is absent.
+- [x] Update cleanup/rollout list output and user documentation to explain the
+  template-CI to project-CI ownership transition.
+
+### Runtime and regression validation
+
+- [x] Make active template CI materialize a scratch tailored project, parse the
+  resulting workflows, and run the corresponding CPU/docs project gates.
+- [x] Keep CUDA template verification on the GPU runner and statically verify
+  the tailored CUDA workflow contract; run a tailored CUDA build when the
+  self-hosted CUDA environment is available.
+- [x] Make ROS rollout dogfood consume the generic `.tpl` workflow and run the
+  resulting clean ROS build/tests plus the standalone core build.
+- [x] Run direct tailoring, workflow-template, ROS overlay, docs, and CI static
+  verifiers; run full standalone CTest and clean ROS tests.
+- [x] Assert the tailored scratch tree contains runnable YAML workflows only,
+  no `.tpl`, and no template-development verifier or placeholder checks.
+- [x] Append red-green evidence to `ROS2_OVERLAY_STAGE_OUTPUTS.md`, update the
+  upgrade-plan trace, and stage the complete ownership transition for review
+  without committing or pushing.
+
+---
+
 ## Stage 2 - Compile real CUDA sources and make GPU evidence truthful
 
 ### Red test first

@@ -1,5 +1,6 @@
-name: verify_template_docs
-run-name: Build and publish template documentation
+# project-ci-template: generic
+name: docs_pages
+run-name: Build and publish Doxygen documentation
 
 on:
   workflow_dispatch:
@@ -22,7 +23,6 @@ on:
       - CMakeLists.txt
       - CMakePresets.json
       - .github/workflows/docs_pages.yml
-      - .github/workflows/docs_pages.yml.tpl
   pull_request:
     branches:
       - "master"
@@ -37,7 +37,6 @@ on:
       - CMakeLists.txt
       - CMakePresets.json
       - .github/workflows/docs_pages.yml
-      - .github/workflows/docs_pages.yml.tpl
 
 permissions:
   contents: read
@@ -73,9 +72,7 @@ jobs:
             -DBUILD_DOC_HTML=ON \
             -DBUILD_DOC_XML=ON \
             -DBUILD_DOC_LATEX=OFF \
-            -DDOC_WARN_AS_ERROR=OFF \
-            -Dtemplate_project_BUILD_PROGRAMS=OFF \
-            -Dtemplate_project_BUILD_EXAMPLES=OFF
+            -DDOC_WARN_AS_ERROR=OFF
 
       - name: Build documentation
         run: cmake --build "${BUILD_DIR}" --target doc --parallel 2
@@ -113,6 +110,4 @@ jobs:
           curl --fail --location --retry 5 --retry-delay 5 \
             "${{ steps.deployment.outputs.page_url }}" \
             --output /tmp/docs-pages-index.html
-          grep -F "Template usage" /tmp/docs-pages-index.html
-          grep -F "Documentation workflow" /tmp/docs-pages-index.html
-          grep -F "Versioning" /tmp/docs-pages-index.html
+          test -s /tmp/docs-pages-index.html

@@ -1,5 +1,6 @@
-name: verify_cpp_cuda_template
-run-name: Verify C++ project template with CUDA
+# project-ci-template: generic
+name: build_cpplinux_cuda
+run-name: Build and test C++ library (CUDA)
 
 on:
   workflow_dispatch:
@@ -56,39 +57,20 @@ jobs:
           command -v nvidia-smi
           command -v python3
           python3 -m pytest --version
-          python3 -c 'import yaml'
-          command -v doxygen
-          command -v dot
           nvidia-smi
           nvcc --version
-
-      - name: Verify dormant workflow templates
-        run: python3 -m pytest -q tests/template_test/testWorkflowTemplates.py
 
       - name: Restore compiler cache
         uses: actions/cache@v4
         with:
           path: ~/.ccache
-          key: ccache-cuda-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', 'src/**', 'tests/**', '.github/workflows/build_linux_cuda.yml', '.github/workflows/build_linux_cuda.yml.tpl') }}
+          key: ccache-cuda-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', 'src/**', 'tests/**', '.github/workflows/build_linux_cuda.yml') }}
           restore-keys: |
             ccache-cuda-${{ runner.os }}-${{ github.ref_name }}-
             ccache-cuda-${{ runner.os }}-
 
-      - name: Materialize tailored CUDA project
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          ./tailor_template_cleanup.sh --apply --yes
-          test -z "$(find .github/workflows -maxdepth 1 -name '*.tpl' -print -quit)"
-          if grep -R -E 'VerifyTemplateProject|testWorkflowTemplates|testRos2OverlayStatic|CWrapperPlaceholder|rollout-dogfood' .github/workflows; then
-            echo "Tailored CUDA workflows retain template-only validation." >&2
-            exit 1
-          fi
-          python3 -c 'import pathlib, yaml; [yaml.safe_load(path.read_text()) for path in pathlib.Path(".github/workflows").glob("*.yml")]'
-
       - name: Configure
         run: |
-          # Build artifacts are tested in a separate job, so keep CPU flags portable.
           cmake -S . -B "${BUILD_DIR}" -GNinja \
             -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
             -DENABLE_TESTS=ON \
@@ -139,16 +121,6 @@ jobs:
           command -v ctest
           command -v python3
           python3 -m pytest --version
-          python3 -c 'import yaml'
-          command -v doxygen
-          command -v dot
-
-      - name: Match tailored project source tree
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          ./tailor_template_cleanup.sh --apply --yes
-          test -z "$(find .github/workflows -maxdepth 1 -name '*.tpl' -print -quit)"
 
       - name: Download build artifacts
         uses: actions/download-artifact@v4
@@ -170,7 +142,6 @@ jobs:
 
       - name: Restore test executable permissions
         run: |
-          # GitHub artifact download may drop executable bits from binaries.
           find "${CTEST_DIR}" -type f -path "*/tests/*" -exec chmod +x {} + || true
 
       - name: Test
