@@ -13,6 +13,7 @@ from lifecycle_msgs.srv import GetState
 import pytest
 import rclpy
 from rclpy.node import Node
+from template_project_interfaces.msg import AlgorithmStatus
 from template_project_interfaces.srv import RunAlgorithm
 
 
@@ -66,13 +67,17 @@ class TestSpinupLaunch(unittest.TestCase):
     def _waitForActive(
         self,
         charNodePath_: str,
+        charCase_: str,
         dTimeoutSec_: float = 10.0,
     ) -> None:
         objStateClient_ = self.objNode_.create_client(
             GetState,
             f"{charNodePath_}/get_state",
         )
-        self.assertTrue(objStateClient_.wait_for_service(timeout_sec=dTimeoutSec_))
+        self.assertTrue(
+            objStateClient_.wait_for_service(timeout_sec=dTimeoutSec_),
+            f"Lifecycle state service was unavailable for {charCase_}",
+        )
 
         dDeadline_ = time.monotonic() + dTimeoutSec_
         uiLastState_ = State.PRIMARY_STATE_UNKNOWN
@@ -87,27 +92,87 @@ class TestSpinupLaunch(unittest.TestCase):
                     return
             time.sleep(0.1)
 
-        self.fail(f"Lifecycle node did not become active; last state was {uiLastState_}")
+        self.fail(
+            f"Lifecycle node did not become active for {charCase_}; "
+            f"last state was {uiLastState_}"
+        )
 
-    def testLaunchPathIsActiveAndServesAlgorithm(self, charNamespace_: str) -> None:
+    def testLaunchPathIsActiveAndServesAlgorithm(
+        self,
+        charLaunchFile_: str,
+        charNamespace_: str,
+    ) -> None:
         charNamespacePrefix_ = f"/{charNamespace_}" if charNamespace_ else ""
         charNodePath_ = f"{charNamespacePrefix_}/template_algorithm"
-        self._waitForActive(charNodePath_)
+        charCase_ = f"launch={charLaunchFile_}, namespace={charNamespace_ or '<root>'}"
+        self._waitForActive(charNodePath_, charCase_)
 
         objAlgorithmClient_ = self.objNode_.create_client(
             RunAlgorithm,
             f"{charNodePath_}/run_algorithm",
         )
-        self.assertTrue(objAlgorithmClient_.wait_for_service(timeout_sec=5.0))
+        self.assertTrue(
+            objAlgorithmClient_.wait_for_service(timeout_sec=5.0),
+            f"Algorithm service was unavailable for {charCase_}",
+        )
 
-        objRequest_ = RunAlgorithm.Request()
-        objRequest_.input = 3.0
-        objFuture_ = objAlgorithmClient_.call_async(objRequest_)
-        rclpy.spin_until_future_complete(self.objNode_, objFuture_, timeout_sec=5.0)
+        listStatusMessages_: list[AlgorithmStatus] = []
+        objStatusSubscription_ = self.objNode_.create_subscription(
+            AlgorithmStatus,
+            f"{charNodePath_}/status",
+            listStatusMessages_.append,
+            10,
+        )
+        try:
+            dDiscoveryDeadline_ = time.monotonic() + 5.0
+            while (
+                objStatusSubscription_.get_publisher_count() == 0
+                and time.monotonic() < dDiscoveryDeadline_
+            ):
+                rclpy.spin_once(self.objNode_, timeout_sec=0.1)
+            self.assertGreater(
+                objStatusSubscription_.get_publisher_count(),
+                0,
+                f"Status publisher was undiscovered for {charCase_}",
+            )
 
-        self.assertTrue(objFuture_.done())
-        self.assertIsNone(objFuture_.exception())
-        objResponse_ = objFuture_.result()
-        self.assertIsNotNone(objResponse_)
-        self.assertEqual(objResponse_.output, 14.0)
-        self.assertEqual(objResponse_.status, "ok")
+            # Subscriber-side graph visibility can precede publisher-side endpoint matching.
+            dDiscoverySettleDeadline_ = time.monotonic() + 0.5
+            while time.monotonic() < dDiscoverySettleDeadline_:
+                rclpy.spin_once(self.objNode_, timeout_sec=0.05)
+
+            objRequest_ = RunAlgorithm.Request()
+            objRequest_.input = 3.0
+            objFuture_ = objAlgorithmClient_.call_async(objRequest_)
+            dResponseDeadline_ = time.monotonic() + 5.0
+            while (
+                (not objFuture_.done() or not listStatusMessages_)
+                and time.monotonic() < dResponseDeadline_
+            ):
+                rclpy.spin_once(self.objNode_, timeout_sec=0.1)
+
+            self.assertTrue(
+                objFuture_.done(),
+                f"Algorithm response timed out for {charCase_}",
+            )
+            self.assertTrue(
+                listStatusMessages_,
+                f"Status publication timed out for {charCase_}",
+            )
+            self.assertIsNone(objFuture_.exception(), charCase_)
+            objResponse_ = objFuture_.result()
+            self.assertIsNotNone(objResponse_, charCase_)
+            self.assertEqual(objResponse_.output, 14.0, charCase_)
+            self.assertEqual(objResponse_.status, "ok", charCase_)
+
+            objStatus_ = listStatusMessages_[-1]
+            self.assertEqual(objStatus_.last_input, 3.0, charCase_)
+            self.assertEqual(objStatus_.last_output, 14.0, charCase_)
+            self.assertEqual(objStatus_.evaluation_count, 1, charCase_)
+            self.assertEqual(objStatus_.state, "ok", charCase_)
+            self.assertTrue(
+                objStatus_.stamp.sec > 0 or objStatus_.stamp.nanosec > 0,
+                f"Status timestamp was not populated for {charCase_}",
+            )
+        finally:
+            self.objNode_.destroy_subscription(objStatusSubscription_)

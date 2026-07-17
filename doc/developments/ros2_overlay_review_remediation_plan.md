@@ -348,32 +348,32 @@ gaps, and bounds core-to-overlay CI drift.
 
 ### Launch-test extension
 
-- [ ] Extend
+- [x] Extend
   `ros2/template_project_spinup/test/test_spinup_launch.py` instead of adding a
   second launch harness; preserve its standalone/composition and root/namespaced
   parameterization.
-- [ ] Import `template_project_interfaces.msg.AlgorithmStatus` and create a
+- [x] Import `template_project_interfaces.msg.AlgorithmStatus` and create a
   subscription to `<node_path>/status` before sending the service request so a
   non-transient publication cannot be missed.
-- [ ] Spin until both the service future completes and a status message arrives,
+- [x] Spin until both the service future completes and a status message arrives,
   using bounded deadlines and failure messages that identify launch mode and
   namespace.
-- [ ] Assert response output `14.0` and status `ok`, then assert status-message
+- [x] Assert response output `14.0` and status `ok`, then assert status-message
   fields `last_input == 3.0`, `last_output == 14.0`,
   `evaluation_count == 1`, `state == "ok"`, and a populated timestamp.
-- [ ] Destroy the subscription or isolate callback state per parameterized test
+- [x] Destroy the subscription or isolate callback state per parameterized test
   so messages cannot leak between cases.
-- [ ] Do not change service availability by lifecycle state in this pass. That
+- [x] Do not change service availability by lifecycle state in this pass. That
   is an architecture policy choice; the requested improvement is observation of
   the existing active-state publish contract.
 
 ### Validation
 
-- [ ] Run the launch test directly for all four cases and confirm each actually
+- [x] Run the launch test directly for all four cases and confirm each actually
   observes a status message rather than passing only on the service response.
-- [ ] Run `./build_ros2.sh --clean` and require all ROS tests to pass without
+- [x] Run `./build_ros2.sh --clean` and require all ROS tests to pass without
   skips or namespace-specific flakes.
-- [ ] Confirm both launch files still use lifecycle autostart and retain the
+- [x] Confirm both launch files still use lifecycle autostart and retain the
   commented externally managed alternatives intended for template tailoring.
 
 ---
