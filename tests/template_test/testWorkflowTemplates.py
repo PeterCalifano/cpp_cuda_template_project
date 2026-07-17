@@ -65,6 +65,9 @@ _TEMPLATE_WORKFLOW_GATES = {
         "testWorkflowTemplates.py",
         "Materialize tailored CUDA project",
         "Match tailored project source tree",
+        "Verify project CUDA source graph",
+        "src/template_src_kernels/placeholder.cu",
+        "placeholder_to_ptx.ptx.cu",
     ),
     "docs_pages.yml": (
         "Template usage",

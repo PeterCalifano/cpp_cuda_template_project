@@ -301,3 +301,26 @@ stage for review.
 - [x] Pass standalone `26/26`, clean ROS `10/10`, tailored CUDA `9/9`, normal
   tailoring/docs, remove/re-add rollout, YAML, shell-lint, conflict, and frozen
   surface gates; record red-green evidence in `ROS2_OVERLAY_STAGE_OUTPUTS.md`.
+
+### Stage R2 - Truthful CUDA and relocatable OptiX package evidence
+
+- [x] Replace the malformed ordinary-source glob in the seven authorized
+  `src/**/CMakeLists.txt` sites, explicitly excluding `*.ptx.cu` while
+  preserving the dedicated PTX handoff.
+- [x] Add a CUDA-only compile-database regression that requires the real
+  `placeholder.cu` project source and rejects the OptiX PTX input as an
+  ordinary translation unit.
+- [x] Record the expected compile-graph red result, then pass standalone CUDA
+  `29/29` and ROS CUDA `10/10` with real project objects for `sm_120`.
+- [x] During the required OptiX probe, reproduce and fix the installed-target
+  export that pointed at a non-existent package-local SDK include directory.
+- [x] Resolve OptiX headers from consumer-provided CMake/environment inputs,
+  keep machine-local CUDA/OptiX paths out of installed exports, and prove the
+  contract with an OptiX install-consumer regression.
+- [x] Pass standalone CUDA+OptiX `30/30` and ROS CUDA+OptiX `10/10`, including
+  the real CUDA object plus generated PTX and embedded-object artifacts.
+- [x] Remove the CUDA and OptiX template-only verifiers during tailoring and
+  cover both their advertised and applied cleanup behavior.
+- [x] Keep the real-source compile-graph assertion in active template CUDA CI
+  after it materializes the dormant generic workflow; leave that dormant
+  workflow free of template-specific source names.

@@ -115,6 +115,33 @@ foreach(_nested_header_module
   _assert_not_matches("${_root}/${_nested_header_module}" "CMAKE_SOURCE_DIR")
 endforeach()
 
+foreach(_cuda_source_discovery_file
+    "src/CMakeLists.txt"
+    "src/wrapped_impl/CMakeLists.txt"
+    "src/utils/CMakeLists.txt"
+    "src/utils/logging/CMakeLists.txt"
+    "src/utils/wrap_adapters/CMakeLists.txt"
+    "src/template_src/CMakeLists.txt"
+    "src/template_src_kernels/CMakeLists.txt")
+  _assert_not_matches(
+      "${_root}/${_cuda_source_discovery_file}"
+      "\\*\\.cpp;[ \\t]*\\*\\.cu")
+endforeach()
+
+set(_cuda_handler "${_root}/cmake/HandleCUDA.cmake")
+_assert_matches("${_cuda_handler}" "BUILD_INTERFACE")
+
+set(_optix_handler "${_root}/cmake/HandleOptiX.cmake")
+_assert_not_matches("${_optix_handler}" "INSTALL_INTERFACE:include/optix")
+
+set(_package_config_template "${_root}/src/cmake/template_projectConfig.cmake.in")
+_assert_matches("${_package_config_template}" "find_path")
+_assert_matches("${_package_config_template}" "optix\\.h")
+_assert_matches("${_package_config_template}" "OPTIX_ROOT")
+_assert_matches("${_package_config_template}" "ENV\\{OPTIX_HOME\\}")
+_assert_matches("${_package_config_template}" "INTERFACE_INCLUDE_DIRECTORIES")
+_assert_not_matches("${_package_config_template}" "/home/|/Users/")
+
 set(_metadata_helper "${_root}/ros2/tools/sync_package_metadata.py")
 _assert_matches("${_metadata_helper}" "xml\\.etree\\.ElementTree")
 _assert_matches("${_metadata_helper}" "insert_comments=True")
@@ -903,6 +930,15 @@ _assert_matches("${_ros2_doc}" "build_ros2\\.sh")
 _assert_matches("${_ros2_doc}" "-DTEMPLATE_PROJECT_ENABLE_CUDA=ON")
 _assert_matches("${_ros2_doc}" "ENABLE_CUDA")
 _assert_matches("${_ros2_doc}" "ENABLE_FETCH_SPDLOG=OFF")
+_assert_matches("${_ros2_doc}" "Last local GPU validation")
+_assert_matches("${_ros2_doc}" "2026-07-17")
+_assert_matches("${_ros2_doc}" "CUDA 12\\.9\\.41")
+_assert_matches("${_ros2_doc}" "OptiX 8\\.0\\.0")
+_assert_matches("${_ros2_doc}" "OPTIX_HOME")
+_assert_matches("${_ros2_doc}" "RTX 5090")
+_assert_matches("${_ros2_doc}" "sm_120")
+_assert_matches("${_ros2_doc}" "CPU-only")
+_assert_not_matches("${_ros2_doc}" "/home/|/Users/")
 _assert_matches("${_ros2_doc}" "COLCON_IGNORE")
 _assert_matches("${_ros2_doc}" "parent workspace")
 _assert_matches("${_ros2_doc}" "--sync-ros2")

@@ -71,6 +71,30 @@ Use a ROS 2 Jazzy environment or the ROS devcontainer for local GPU checks:
 ./build_ros2.sh --cuda --optix
 ```
 
+For OptiX, provide an SDK root containing `include/optix.h` through a CMake
+variable or the environment. The same contract applies when another package
+consumes a core install that was built with OptiX:
+
+```bash
+export OPTIX_HOME="<optix-sdk-root>"
+./build_ros2.sh --clean --cuda --optix
+```
+
+`OPTIX_ROOT`, `OptiX_ROOT`, and `OptiX_INSTALL_DIR` are equivalent CMake-side
+inputs. The installed package resolves the external SDK at consumer configure
+time; it does not embed the build machine's SDK path or install a private copy
+of the OptiX headers.
+
+**Last local GPU validation (2026-07-17):** ROS 2 Jazzy, CMake 3.28.3, GCC
+13.3.0, CUDA 12.9.41, NVIDIA driver 580.105.08, and OptiX 8.0.0. The host had
+an RTX 5090 (`sm_120`) and an RTX 4070 Ti SUPER (`sm_89`); the default
+single-architecture policy selected `sm_120`. Clean CUDA and CUDA+OptiX overlay
+builds each completed all four packages and reported 10 tests with zero errors
+or failures. The CUDA build compiled the project
+`src/template_src_kernels/placeholder.cu`; the OptiX build also generated and
+embedded `placeholder_to_ptx.ptx`. GitHub ROS CI remains CPU-only, so these GPU
+paths are local validation gates.
+
 ## COLCON_IGNORE policy
 
 `COLCON_IGNORE` markers keep colcon from crawling template support trees that are not ROS packages:

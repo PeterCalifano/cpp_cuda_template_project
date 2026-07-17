@@ -55,7 +55,9 @@ endif()
 foreach(_expected
     "doc/developments"
     "profiling"
+    "tests/cmake/VerifyTemplateProjectCudaSources.cmake"
     "tests/cmake/VerifyTemplateProjectDocsWorkflow.cmake"
+    "tests/cmake/VerifyTemplateProjectOptixInstallExport.cmake"
     "tests/cmake/VerifyTemplateProjectRos2Overlay.cmake"
     "tests/template_test/testWorkflowTemplates.py"
     "ROS 2 overlay KEPT by default; pass --remove-ros2 to strip it"
@@ -115,7 +117,9 @@ endif()
       "tests/cmake/AddMatlabWrapperRegressionTests.cmake"
       "tests/cmake/CheckTcmallocDependency.cmake"
       "tests/cmake/VerifyTemplateProjectBuildTreePackage.cmake"
+      "tests/cmake/VerifyTemplateProjectCudaSources.cmake"
       "tests/cmake/VerifyTemplateProjectDocsWorkflow.cmake"
+      "tests/cmake/VerifyTemplateProjectOptixInstallExport.cmake"
       "tests/cmake/VerifyTemplateProjectRos2Overlay.cmake"
       "tests/cmake/VerifyTemplateProjectTailoringScript.cmake"
       "tests/template_test/testRos2OverlayStatic.py"
@@ -175,7 +179,9 @@ function(_assert_fake_project_cleaned fake_root expect_profiling)
   foreach(_removed
       "AGENTS.md"
       "doc/developments"
+      "tests/cmake/VerifyTemplateProjectCudaSources.cmake"
       "tests/cmake/VerifyTemplateProjectDocsWorkflow.cmake"
+      "tests/cmake/VerifyTemplateProjectOptixInstallExport.cmake"
       "tests/cmake/VerifyTemplateProjectRos2Overlay.cmake"
       "tests/template_test/testRos2OverlayStatic.py"
       "tests/template_test/testWorkflowTemplates.py")

@@ -8,8 +8,10 @@ file(RELATIVE_PATH relative_path_from_root "${PROJECT_SOURCE_DIR}" "${CMAKE_CURR
 string(REPLACE "src/" "" relative_path_without_src ${relative_path_from_root})
 
 # Add src files to library
-set(SRC_PATTERN "*.cpp; *.cu")
+set(SRC_PATTERN "*.cpp" "*.cu")
 file(GLOB srcLibFiles_local ${SRC_PATTERN})
+file(GLOB srcCudaFilesToPTX_local "*.ptx.cu")
+list(FILTER srcLibFiles_local EXCLUDE REGEX "\\.ptx\\.cu$")
 
 # Get current folder name
 get_filename_component(CURRENT_FOLDER_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)

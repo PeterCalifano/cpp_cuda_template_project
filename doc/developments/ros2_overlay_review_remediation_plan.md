@@ -222,52 +222,77 @@ gaps, and bounds core-to-overlay CI drift.
 
 ### Red test first
 
-- [ ] Add `tests/cmake/VerifyTemplateProjectCudaSources.cmake`, registered only
+- [x] Add `tests/cmake/VerifyTemplateProjectCudaSources.cmake`, registered only
   when `ENABLE_CUDA=ON`, with labels `cuda;sources;template`.
-- [ ] Make the verifier configure an isolated CUDA build with
+- [x] Make the verifier configure an isolated CUDA build with
   `CMAKE_EXPORT_COMPILE_COMMANDS=ON`, build the core target, and assert that
   `src/template_src_kernels/placeholder.cu` appears in `compile_commands.json`.
-- [ ] Assert that `placeholder_to_ptx.ptx.cu` does not appear as an ordinary
+- [x] Assert that `placeholder_to_ptx.ptx.cu` does not appear as an ordinary
   library translation unit when `ENABLE_OPTIX=OFF`; PTX inputs remain owned by
   the existing PTX embedding path.
-- [ ] Record the expected red result from the current tree: CUDA compiler
+- [x] Record the expected red result from the current tree: CUDA compiler
   activation succeeds, but `placeholder.cu` is absent from the compile graph.
-- [ ] Add a cheap static check to the existing overlay verifier that rejects the
+- [x] Add a cheap static check to the existing overlay verifier that rejects the
   malformed quoted source pattern `"*.cpp; *.cu"` in all source CMake files.
 
 ### Source-discovery fix
 
-- [ ] Replace the malformed source pattern with separate CMake list entries
+- [x] Replace the malformed source pattern with separate CMake list entries
   (`"*.cpp"` and `"*.cu"`) in all seven affected files:
   `src/CMakeLists.txt` plus the six module files listed in Stage 1.
-- [ ] In each discovery site, explicitly filter `*.ptx.cu` out of the ordinary
+- [x] In each discovery site, explicitly filter `*.ptx.cu` out of the ordinary
   library source list so OptiX kernels are not compiled twice or with the wrong
   tool path.
-- [ ] Preserve the existing `srcCudaFilesToPTX`/
+- [x] Preserve the existing `srcCudaFilesToPTX`/
   `srcCudaFilesToPTX_local` flow for dedicated PTX sources.
-- [ ] Avoid adding a helper abstraction solely for these seven short, local
+- [x] Avoid adding a helper abstraction solely for these seven short, local
   discovery rules; use the same clear idiom consistently in each file.
 
 ### CUDA and OptiX validation
 
-- [ ] Run
+- [x] Run
   `./build_lib.sh -B build_review_cuda --clean -DENABLE_CUDA=ON -DCMAKE_EXPORT_COMPILE_COMMANDS=ON`
   and run its CUDA-labeled tests.
-- [ ] Verify the real project object or compile-command entry for
+- [x] Verify the real project object or compile-command entry for
   `placeholder.cu`; compiler-ID `.o`, `.ptx`, or `.fatbin` files do not count as
   evidence.
-- [ ] Run
+- [x] Run
   `./build_ros2.sh --clean --cuda --cmake-arg -DCMAKE_EXPORT_COMPILE_COMMANDS=ON`
   and verify the same real project source in the nested core build graph.
-- [ ] Record CUDA toolkit, driver, GPU models/architectures, date, package totals,
+- [x] Record CUDA toolkit, driver, GPU models/architectures, date, package totals,
   test totals, and the exact project CUDA artifact in the stage-output log.
-- [ ] Probe for the OptiX SDK/header. If present, run
+- [x] Probe for the OptiX SDK/header. If present, run
   `./build_ros2.sh --clean --cuda --optix` and record the generated PTX/embed
   artifact. If absent, record the external prerequisite explicitly and leave no
   statement implying OptiX was validated.
-- [ ] Update `doc/ros2_overlay.md` with the last validated CUDA date/toolchain
+- [x] Update `doc/ros2_overlay.md` with the last validated CUDA date/toolchain
   and a truthful OptiX status; retain the statement that GitHub ROS CI is CPU
   only.
+
+### OptiX installed-package regression found during validation
+
+- [x] Record the expected red `./build_ros2.sh --clean --cuda --optix` result:
+  the core package generates PTX, but its exported target points at a
+  non-existent package-local `include/optix` directory, so the bridge package
+  cannot consume the install.
+- [x] Add an OptiX-only install-consumer regression that rejects both a
+  package-local fake include path and leakage of the build machine's SDK path,
+  then includes `optix.h` through the installed core target.
+- [x] Keep SDK discovery external and relocatable: build-tree targets use the
+  configured SDK, while installed consumers resolve `optix.h` from
+  `OPTIX_ROOT`, `OptiX_ROOT`, `OptiX_INSTALL_DIR`, or `OPTIX_HOME` without any
+  machine-local path in tracked or exported files.
+- [x] Remove redundant CUDA toolkit include-path export; installed consumers
+  inherit CUDA headers from the `CUDA::` imported targets recreated by
+  `find_dependency(CUDAToolkit)`.
+- [x] Re-run the OptiX install-consumer test and the clean ROS CUDA+OptiX build,
+  then record the PTX and embedded-object artifacts without recording an
+  absolute SDK path.
+- [x] Remove both new template-only verifier files during project tailoring and
+  cover their list/apply behavior in the existing cleanup fixture.
+- [x] Keep the real-source compile-graph assertion active after CUDA CI
+  materializes the tailored project; the dormant generic workflow must remain
+  free of template-specific placeholder checks.
 
 ---
 

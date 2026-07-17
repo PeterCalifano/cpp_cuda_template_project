@@ -191,6 +191,44 @@ set_tests_properties(
     TIMEOUT 60
 )
 
+if(ENABLE_CUDA)
+    add_test(
+        NAME template_project_cuda_sources
+        COMMAND ${CMAKE_COMMAND}
+            -DTEST_TEMPLATE_SOURCE_DIR=${PROJECT_SOURCE_DIR}
+            -DTEST_BINARY_ROOT=${PROJECT_BINARY_DIR}/cuda_sources
+            -DTEST_CORE_TARGET=${LIB_TARGET_NAME}
+            "-DTEST_CUDA_ARCHITECTURES=${CMAKE_CUDA_ARCHITECTURES}"
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyTemplateProjectCudaSources.cmake
+    )
+    set_tests_properties(
+        template_project_cuda_sources
+        PROPERTIES
+        LABELS "cuda;sources;template"
+        TIMEOUT 240
+    )
+endif()
+
+if(ENABLE_OPTIX)
+    add_test(
+        NAME template_project_optix_install_export
+        COMMAND ${CMAKE_COMMAND}
+            -DTEST_TEMPLATE_SOURCE_DIR=${PROJECT_SOURCE_DIR}
+            -DTEST_BINARY_ROOT=${PROJECT_BINARY_DIR}/optix_install_export
+            -DTEST_PROJECT_NAME=${project_name}
+            -DTEST_CORE_TARGET=${LIB_TARGET_NAME}
+            "-DTEST_CUDA_ARCHITECTURES=${CMAKE_CUDA_ARCHITECTURES}"
+            "-DTEST_OPTIX_ROOT=${OPTIX_ROOT}"
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyTemplateProjectOptixInstallExport.cmake
+    )
+    set_tests_properties(
+        template_project_optix_install_export
+        PROPERTIES
+        LABELS "optix;install;package;template"
+        TIMEOUT 360
+    )
+endif()
+
 find_program(
     TEMPLATE_NVCC_EXECUTABLE
     NAMES nvcc

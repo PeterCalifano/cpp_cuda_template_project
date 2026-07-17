@@ -282,3 +282,34 @@ This addendum preserves the original review above as a point-in-time assessment 
 - **A8. GPT5.6-Sol max:** Partially complete; component/service launch coverage exists, while status-topic coverage and drift triggers remain worthwhile. **Confidence: 100/100.**
 
 The implementation plan for all open, worthwhile items is maintained separately in `doc/developments/ros2_overlay_review_remediation_plan.md`.
+
+---
+
+## 7. Stage 2 remediation update - 2026-07-17
+
+This section updates only the current disposition of the historical M4/N1
+findings; the original review and independent re-evaluation above remain as the
+point-in-time record.
+
+- **M4, CUDA/OptiX execution:** Fixed for the locally available toolchain. Clean
+  ROS CUDA and CUDA+OptiX builds each completed four packages and 10 tests. The
+  CUDA path compiled the real project `placeholder.cu` for `sm_120`; the OptiX
+  path generated PTX and its embedded object with OptiX 8.0.0. GitHub ROS CI
+  remains deliberately CPU-only. **Confidence: 100/100.**
+- **N1, CUDA source discovery:** Fixed in all seven ownership sites. Ordinary
+  `.cpp` and `.cu` patterns are separate list entries, every ordinary list
+  explicitly excludes `*.ptx.cu`, and a CUDA-only compilation-database test
+  rejects recurrence. Standalone CUDA passed 29 tests. **Confidence: 100/100.**
+- **New validation finding, OptiX installed export:** The first end-to-end OptiX
+  run generated the core PTX but failed when the bridge imported a target that
+  claimed a non-existent package-local `include/optix`. The installed package
+  now resolves the external SDK from `OPTIX_ROOT`, `OptiX_ROOT`,
+  `OptiX_INSTALL_DIR`, or `OPTIX_HOME`; CUDA headers flow from recreated
+  `CUDA::` targets. The install-consumer regression rejects build-machine path
+  leakage and compiles `#include <optix.h>` through the installed core target.
+  **Confidence: 100/100.**
+- **Template/derived CI ownership follow-up:** Closed. Tailoring removes both
+  template-only GPU verifiers, while active template CUDA CI checks the real
+  source graph after materializing the generic project workflow. A tailored
+  scratch compiled `placeholder.cu`, excluded `placeholder_to_ptx.ptx.cu`, and
+  passed all nine project tests. **Confidence: 100/100.**

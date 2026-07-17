@@ -91,6 +91,7 @@ jobs:
           # Build artifacts are tested in a separate job, so keep CPU flags portable.
           cmake -S . -B "${BUILD_DIR}" -GNinja \
             -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
             -DENABLE_TESTS=ON \
             -DENABLE_CUDA=ON \
             -DENABLE_OPTIX="${ENABLE_OPTIX}" \
@@ -104,6 +105,21 @@ jobs:
 
       - name: Build
         run: cmake --build "${BUILD_DIR}" --parallel 4
+
+      - name: Verify project CUDA source graph
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          compile_commands="${BUILD_DIR}/compile_commands.json"
+          test -f "${compile_commands}"
+          if ! grep -Fq "src/template_src_kernels/placeholder.cu" "${compile_commands}"; then
+            echo "Project CUDA source is absent from the compiled target graph." >&2
+            exit 1
+          fi
+          if grep -Fq "placeholder_to_ptx.ptx.cu" "${compile_commands}"; then
+            echo "OptiX PTX input entered ordinary CUDA compilation." >&2
+            exit 1
+          fi
 
       - name: Show ccache stats
         run: ccache --show-stats || true

@@ -9,4 +9,53 @@ foreach(dep ${_DEPENDENCIES})
   find_dependency(${dep} REQUIRED)
 endforeach()
 
+if(@ENABLE_OPTIX@)
+  set(_template_project_optix_root_hints "")
+  foreach(_optix_root_variable IN ITEMS OPTIX_ROOT OptiX_ROOT OptiX_INSTALL_DIR)
+    if(DEFINED ${_optix_root_variable}
+        AND NOT "${${_optix_root_variable}}" STREQUAL "")
+      list(APPEND _template_project_optix_root_hints
+          "${${_optix_root_variable}}")
+    endif()
+  endforeach()
+  if(DEFINED ENV{OPTIX_HOME} AND NOT "$ENV{OPTIX_HOME}" STREQUAL "")
+    list(APPEND _template_project_optix_root_hints "$ENV{OPTIX_HOME}")
+  endif()
+
+  find_path(
+      _template_project_optix_include_dir
+      NAMES optix.h
+      HINTS ${_template_project_optix_root_hints}
+      PATH_SUFFIXES include)
+  if(NOT _template_project_optix_include_dir)
+    set(${CMAKE_FIND_PACKAGE_NAME}_FOUND FALSE)
+    set(${CMAKE_FIND_PACKAGE_NAME}_NOT_FOUND_MESSAGE
+        "The installed @PROJECT_NAME@ package was built with OptiX, but optix.h "
+        "was not found. Set OPTIX_ROOT, OptiX_ROOT, OptiX_INSTALL_DIR, or "
+        "OPTIX_HOME to an OptiX SDK root.")
+    return()
+  endif()
+endif()
+
 include("${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME@Target.cmake")
+
+if(@ENABLE_OPTIX@)
+  set(_template_project_optix_target
+      "@PROJECT_NAME@::@OPTIX_COMPILE_TARGET@")
+  if(NOT TARGET "${_template_project_optix_target}")
+    set(${CMAKE_FIND_PACKAGE_NAME}_FOUND FALSE)
+    set(${CMAKE_FIND_PACKAGE_NAME}_NOT_FOUND_MESSAGE
+        "The installed @PROJECT_NAME@ package is missing its OptiX interface target.")
+    return()
+  endif()
+  set_property(
+      TARGET "${_template_project_optix_target}"
+      APPEND PROPERTY
+      INTERFACE_INCLUDE_DIRECTORIES "${_template_project_optix_include_dir}")
+
+  unset(_template_project_optix_include_dir CACHE)
+  unset(_template_project_optix_include_dir)
+  unset(_template_project_optix_root_hints)
+  unset(_template_project_optix_target)
+  unset(_optix_root_variable)
+endif()

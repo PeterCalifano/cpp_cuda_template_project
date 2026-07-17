@@ -79,3 +79,18 @@ foreach(_workflow_path IN LISTS _linux_workflow_paths)
         "for pytest-backed and docs CTests: ${_workflow_path}")
   endif()
 endforeach()
+
+set(_cuda_workflow_path
+    "${TEST_TEMPLATE_SOURCE_DIR}/.github/workflows/build_linux_cuda.yml")
+file(READ "${_cuda_workflow_path}" _cuda_workflow_contents)
+foreach(_required_cuda_source_gate
+    "CMAKE_EXPORT_COMPILE_COMMANDS=ON"
+    "Verify project CUDA source graph"
+    "src/template_src_kernels/placeholder.cu"
+    "placeholder_to_ptx.ptx.cu")
+  if(NOT _cuda_workflow_contents MATCHES "${_required_cuda_source_gate}")
+    message(FATAL_ERROR
+        "Template CUDA CI does not enforce '${_required_cuda_source_gate}': "
+        "${_cuda_workflow_path}")
+  endif()
+endforeach()

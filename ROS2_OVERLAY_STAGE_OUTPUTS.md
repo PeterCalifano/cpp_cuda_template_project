@@ -829,3 +829,128 @@ Separate template and project CI workflows
 
 - Guard workflow ownership and cleanup idempotency.
 ```
+
+## Review remediation Stage 2 CUDA and OptiX - 2026-07-17
+
+Scope:
+- Corrected ordinary C++/CUDA discovery in the seven approved source CMake
+  files. Dedicated `*.ptx.cu` inputs remain in `srcCudaFilesToPTX*` and are
+  explicitly filtered out of ordinary target sources.
+- Added a CUDA-only compile-database regression for the real project
+  `placeholder.cu` and a static malformed-glob guard.
+- Added an OptiX-only install-consumer regression after the first end-to-end
+  OptiX run exposed a non-relocatable installed interface.
+- Made installed OptiX consumption resolve the external SDK through
+  `OPTIX_ROOT`, `OptiX_ROOT`, `OptiX_INSTALL_DIR`, or `OPTIX_HOME`. Installed
+  exports contain neither a build-machine SDK path nor a fictitious
+  package-local `include/optix` path.
+
+Red evidence:
+- The static overlay verifier rejected `"*.cpp; *.cu"` in
+  `src/CMakeLists.txt`.
+- The isolated CUDA verifier configured and built successfully, then failed
+  because `src/template_src_kernels/placeholder.cu` was absent from
+  `compile_commands.json`.
+- The first ROS CUDA+OptiX run generated PTX in the core package, then failed
+  while configuring `template_project_ros`: the imported core target required
+  a non-existent install-prefix `include/optix` directory.
+- The new OptiX install-consumer verifier reproduced the same package-local
+  include defect before the export fix.
+- The documentation guard failed before the dated GPU validation and
+  variable-based SDK contract were documented.
+- The tailoring verifier failed before the two new template-only GPU verifier
+  paths were added to the cleanup contract.
+- The active CUDA workflow guards failed before the post-materialization
+  compile-database assertion was added.
+
+Validation evidence:
+- `./build_lib.sh -B build_review_cuda --clean -DENABLE_CUDA=ON
+  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON`: built the project and passed `29/29`
+  tests. `ctest --test-dir build_review_cuda -L cuda --output-on-failure`
+  independently passed `3/3` CUDA-labeled tests.
+- The standalone compile database contains an `nvcc` command for
+  `src/template_src_kernels/placeholder.cu`, and the real object exists at
+  `build_review_cuda/src/CMakeFiles/template_project.dir/template_src_kernels/placeholder.cu.o`.
+  No ordinary compile entry exists for `placeholder_to_ptx.ptx.cu`.
+- `./build_ros2.sh --clean --cuda --cmake-arg
+  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON`: built four packages and reported
+  `10 tests, 0 errors, 0 failures, 0 skipped`. The nested core compile database
+  and target object contain the same real project CUDA source.
+- `OPTIX_HOME=<sdk-root> ./build_lib.sh -B build_review_optix_final --clean
+  -DENABLE_CUDA=ON -DENABLE_OPTIX=ON -DOPTIX_AUTO_INSTALL=OFF
+  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON`: discovered the official OptiX 8.0 SDK
+  from the environment alone and passed `30/30`, including the install-consumer
+  regression.
+- `OPTIX_HOME=<sdk-root> ./build_ros2.sh --clean --cuda --optix`: built four
+  packages and reported `10 tests, 0 errors, 0 failures, 0 skipped`.
+- The ROS OptiX core generated
+  `ros2/build/template_project/template_project_core/src/placeholder_to_ptx.ptx`,
+  `placeholder_to_ptx_embedded.c`, and `placeholder_to_ptx_embedded.o`. Its
+  installed target export contains no home-directory path and no
+  `include/optix` claim.
+- Local toolchain: ROS 2 Jazzy, CMake 3.28.3, GCC 13.3.0, CUDA 12.9.41,
+  NVIDIA driver 580.105.08, OptiX 8.0.0. The host GPUs were an RTX 5090
+  (`sm_120`) and RTX 4070 Ti SUPER (`sm_89`); the default single-architecture
+  policy selected `sm_120`.
+- The direct static, CUDA-source, OptiX install-consumer, and documentation
+  verifiers all passed after their matching red runs.
+- The tailoring fixture now proves both template-only GPU verifiers are listed
+  and removed. A scratch default tailoring then materialized the generic CUDA
+  workflow, compiled `placeholder.cu`, rejected an ordinary
+  `placeholder_to_ptx.ptx.cu` entry, and passed `9/9` project tests.
+- A final clean `OPTIX_HOME=<sdk-root> ./build_ros2.sh --clean --cuda --optix
+  --cmake-arg -DCMAKE_EXPORT_COMPILE_COMMANDS=ON` rerun built four packages and
+  reported `10 tests, 0 errors, 0 failures, 0 skipped`.
+- The final focused CTest gate passed `9/9` tests across
+  `cuda|optix|ros2|docs|tailoring`; the two static pytest modules passed
+  `11/11`. Shell syntax/lint, eight-workflow YAML parsing, four-manifest XML
+  parsing, conflict-marker scanning, diff whitespace, authorized-source-surface,
+  and machine-local-path checks all passed.
+- The extensive diff review found no unresolved critical or major issue. It
+  produced the two additional red-green fixes above for tailoring ownership and
+  active CUDA CI coverage.
+
+Full temporary command logs:
+- `/tmp/ros2_review_stage2_static_red.log`
+- `/tmp/ros2_review_stage2_cuda_red.log`
+- `/tmp/ros2_review_stage2_build_lib_cuda.log`
+- `/tmp/ros2_review_stage2_ctest_cuda.log`
+- `/tmp/ros2_review_stage2_build_ros2_cuda.log`
+- `/tmp/ros2_review_stage2_build_ros2_optix.log`
+- `/tmp/ros2_review_stage2_optix_export_red.log`
+- `/tmp/ros2_review_stage2_optix_export_green.log`
+- `/tmp/ros2_review_stage2_build_ros2_optix_green.log`
+- `/tmp/ros2_review_stage2_build_lib_optix.log`
+- `/tmp/ros2_review_stage2_docs_red.log`
+- `/tmp/ros2_review_stage2_docs_green.log`
+- `/tmp/ros2_review_stage2_tailoring_red.log`
+- `/tmp/ros2_review_stage2_tailoring_green.log`
+- `/tmp/ros2_review_stage2_cuda_workflow_red.log`
+- `/tmp/ros2_review_stage2_cuda_workflow_green.log`
+- `/tmp/ros2_review_stage2_cuda_workflow_pytest_red.log`
+- `/tmp/ros2_review_stage2_cuda_workflow_pytest_green.log`
+- `/tmp/ros2_review_stage2_tailored_cuda_ci.log`
+- `/tmp/ros2_review_stage2_build_lib_optix_final.log`
+- `/tmp/ros2_review_stage2_build_ros2_optix_final.log`
+- `/tmp/ros2_review_stage2_ctest_final.log`
+- `/tmp/ros2_review_stage2_pytest_final.log`
+- `/tmp/ros2_review_stage2_shell_final.log`
+- `/tmp/ros2_review_stage2_structured_final.log`
+- `/tmp/ros2_review_stage2_invariants_final.log`
+
+Known non-fatal output:
+- GCC 13 still emits the pre-existing fmt/spdlog `-Warray-bounds` warning.
+- Colcon reports that `CMAKE_EXPORT_COMPILE_COMMANDS` is unused by the spinup
+  package; the variable is consumed by the core package where compile-graph
+  evidence is required.
+
+Proposed commit message:
+
+```text
+Compile CUDA sources and fix OptiX package exports
+- Separate ordinary CUDA sources from OptiX PTX inputs.
+
+- Resolve installed OptiX headers without machine-local paths.
+
+- Verify CUDA and OptiX compile and install contracts.
+```
