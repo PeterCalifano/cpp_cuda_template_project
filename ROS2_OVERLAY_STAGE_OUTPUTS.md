@@ -590,3 +590,56 @@ Flow project metadata into the ROS 2 overlay
 
 - Guard derived-project rollout and CI compatibility.
 ```
+
+## Review remediation Stage 0 baseline - 2026-07-17
+
+Scope:
+- Established the pre-fix control baseline for
+  `doc/developments/ros2_overlay_review_remediation_plan.md`.
+- Added the narrow, evidence-driven exception for the Stage 1 nested-install and
+  Stage 2 CUDA source-discovery CMake fixes. No implementation file changed in
+  this stage.
+- Baseline branch was `feature/ros2-overlay`, commit `fc5478a`
+  (`v1.10.3-10-gfc5478a`), with a clean index and working tree before the
+  Stage 0 documentation edits.
+
+Environment:
+- CMake `3.28.3`; GNU C++ `13.3.0`.
+- ROS 2 Jazzy installed at `/opt/ros/jazzy`; `ROS_DISTRO` was initially unset,
+  and `build_ros2.sh` selected Jazzy through its documented default.
+- CUDA toolkit `12.9` (`nvcc 12.9.41`), NVIDIA driver `580.105.08`.
+- GPUs: NVIDIA GeForce RTX 5090, compute capability 12.0; NVIDIA GeForce RTX
+  4070 Ti SUPER, compute capability 8.9.
+- No `optix.h` was found under `/usr/local`, `/opt`, or `/usr/include`; OptiX
+  validation remains conditional on an SDK-equipped host.
+
+Validation evidence:
+- `./build_lib.sh -B build_review_baseline --clean`: configured and built the
+  standalone project, then passed `24/24` tests.
+- `ctest --test-dir build_review_baseline --output-on-failure`: independent
+  rerun passed `24/24` tests.
+- `./build_ros2.sh --clean`: built all four packages and reported `10 tests, 0
+  errors, 0 failures, 0 skipped`. The launch suite covered standalone and
+  composition modes at root and under the `integration` namespace.
+- `ctest --test-dir build_review_baseline -L "ros2|tailoring"
+  --output-on-failure`: passed `2/2`, independently exercising the rollout,
+  bytecode-pruning, metadata-sync, and tailoring fixtures.
+- `python3 -m pytest -q tests/template_test/testRos2OverlayStatic.py`: passed
+  `8/8`.
+- `bash -n` and `shellcheck` passed for `build_ros2.sh`,
+  `add_ros2_support.sh`, `tailor_template_cleanup.sh`, and
+  `generate_version.sh`.
+- `git diff --check` passed. Root `CMakeLists.txt`, `src/`, and `python/` had no
+  Stage 0 diff.
+
+Full temporary command logs:
+- `/tmp/ros2_review_stage0_build_lib.log`
+- `/tmp/ros2_review_stage0_ctest.log`
+- `/tmp/ros2_review_stage0_build_ros2.log`
+- `/tmp/ros2_review_stage0_contracts.log`
+- `/tmp/ros2_review_stage0_shell_pytest.log`
+
+Known non-fatal baseline output:
+- Standalone and colcon builds emit the existing GCC 13/fmt/spdlog
+  `-Warray-bounds` warning. This predates the remediation implementation and is
+  outside the Stage 1/2 change surface.

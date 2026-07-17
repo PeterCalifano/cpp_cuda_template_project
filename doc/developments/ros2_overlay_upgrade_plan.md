@@ -231,3 +231,37 @@ Stage 8 friction note, 2026-07-07:
 - [x] Run the metadata-only configure probe, direct helper/pytest/CMake verifiers, full standalone tests, clean ROS tests, and scratch remove/re-add dogfood with non-default metadata and a non-ROS CMake name.
 - [x] Run shell lint, YAML/XML/Python parsing, manifest mode checks, conflict scan, and confirm `src/` and `python/` remain untouched; the only root CMake change must be the approved metadata contract.
 - [x] Perform a final correctness/design review, tick this section, and append validation evidence to `ROS2_OVERLAY_STAGE_OUTPUTS.md` and `CONTEXT.md` without staging those bookkeeping files.
+
+## 2026-07-17 implementation-review remediation
+
+The source of truth for this follow-up is
+`doc/developments/ros2_overlay_review_remediation_plan.md`. Work proceeds one
+approved stage at a time, test-first where behavior changes, with command and
+result evidence appended to `ROS2_OVERLAY_STAGE_OUTPUTS.md` before staging each
+stage for review.
+
+### Stage R0 - Baseline and narrow invariant exception
+
+- [x] Capture a clean baseline on `feature/ros2-overlay` at `fc5478a`, including
+  standalone, ROS 2, focused rollout/tailoring, pytest, and shell-lint gates.
+- [x] Record the compiler, CMake, ROS, CUDA, GPU, and OptiX availability used by
+  the remediation pass.
+- [x] Preserve the overlay architecture and the ROS-free standalone build
+  boundary.
+- [x] Authorize the following exception to the former frozen-`src/` rollout
+  invariant. It is triggered by empirical installed-consumer and CUDA
+  compile-graph evidence, not by an architecture change:
+  - Stage 1 may replace `CMAKE_SOURCE_DIR` with `PROJECT_SOURCE_DIR` only in
+    `src/wrapped_impl/CMakeLists.txt`, `src/utils/CMakeLists.txt`,
+    `src/utils/logging/CMakeLists.txt`,
+    `src/utils/wrap_adapters/CMakeLists.txt`,
+    `src/template_src/CMakeLists.txt`, and
+    `src/template_src_kernels/CMakeLists.txt`.
+  - Stage 2 may correct ordinary CUDA source discovery only in the same six
+    module files plus `src/CMakeLists.txt`, including explicit exclusion of
+    dedicated `*.ptx.cu` inputs from the normal library source list.
+  - No C++, CUDA, or Python implementation/API change is authorized by this
+    exception. Root `CMakeLists.txt` remains outside the expected change set.
+- [x] Require each later stage to record the expected red guard before its fix,
+  the matching green result afterward, and the final regression gates in
+  `ROS2_OVERLAY_STAGE_OUTPUTS.md`.

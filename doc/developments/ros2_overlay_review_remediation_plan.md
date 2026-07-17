@@ -53,35 +53,35 @@ gaps, and bounds core-to-overlay CI drift.
 
 ### Baseline
 
-- [ ] Confirm the branch and capture `git status --short --branch` before any
+- [x] Confirm the branch and capture `git status --short --branch` before any
   edit; preserve unrelated local files and generated ROS build output.
-- [ ] Record the reviewed baseline commit and toolchain in the stage-output log:
+- [x] Record the reviewed baseline commit and toolchain in the stage-output log:
   CMake, compiler, ROS distro, CUDA toolkit/driver, visible GPUs, and whether an
   OptiX SDK/header is available.
-- [ ] Run the current non-CUDA baseline and retain the exact output:
+- [x] Run the current non-CUDA baseline and retain the exact output:
   `./build_lib.sh -B build_review_baseline --clean` followed by
   `ctest --test-dir build_review_baseline --output-on-failure`.
-- [ ] Run `./build_ros2.sh --clean` and record the package/test totals.
-- [ ] Reconfirm that the current rollout-bytecode fixtures, metadata sync tests,
+- [x] Run `./build_ros2.sh --clean` and record the package/test totals.
+- [x] Reconfirm that the current rollout-bytecode fixtures, metadata sync tests,
   launch tests, and shell checks are green before changing their surroundings.
 
 ### Explicit invariant exception
 
-- [ ] Add a dated follow-up subsection to
+- [x] Add a dated follow-up subsection to
   `doc/developments/ros2_overlay_upgrade_plan.md` that authorizes only:
   `CMAKE_SOURCE_DIR` correction in six `src/**/CMakeLists.txt` files and CUDA
   source-discovery correction in seven `src/**/CMakeLists.txt` files.
-- [ ] State in that subsection that the exception was triggered by empirical
+- [x] State in that subsection that the exception was triggered by empirical
   installed-consumer and compile-graph evidence, not by a change in overlay
   architecture.
-- [ ] Add the stage-output log path and red-green evidence convention to the
+- [x] Add the stage-output log path and red-green evidence convention to the
   subsection so later reviewers can reconstruct each decision.
 
 ### Stage gate
 
-- [ ] `git diff --check` passes.
-- [ ] `git diff --stat -- CMakeLists.txt python/` is empty.
-- [ ] No implementation file under `src/` has changed yet.
+- [x] `git diff --check` passes.
+- [x] `git diff --stat -- CMakeLists.txt python/` is empty.
+- [x] No implementation file under `src/` has changed yet.
 
 ---
 
