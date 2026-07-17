@@ -91,6 +91,29 @@ jobs:
         shell: bash
         run: ./build_ros2.sh --clean
 
+      - name: Verify installed core header layout
+        shell: bash
+        run: |
+          if [[ ! -f src/wrapped_impl/CWrapperPlaceholder.h ]]; then
+            echo "Skipping template placeholder header check; the source header is not present."
+            exit 0
+          fi
+
+          core_cmake_name_="$(sed -nE 's/^[[:space:]]*set[[:space:]]*[(][[:space:]]*project_name[[:space:]]+"?([^" )]+)"?.*/\1/p' CMakeLists.txt | head -n1)"
+          core_shim_cmake_="$(grep -l '_ros2_overlay_nested_version_file' ros2/*/CMakeLists.txt | head -n1 || true)"
+          [[ -n "${core_cmake_name_}" ]] || { echo "Could not resolve the core CMake project name." >&2; exit 1; }
+          [[ -n "${core_shim_cmake_}" ]] || { echo "Could not locate the ROS 2 core shim package." >&2; exit 1; }
+          core_ros_package_="$(basename "$(dirname "${core_shim_cmake_}")")"
+
+          test -f "ros2/install/${core_ros_package_}/include/${core_cmake_name_}/wrapped_impl/CWrapperPlaceholder.h" || {
+            echo "Core header was not installed below the exported include root." >&2
+            exit 1
+          }
+          test ! -e "ros2/install/${core_ros_package_}/wrapped_impl/CWrapperPlaceholder.h" || {
+            echo "Core header leaked to the package install-prefix root." >&2
+            exit 1
+          }
+
       - name: Run static ROS 2 overlay checks
         shell: bash
         run: |

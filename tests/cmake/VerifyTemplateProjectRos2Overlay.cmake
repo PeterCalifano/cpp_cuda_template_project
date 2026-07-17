@@ -103,6 +103,17 @@ _assert_matches("${_root_cmake}" "CPACK_PACKAGE_HOMEPAGE_URL[ \\t]+\"\\$\\{PROJE
 _assert_matches("${_root_cmake}" "CPACK_PACKAGE_VENDOR[ \\t]+\"\\$\\{PROJECT_MAINTAINER_NAME\\}\"")
 _assert_matches("${_root_cmake}" "CPACK_PACKAGE_CONTACT[ \\t]+\"\\$\\{PROJECT_MAINTAINER_NAME\\}")
 
+foreach(_nested_header_module
+    "src/wrapped_impl/CMakeLists.txt"
+    "src/utils/CMakeLists.txt"
+    "src/utils/logging/CMakeLists.txt"
+    "src/utils/wrap_adapters/CMakeLists.txt"
+    "src/template_src/CMakeLists.txt"
+    "src/template_src_kernels/CMakeLists.txt")
+  _assert_matches("${_root}/${_nested_header_module}" "PROJECT_SOURCE_DIR")
+  _assert_not_matches("${_root}/${_nested_header_module}" "CMAKE_SOURCE_DIR")
+endforeach()
+
 set(_metadata_helper "${_root}/ros2/tools/sync_package_metadata.py")
 _assert_matches("${_metadata_helper}" "xml\\.etree\\.ElementTree")
 _assert_matches("${_metadata_helper}" "insert_comments=True")
@@ -188,11 +199,14 @@ _assert_matches("${_shim_cmake}" "configure_file")
 _assert_not_matches("${_shim_cmake}" "python/")
 
 set(_ros_bridge_cmake "${_root}/ros2/template_project_ros/CMakeLists.txt")
-_assert_matches("${_ros_bridge_cmake}" "Nested and older derived cores")
+_assert_matches("${_ros_bridge_cmake}" "additive rollout compatibility")
+_assert_matches(
+    "${_ros_bridge_cmake}"
+    "target_include_directories\\(template_project_ros_conversions[^)]*TEMPLATE_PROJECT_REPOSITORY_ROOT}/src")
 _assert_matches(
     "${_ros_bridge_cmake}"
     "target_link_libraries\\(template_project_ros_component[^)]*template_project::template_project")
-_assert_matches(
+_assert_not_matches(
     "${_ros_bridge_cmake}"
     "target_include_directories\\(template_project_ros_component[^)]*TEMPLATE_PROJECT_REPOSITORY_ROOT}/src")
 
@@ -695,6 +709,16 @@ _assert_matches("${_workflow}" "grep -q -- \"--sync-ros2\"")
 _assert_matches("${_workflow}" "grep -q -- \"ROS2_PROJECT_METADATA_SYNC=1\"")
 _assert_matches("${_workflow}" "\\./generate_version\\.sh --sync-ros2")
 _assert_matches("${_workflow}" "\\./build_ros2\\.sh --clean")
+_assert_matches("${_workflow}" "name: Verify installed core header layout")
+_assert_matches("${_workflow}" "src/wrapped_impl/CWrapperPlaceholder\\.h")
+_assert_matches("${_workflow}" "core_cmake_name_=")
+_assert_matches("${_workflow}" "_ros2_overlay_nested_version_file")
+_assert_matches(
+    "${_workflow}"
+    "include/\\$\\{core_cmake_name_\\}/wrapped_impl/CWrapperPlaceholder\\.h")
+_assert_matches(
+    "${_workflow}"
+    "test ! -e[^\n]*wrapped_impl/CWrapperPlaceholder\\.h")
 _assert_matches("${_workflow}" "python3 -m pytest -q tests/template_test/testRos2OverlayStatic\\.py")
 _assert_matches(
     "${_workflow}"

@@ -94,6 +94,20 @@ set_tests_properties(
 )
 
 add_test(
+    NAME template_project_nested_install_headers
+    COMMAND ${CMAKE_COMMAND}
+        -DTEST_TEMPLATE_SOURCE_DIR=${PROJECT_SOURCE_DIR}
+        -DTEST_BINARY_ROOT=${PROJECT_BINARY_DIR}/nested_install_headers
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyTemplateProjectNestedInstallHeaders.cmake
+)
+set_tests_properties(
+    template_project_nested_install_headers
+    PROPERTIES
+    LABELS "nested;install;template"
+    TIMEOUT 240
+)
+
+add_test(
     NAME template_project_version_no_source_side_effect
     COMMAND ${CMAKE_COMMAND}
         -DTEST_TEMPLATE_SOURCE_DIR=${PROJECT_SOURCE_DIR}

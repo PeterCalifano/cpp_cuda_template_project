@@ -30,8 +30,9 @@ target_include_directories(template_project_ros_conversions
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
   PRIVATE
-    # Nested and older derived cores may not install adapted source headers at a
-    # usable include path; the exported core target remains the link interface.
+    # Keep this source path only for additive rollout compatibility with older
+    # derived cores whose adapted seam uses a non-installed header. The exported
+    # core target remains the primary template consumption interface.
     ${TEMPLATE_PROJECT_REPOSITORY_ROOT}/src
 )
 target_link_libraries(template_project_ros_conversions
@@ -48,10 +49,6 @@ target_include_directories(template_project_ros_component
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
-  PRIVATE
-    # Keep node-local core-call edits compatible with older derived overlays;
-    # normal linking remains through template_project::template_project.
-    ${TEMPLATE_PROJECT_REPOSITORY_ROOT}/src
 )
 target_link_libraries(template_project_ros_component
   template_project_ros_conversions

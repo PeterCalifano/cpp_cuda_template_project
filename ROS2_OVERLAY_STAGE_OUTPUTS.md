@@ -643,3 +643,82 @@ Known non-fatal baseline output:
 - Standalone and colcon builds emit the existing GCC 13/fmt/spdlog
   `-Warray-bounds` warning. This predates the remediation implementation and is
   outside the Stage 1/2 change surface.
+
+## Review remediation Stage 1 nested installation - 2026-07-17
+
+Scope:
+- Corrected nested public-header destinations in the six approved module
+  `CMakeLists.txt` files by deriving their relative paths from
+  `PROJECT_SOURCE_DIR` instead of the outermost `CMAKE_SOURCE_DIR`.
+- Added a scratch nested install regression, prefix-leak checks, an
+  installed-only consumer, and a dependency-independent probe of the optional
+  logging module's real install rule.
+- Removed the obsolete repository-source include from the lifecycle component.
+  The conversions target retains that include only for additive rollout to
+  older derived cores whose adapted seam still uses a non-installed header.
+- Added static guards for those ownership rules and a workflow check of the
+  actual colcon-installed core header layout.
+
+Red evidence:
+- The first direct nested verifier run failed before installation with
+  `Nested header install destination escapes include/template_project` in the
+  generated `template_src/cmake_install.cmake`.
+- The extended ROS overlay verifier then failed because
+  `src/wrapped_impl/CMakeLists.txt` did not contain `PROJECT_SOURCE_DIR`.
+- The bridge-ownership guard failed on the old compatibility comment before the
+  component source include was removed, and the workflow guard failed before
+  the installed-layout step was added.
+- The first post-review package-resolution assertion failed because CMake had
+  stored an untyped command-line `template_project_DIR` cache entry as
+  `UNINITIALIZED`. Declaring the test input as `:PATH` made the cache assertion
+  exact without weakening it.
+
+Green evidence:
+- The direct nested verifier passed, including the hermetic logging-header
+  install probe, absence of prefix-root header directories, and compilation of
+  a consumer with only the installed package on `CMAKE_PREFIX_PATH`.
+- `./build_lib.sh -B build_review_nested --clean` configured and built the
+  normal standalone project, then passed `25/25` tests. The new nested install
+  test passed through CTest in `4.73 s`.
+- `./build_ros2.sh --clean` built all four packages and reported `10 tests, 0
+  errors, 0 failures, 0 skipped`, including all standalone/composition launch
+  variants.
+- The colcon install contains the five checked header families below
+  `ros2/install/template_project/include/template_project/` and no
+  `wrapped_impl/`, `template_src/`, `template_src_kernels/`, or `utils/`
+  directory at the package prefix root.
+- The installed target exports `${_IMPORT_PREFIX}/include/template_project`
+  and `${_IMPORT_PREFIX}/include`. A separate consumer configured and built
+  successfully against only the colcon install prefix.
+- The parsed workflow install-layout block executed successfully against the
+  local colcon install. The direct ROS static verifier also passed after each
+  implementation fix.
+- An independent read-only review found no substantive Stage 1 issue. Its
+  package-resolution masking note was closed by pinning the installed-only
+  consumer to the scratch `template_project_DIR` and asserting the resolved
+  cache entry; its remaining low-risk notes are deliberate derived-workflow
+  portability behavior or are already assigned to Stage 6.
+- Root `CMakeLists.txt` and `python/` remain unchanged. Under `src/`, only the
+  six authorized module CMake files changed; no C++ or CUDA implementation file
+  changed.
+
+Full temporary command logs:
+- `/tmp/ros2_review_stage1_nested_red.log`
+- `/tmp/ros2_review_stage1_static_red.log`
+- `/tmp/ros2_review_stage1_nested_green.log`
+- `/tmp/ros2_review_stage1_static_core_green.log`
+- `/tmp/ros2_review_stage1_bridge_red.log`
+- `/tmp/ros2_review_stage1_bridge_green.log`
+- `/tmp/ros2_review_stage1_workflow_red.log`
+- `/tmp/ros2_review_stage1_workflow_green.log`
+- `/tmp/ros2_review_stage1_build_review_nested.log`
+- `/tmp/ros2_review_stage1_build_ros2.log`
+- `/tmp/ros2_review_stage1_nested_final.log`
+- `/tmp/ros2_review_stage1_static_final.log`
+- `/tmp/ros2_review_stage1_build_ros2_final.log`
+- `/tmp/ros2_review_stage1_ctest_final.log`
+
+Known non-fatal output:
+- The existing GCC 13/fmt/spdlog `-Warray-bounds` warning remains visible in
+  standalone and colcon builds. It predates this stage and did not fail any
+  gate.

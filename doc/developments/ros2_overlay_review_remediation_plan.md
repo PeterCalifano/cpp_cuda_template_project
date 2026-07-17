@@ -89,59 +89,59 @@ gaps, and bounds core-to-overlay CI drift.
 
 ### Red test first
 
-- [ ] Add `tests/cmake/VerifyTemplateProjectNestedInstallHeaders.cmake` and
+- [x] Add `tests/cmake/VerifyTemplateProjectNestedInstallHeaders.cmake` and
   register `template_project_nested_install_headers` in `tests/CMakeLists.txt`
   with labels `nested;install;template`.
-- [ ] In the verifier, create a scratch parent CMake project that consumes the
+- [x] In the verifier, create a scratch parent CMake project that consumes the
   template through `add_subdirectory()`, configures with CUDA/tests/wrappers
   disabled, builds, and installs to an isolated prefix.
-- [ ] Assert that representative public headers exist at these installed paths:
+- [x] Assert that representative public headers exist at these installed paths:
   `include/template_project/wrapped_impl/CWrapperPlaceholder.h`,
   `include/template_project/template_src/placeholder.h`,
   `include/template_project/utils/logging/SpdlogUtils.h`, and
   `include/template_project/utils/wrap_adapters/GtsamAliases.h`.
-- [ ] Assert that no top-level `wrapped_impl/`, `template_src/`, or `utils/`
+- [x] Assert that no top-level `wrapped_impl/`, `template_src/`, or `utils/`
   header directory appears directly under the install prefix.
-- [ ] Have the verifier configure and build a second, installed-only consumer
+- [x] Have the verifier configure and build a second, installed-only consumer
   using `find_package(template_project CONFIG REQUIRED)`,
   `target_link_libraries(... template_project::template_project)`, and
   `#include "wrapped_impl/CWrapperPlaceholder.h"`. Do not add a source-tree
   include path to this consumer.
-- [ ] Run only the new verifier and record the expected red failure showing the
+- [x] Run only the new verifier and record the expected red failure showing the
   misplaced install path or missing installed include.
-- [ ] Extend `VerifyTemplateProjectRos2Overlay.cmake` with a static guard that
+- [x] Extend `VerifyTemplateProjectRos2Overlay.cmake` with a static guard that
   rejects `CMAKE_SOURCE_DIR` in module-level `src/**/CMakeLists.txt`; record that
   expected red result too.
 
 ### Root-cause fix
 
-- [ ] Replace `CMAKE_SOURCE_DIR` with `PROJECT_SOURCE_DIR` in all six affected
+- [x] Replace `CMAKE_SOURCE_DIR` with `PROJECT_SOURCE_DIR` in all six affected
   files, preserving the existing standalone path calculation:
   `src/wrapped_impl/CMakeLists.txt`, `src/utils/CMakeLists.txt`,
   `src/utils/logging/CMakeLists.txt`, `src/utils/wrap_adapters/CMakeLists.txt`,
   `src/template_src/CMakeLists.txt`, and
   `src/template_src_kernels/CMakeLists.txt`.
-- [ ] Quote the path operands touched by this change if needed for paths with
+- [x] Quote the path operands touched by this change if needed for paths with
   spaces, but do not otherwise refactor module ownership or installation rules.
-- [ ] Remove the now-obsolete private core-source include from
+- [x] Remove the now-obsolete private core-source include from
   `template_project_ros_component`, which no longer contains the core-call seam.
-- [ ] Keep the private core-source include on
+- [x] Keep the private core-source include on
   `template_project_ros_conversions` only for additive-rollout compatibility
   with older derived projects that adapt against non-installed headers; revise
   its comment so it does not claim to be the primary template consumption path.
-- [ ] Add a workflow-side install-layout assertion after the main ROS build so a
+- [x] Add a workflow-side install-layout assertion after the main ROS build so a
   real colcon install also proves the header path and absence of prefix-root
   leakage.
 
 ### Green validation
 
-- [ ] Run the new nested install verifier directly and through CTest.
-- [ ] Run `./build_lib.sh -B build_review_nested --clean` and its full CTest.
-- [ ] Run `./build_ros2.sh --clean`; inspect the install tree and installed
+- [x] Run the new nested install verifier directly and through CTest.
+- [x] Run `./build_lib.sh -B build_review_nested --clean` and its full CTest.
+- [x] Run `./build_ros2.sh --clean`; inspect the install tree and installed
   `template_projectTarget.cmake` include directories.
-- [ ] Compile the installed-only probe against the colcon install prefix as a
+- [x] Compile the installed-only probe against the colcon install prefix as a
   second independent check.
-- [ ] Confirm standalone installation layout is unchanged from its intended
+- [x] Confirm standalone installation layout is unchanged from its intended
   `include/template_project/...` contract.
 
 ---

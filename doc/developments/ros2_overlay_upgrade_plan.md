@@ -265,3 +265,21 @@ stage for review.
 - [x] Require each later stage to record the expected red guard before its fix,
   the matching green result afterward, and the final regression gates in
   `ROS2_OVERLAY_STAGE_OUTPUTS.md`.
+
+### Stage R1 - Nested header installation and installed consumption
+
+- [x] Add a nested `add_subdirectory()` install regression that rejects
+  install destinations escaping `include/template_project`, checks all public
+  header families including the optional logging module, and builds an
+  installed-only consumer through `template_project::template_project`.
+- [x] Record expected red failures for the generated nested install path and
+  the six-file static `CMAKE_SOURCE_DIR` guard before applying the fix.
+- [x] Derive module install paths from `PROJECT_SOURCE_DIR` in the six approved
+  `src/**/CMakeLists.txt` files, with no C++/CUDA API or implementation change.
+- [x] Remove the obsolete repository-source include from the lifecycle
+  component while retaining and accurately documenting the conversions-only
+  additive-rollout compatibility path.
+- [x] Make the ROS workflow assert the real colcon-installed header layout and
+  reject the former package-prefix-root leak.
+- [x] Pass the fresh standalone `25/25` CTest suite, clean ROS `10/10` suite,
+  installed target inspection, and an installed-only colcon consumer probe.
