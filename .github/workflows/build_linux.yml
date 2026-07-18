@@ -17,6 +17,8 @@ on:
       - "master"
       - "main"
       - "develop"
+    tags:
+      - "v*.*.*"
     paths:
       - src/**
       - examples/**
@@ -171,7 +173,7 @@ jobs:
       - name: Test
         run: ctest --test-dir "${CTEST_DIR}" --output-on-failure --parallel 2 --no-tests=error
 
-  tailored-project-dogfood:
+  tailored-project-validation:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -189,7 +191,7 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          scratch_dir="$(mktemp -d "${RUNNER_TEMP}/tailored-project-dogfood.XXXXXX")"
+          scratch_dir="$(mktemp -d "${RUNNER_TEMP}/tailored-project-validation.XXXXXX")"
           target_dir="${scratch_dir}/target"
           git clone --no-local "${GITHUB_WORKSPACE}" "${target_dir}"
           git -C "${target_dir}" checkout --detach "${GITHUB_SHA}"
@@ -198,7 +200,7 @@ jobs:
             cd "${target_dir}"
             ./tailor_template_cleanup.sh --apply --yes
             test -z "$(find .github/workflows -maxdepth 1 -name '*.tpl' -print -quit)"
-            if grep -R -E 'VerifyTemplateProject|testWorkflowTemplates|testRos2OverlayStatic|CWrapperPlaceholder|rollout-dogfood' .github/workflows; then
+            if grep -R -E 'VerifyTemplateProject|testWorkflowTemplates|testRos2OverlayStatic|CWrapperPlaceholder|rollout-rehearsal' .github/workflows; then
               echo "Tailored workflows retain template-only validation." >&2
               exit 1
             fi

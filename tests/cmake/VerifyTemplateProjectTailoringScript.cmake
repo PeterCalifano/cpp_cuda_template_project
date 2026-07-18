@@ -361,7 +361,7 @@ function(_assert_ros2_overlay_kept fake_root)
     message(FATAL_ERROR "Default tailoring did not materialize the generic ROS workflow")
   endif()
   if(_materialized_ros_contents MATCHES
-      "VerifyTemplateProject|testRos2OverlayStatic|tailor_template_cleanup|CWrapperPlaceholder|rollout-dogfood")
+      "VerifyTemplateProject|testRos2OverlayStatic|tailor_template_cleanup|CWrapperPlaceholder|rollout-rehearsal")
     message(FATAL_ERROR "Tailored ROS workflow contains template-only CI")
   endif()
 

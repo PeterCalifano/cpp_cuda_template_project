@@ -361,7 +361,7 @@ class TestRos2OverlayStatic:
         workflowText_ = (repoRoot_ / ".github/workflows/build_ros2_overlay.yml").read_text(
             encoding="utf-8"
         )
-        overlayJob_, rolloutJob_ = workflowText_.split("  rollout-dogfood:", maxsplit=1)
+        overlayJob_, rolloutJob_ = workflowText_.split("  rollout-rehearsal:", maxsplit=1)
         for jobText_ in (overlayJob_, rolloutJob_):
             installIndex_ = jobText_.find("apt-get install")
             syncIndex_ = jobText_.find("./generate_version.sh --sync-ros2")

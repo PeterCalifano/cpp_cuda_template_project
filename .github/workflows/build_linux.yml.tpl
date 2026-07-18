@@ -18,6 +18,8 @@ on:
       - "master"
       - "main"
       - "develop"
+    tags:
+      - "v*.*.*"
     paths:
       - src/**
       - examples/**

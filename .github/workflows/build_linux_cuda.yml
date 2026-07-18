@@ -20,6 +20,9 @@ on:
         options:
           - "false"
           - "true"
+  push:
+    tags:
+      - "v*.*.*"
 
 concurrency:
   group: cuda-ci-${{ github.ref }}
@@ -80,7 +83,7 @@ jobs:
           set -Eeuo pipefail
           ./tailor_template_cleanup.sh --apply --yes
           test -z "$(find .github/workflows -maxdepth 1 -name '*.tpl' -print -quit)"
-          if grep -R -E 'VerifyTemplateProject|testWorkflowTemplates|testRos2OverlayStatic|CWrapperPlaceholder|rollout-dogfood' .github/workflows; then
+          if grep -R -E 'VerifyTemplateProject|testWorkflowTemplates|testRos2OverlayStatic|CWrapperPlaceholder|rollout-rehearsal' .github/workflows; then
             echo "Tailored CUDA workflows retain template-only validation." >&2
             exit 1
           fi

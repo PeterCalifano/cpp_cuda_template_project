@@ -23,6 +23,7 @@ on:
       - CMakePresets.json
       - .github/workflows/docs_pages.yml
       - .github/workflows/docs_pages.yml.tpl
+      - tests/cmake/VerifyTemplateProjectDocsStatic.cmake
   pull_request:
     branches:
       - "master"
@@ -38,6 +39,7 @@ on:
       - CMakePresets.json
       - .github/workflows/docs_pages.yml
       - .github/workflows/docs_pages.yml.tpl
+      - tests/cmake/VerifyTemplateProjectDocsStatic.cmake
 
 permissions:
   contents: read
@@ -61,6 +63,12 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y cmake ninja-build g++ doxygen graphviz libeigen3-dev
+
+      - name: Run template documentation static contract
+        run: |
+          cmake \
+            -DTEST_TEMPLATE_SOURCE_DIR="${GITHUB_WORKSPACE}" \
+            -P tests/cmake/VerifyTemplateProjectDocsStatic.cmake
 
       - name: Configure documentation build
         run: |

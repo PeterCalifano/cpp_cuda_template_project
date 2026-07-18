@@ -118,4 +118,10 @@ they are repository snapshots and do not include the ignored, exact-tag
 GitHub release remains a deliberate manual step; CI upload automation is not yet
 part of the release workflow.
 
+Pushes of `v*.*.*` tags run the native CPU, CUDA, and ROS workflows. The ROS
+workflow regenerates metadata, derives the expected strict core version from
+`VERSION`, and requires `git diff --exit-code -- ros2/*/package.xml` to remain
+clean. Branch path filters remain in place, but GitHub does not evaluate them
+for tag pushes, so the release gates are not skipped merely because a tag has
+no changed-path list.
 <!-- ros2-overlay-end -->

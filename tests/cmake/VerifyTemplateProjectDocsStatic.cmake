@@ -79,6 +79,10 @@ _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/testing_and_ci.md" "test\\*\\.p
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/testing_and_ci.md" "PYTHON_TEST_CONDA_ENV")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/testing_and_ci.md" "PYTHON_TEST_CONDA_PREFIX")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/testing_and_ci.md" "CATCH2_TEST_PROPERTIES")
+_assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/testing_and_ci.md" "v\\*\\.\\*\\.\\*")
+_assert_matches(
+    "${TEST_TEMPLATE_SOURCE_DIR}/doc/testing_and_ci.md"
+    "git diff --exit-code -- ros2/\\*/package\\.xml")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/testing_and_ci.md" "--ctest-extra-args")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/testing_and_ci.md" "local development only")
 _assert_not_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/testing_and_ci.md" "docs_workflow_rollout")
@@ -96,13 +100,19 @@ _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/template_usage.md" "build_ros2_
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/template_usage.md" "materializ")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/testing_and_ci.md" "Template-validation workflows")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/testing_and_ci.md" "Derived-project workflow templates")
-_assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/testing_and_ci.md" "tailored-project-dogfood")
+_assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/testing_and_ci.md" "tailored-project-validation")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/testing_and_ci.md" "testWorkflowTemplates\\.py")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/testing_and_ci.md" "python3-yaml")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/ros2_overlay.md" "build_ros2_overlay\\.yml\\.tpl")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/ros2_overlay.md" "does not copy")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/ros2_overlay.md" "active template-validation workflow")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/ros2_overlay.md" "Release tagging with the ROS 2 overlay")
+_assert_matches(
+    "${TEST_TEMPLATE_SOURCE_DIR}/doc/ros2_overlay.md"
+    "git diff --exit-code -- ros2/\\*/package\\.xml")
+_assert_matches(
+    "${TEST_TEMPLATE_SOURCE_DIR}/doc/documentation_workflow.md"
+    "VerifyTemplateProjectDocsStatic\\.cmake")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/README.md" "tailor_template_cleanup.sh")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/tailor_template_cleanup.sh" "doc/developments")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/tailor_template_cleanup.sh" "doc/reports")
@@ -124,6 +134,16 @@ if(NOT _readme_path_filter_count EQUAL 2)
       "Expected README.md in both push and pull_request docs workflow path filters; "
       "found ${_readme_path_filter_count}")
 endif()
+string(REGEX MATCHALL
+    "(^|\n)[ ]*-[ ]*tests/cmake/VerifyTemplateProjectDocsStatic\\.cmake"
+    _static_verifier_path_filters
+    "${_pages_workflow_contents}")
+list(LENGTH _static_verifier_path_filters _static_verifier_path_filter_count)
+if(NOT _static_verifier_path_filter_count EQUAL 2)
+  message(FATAL_ERROR
+      "Expected the owned docs static verifier in both docs workflow path filters; "
+      "found ${_static_verifier_path_filter_count}")
+endif()
 string(REGEX MATCHALL "uses: actions/checkout@v[0-9]+" _pages_checkout_uses "${_pages_workflow_contents}")
 list(LENGTH _pages_checkout_uses _pages_checkout_count)
 string(REGEX MATCHALL "fetch-depth:[ ]*0" _pages_full_depth_settings "${_pages_workflow_contents}")
@@ -134,6 +154,9 @@ if(NOT _pages_checkout_count EQUAL 1 OR NOT _pages_full_depth_count EQUAL _pages
       "for Doxygen PROJECT_NUMBER version resolution.")
 endif()
 _assert_matches("${_pages_workflow}" "actions/checkout@v6")
+_assert_matches("${_pages_workflow}" "Run template documentation static contract")
+_assert_matches("${_pages_workflow}" "-DTEST_TEMPLATE_SOURCE_DIR=\"\\$\\{GITHUB_WORKSPACE\\}\"")
+_assert_matches("${_pages_workflow}" "-P tests/cmake/VerifyTemplateProjectDocsStatic\\.cmake")
 _assert_matches("${_pages_workflow}" "actions/configure-pages@v6")
 _assert_matches("${_pages_workflow}" "actions/upload-pages-artifact@v5")
 _assert_matches("${_pages_workflow}" "actions/deploy-pages@v5")
@@ -154,6 +177,12 @@ _assert_matches("${_pages_workflow}" "grep -F \"Versioning\"")
 _assert_not_matches("${_pages_workflow}" "actions/configure-pages@v[12345]")
 _assert_not_matches("${_pages_workflow}" "actions/upload-pages-artifact@v[1234]")
 _assert_not_matches("${_pages_workflow}" "actions/deploy-pages@v[1234]")
+
+set(_generic_pages_workflow
+    "${TEST_TEMPLATE_SOURCE_DIR}/.github/workflows/docs_pages.yml.tpl")
+_assert_not_matches(
+    "${_generic_pages_workflow}"
+    "VerifyTemplateProjectDocsStatic\\.cmake")
 
 set(_presets "${TEST_TEMPLATE_SOURCE_DIR}/CMakePresets.json")
 _assert_matches("${_presets}" "\"name\"[ ]*:[ ]*\"docs\"")

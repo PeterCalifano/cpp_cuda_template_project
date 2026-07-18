@@ -8,6 +8,8 @@ on:
       - "master"
       - "main"
       - "develop"
+    tags:
+      - "v*.*.*"
     paths:
       - CMakeLists.txt
       - cmake/**
@@ -29,6 +31,7 @@ on:
       - tests/COLCON_IGNORE
       - tests/cmake/VerifyTemplateProjectRos2Overlay.cmake
       - tests/cmake/VerifyTemplateProjectNestedInstallHeaders.cmake
+      - tests/cmake/VerifyTemplateProjectCudaSources.cmake
       - tests/template_test/testRos2OverlayStatic.py
       - tests/template_test/testWorkflowTemplates.py
       - .github/workflows/build_ros2_overlay.yml
@@ -60,6 +63,7 @@ on:
       - tests/COLCON_IGNORE
       - tests/cmake/VerifyTemplateProjectRos2Overlay.cmake
       - tests/cmake/VerifyTemplateProjectNestedInstallHeaders.cmake
+      - tests/cmake/VerifyTemplateProjectCudaSources.cmake
       - tests/template_test/testRos2OverlayStatic.py
       - tests/template_test/testWorkflowTemplates.py
       - .github/workflows/build_ros2_overlay.yml
@@ -84,13 +88,20 @@ jobs:
       - name: Synchronize ROS package metadata
         shell: bash
         run: |
-          if [[ -x ./generate_version.sh ]] \
-              && grep -q -- "--sync-ros2" ./generate_version.sh \
-              && grep -q -- "ROS2_PROJECT_METADATA_SYNC=1" ./generate_version.sh; then
-            ./generate_version.sh --sync-ros2
-          else
-            echo "Skipping ROS package metadata sync; generate_version.sh is missing or predates project metadata sync."
-          fi
+          test -x ./generate_version.sh || {
+            echo "::error::generate_version.sh is missing or not executable."
+            exit 1
+          }
+          grep -q -- "--sync-ros2" ./generate_version.sh || {
+            echo "::error::generate_version.sh does not support --sync-ros2."
+            exit 1
+          }
+          grep -q -- "ROS2_PROJECT_METADATA_SYNC=1" ./generate_version.sh || {
+            echo "::error::generate_version.sh predates full project metadata sync."
+            exit 1
+          }
+          ./generate_version.sh --sync-ros2
+          git diff --exit-code -- ros2/*/package.xml
 
       - name: Resolve ROS 2 package dependencies
         run: |
@@ -99,7 +110,7 @@ jobs:
 
       - name: Build and test ROS 2 overlay
         shell: bash
-        run: ./build_ros2.sh --clean
+        run: ./build_ros2.sh --clean --no-version-sync
 
       - name: Verify installed core header layout
         shell: bash
@@ -125,14 +136,20 @@ jobs:
           python3 -m pytest -q \
             tests/template_test/testRos2OverlayStatic.py \
             tests/template_test/testWorkflowTemplates.py
-          expected_version="$(python3 -c 'import xml.etree.ElementTree as ET; print(ET.parse("ros2/template_project/package.xml").getroot().findtext("version"))')"
+          expected_version="$(
+            sed -nE 's/^Project version core: ([0-9]+\.[0-9]+\.[0-9]+)$/\1/p' VERSION
+          )"
+          if [[ ! "${expected_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::VERSION did not contain a strict X.Y.Z Project version core."
+            exit 1
+          fi
           cmake \
             -DTEST_TEMPLATE_SOURCE_DIR="${PWD}" \
             -DTEST_BINARY_ROOT="${RUNNER_TEMP}/ros2_overlay_static" \
             -DEXPECTED_VERSION="${expected_version}" \
             -P tests/cmake/VerifyTemplateProjectRos2Overlay.cmake
 
-  rollout-dogfood:
+  rollout-rehearsal:
     runs-on: ubuntu-24.04
     container:
       image: ros:jazzy
@@ -150,18 +167,39 @@ jobs:
       - name: Synchronize ROS package metadata
         shell: bash
         run: |
-          if [[ -x ./generate_version.sh ]] \
-              && grep -q -- "--sync-ros2" ./generate_version.sh \
-              && grep -q -- "ROS2_PROJECT_METADATA_SYNC=1" ./generate_version.sh; then
-            ./generate_version.sh --sync-ros2
-          else
-            echo "Skipping ROS package metadata sync; generate_version.sh is missing or predates project metadata sync."
-          fi
+          test -x ./generate_version.sh || {
+            echo "::error::generate_version.sh is missing or not executable."
+            exit 1
+          }
+          grep -q -- "--sync-ros2" ./generate_version.sh || {
+            echo "::error::generate_version.sh does not support --sync-ros2."
+            exit 1
+          }
+          grep -q -- "ROS2_PROJECT_METADATA_SYNC=1" ./generate_version.sh || {
+            echo "::error::generate_version.sh predates full project metadata sync."
+            exit 1
+          }
+          ./generate_version.sh --sync-ros2
+          git diff --exit-code -- ros2/*/package.xml
 
       - name: Resolve ROS 2 package dependencies
         run: |
           rosdep update
           rosdep install --from-paths ros2 -i -r -y --rosdistro jazzy
+
+      - name: Rehearse default-tailored overlay
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          scratch_dir="$(mktemp -d)"
+          target_dir="${scratch_dir}/target"
+          git clone --no-local "${GITHUB_WORKSPACE}" "${target_dir}"
+          git -C "${target_dir}" checkout --detach "${GITHUB_SHA}"
+          (cd "${target_dir}" && ./tailor_template_cleanup.sh --apply --yes)
+          test -f "${target_dir}/.github/workflows/build_ros2_overlay.yml"
+          test ! -e "${target_dir}/.github/workflows/build_ros2_overlay.yml.tpl"
+          ! grep -q "VerifyTemplateProject" "${target_dir}/.github/workflows/build_ros2_overlay.yml"
+          (cd "${target_dir}" && ./build_ros2.sh --clean --no-version-sync)
 
       - name: Rehearse additive rollout
         shell: bash
@@ -173,5 +211,5 @@ jobs:
           git -C "${target_dir}" checkout --detach "${GITHUB_SHA}"
           (cd "${target_dir}" && ./tailor_template_cleanup.sh --apply --yes --remove-ros2)
           ./add_ros2_support.sh --root "${target_dir}" --apply --yes --verify
-          (cd "${target_dir}" && ./build_ros2.sh --clean)
+          (cd "${target_dir}" && ./build_ros2.sh --clean --no-version-sync)
           (cd "${target_dir}" && cmake -S . -B build_plain -DENABLE_TESTS=OFF && cmake --build build_plain -j2)

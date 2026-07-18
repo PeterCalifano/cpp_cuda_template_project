@@ -21,6 +21,9 @@ on:
         options:
           - "false"
           - "true"
+  push:
+    tags:
+      - "v*.*.*"
 
 concurrency:
   group: cuda-ci-${{ github.ref }}

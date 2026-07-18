@@ -233,14 +233,29 @@ absent.
 The active `.github/workflows/build_ros2_overlay.yml` is owned by this template
 repository and runs the overlay in the `ros:jazzy` container. It has two jobs:
 
-- `overlay-build`: installs dependencies, synchronizes project metadata, runs `rosdep install --from-paths ros2 -i -r -y --rosdistro jazzy`, builds/tests the overlay, then runs the static pytest.
-- `rollout-dogfood`: makes a full-history clone of the exact CI revision, performs the same pre-`rosdep` metadata sync, strips the overlay from the clone, re-adds it with `add_ros2_support.sh --verify`, builds the overlay, and checks a plain standalone CMake build.
+- `overlay-build`: installs dependencies, synchronizes project metadata, rejects tracked manifest drift, runs `rosdep install --from-paths ros2 -i -r -y --rosdistro jazzy`, builds/tests the overlay, then runs the static pytest.
+- `rollout-rehearsal`: makes a full-history clone of the exact CI revision, performs the same pre-`rosdep` metadata sync and drift check, strips the overlay from the clone, re-adds it with `add_ros2_support.sh --verify`, builds the overlay, and checks a plain standalone CMake build.
+
+Both active jobs require an executable helper with
+`ROS2_PROJECT_METADATA_SYNC=1`; a missing or outdated helper is a CI error. Each
+supported synchronization is followed by:
+
+```bash
+git diff --exit-code -- ros2/*/package.xml
+```
+
+The static overlay verifier derives its strict `EXPECTED_VERSION` from the
+generated `VERSION` file, independently of the manifests being checked. Native
+and ROS workflows run for `v*.*.*` tag pushes as well as their branch events.
 
 The dormant `.github/workflows/build_ros2_overlay.yml.tpl` is the generic
 single-project workflow delivered by tailoring or additive rollout. It watches
 the derived project's source and overlay paths, synchronizes metadata, installs
-ROS dependencies, and runs `./build_ros2.sh --clean`; it does not contain
-template-only static or rollout checks.
+ROS dependencies, and runs `./build_ros2.sh --clean --no-version-sync`; it does
+not contain template-only static or rollout checks. For compatibility, it warns
+and continues with existing manifests when an older derived project lacks the
+full metadata marker; when synchronization is supported, manifest drift is a
+hard failure.
 
 CUDA+ROS is local-only in this repository. The available self-hosted GPU runner does not provide the ROS environment, so CI intentionally avoids `build_ros2.sh --cuda`.
 

@@ -67,6 +67,17 @@ The generated Doxyfile excludes `lib/`, `doc/developments/`, build directories, 
 
 `.github/workflows/docs_pages.yml` builds the Doxygen HTML site and uploads `build_docs/doc/html` as a Pages artifact.
 
+Before configuring Doxygen, the active template workflow runs the owned static
+documentation contract directly:
+
+```bash
+cmake -DTEST_TEMPLATE_SOURCE_DIR="${GITHUB_WORKSPACE}" \
+  -P tests/cmake/VerifyTemplateProjectDocsStatic.cmake
+```
+
+Changes to that verifier are included in the workflow path filters. The dormant
+generic docs workflow intentionally does not inherit this template-only check.
+
 Pull requests build and upload the artifact for inspection but do not deploy. Manual `workflow_dispatch` runs are build-only by default; set `deploy_pages=true` to publish intentionally. Default-branch pushes deploy to the `github-pages` environment.
 
 `actions/configure-pages` runs only in the deploy job. This keeps pre-merge and manual build-only checks useful even when the repository has not yet enabled Pages.

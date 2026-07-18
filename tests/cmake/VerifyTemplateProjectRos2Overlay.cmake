@@ -633,7 +633,7 @@ foreach(_template_only_pattern
     "testRos2OverlayStatic"
     "tailor_template_cleanup"
     "CWrapperPlaceholder"
-    "rollout-dogfood")
+    "rollout-rehearsal")
   if(_copied_project_workflow_contents MATCHES "${_template_only_pattern}")
     message(FATAL_ERROR
         "Copied project workflow retained template-only pattern '${_template_only_pattern}'")
@@ -764,7 +764,10 @@ endif()
 
 set(_workflow "${_root}/.github/workflows/build_ros2_overlay.yml")
 _assert_matches("${_workflow}" "workflow_dispatch")
+_assert_matches("${_workflow}" "schedule:")
+_assert_matches("${_workflow}" "cron:[ ]*\"17 3 \\* \\* 2\"")
 _assert_matches("${_workflow}" "push:")
+_assert_matches("${_workflow}" "tags:[ ]*\n[ ]*- \"v\\*\\.\\*\\.\\*\"")
 _assert_matches("${_workflow}" "pull_request:")
 _assert_matches("${_workflow}" "ros2/\\*\\*")
 _assert_matches("${_workflow}" "build_ros2\\.sh")
@@ -776,6 +779,8 @@ _assert_matches("${_workflow}" "doc/ros2_overlay\\.md")
 _assert_matches("${_workflow}" "doc/template_usage\\.md")
 _assert_matches("${_workflow}" "doc/bootstrap_prompts\\.md")
 _assert_matches("${_workflow}" "tests/cmake/VerifyTemplateProjectRos2Overlay\\.cmake")
+_assert_matches("${_workflow}" "tests/cmake/VerifyTemplateProjectNestedInstallHeaders\\.cmake")
+_assert_matches("${_workflow}" "tests/cmake/VerifyTemplateProjectCudaSources\\.cmake")
 _assert_matches("${_workflow}" "tests/template_test/testRos2OverlayStatic\\.py")
 _assert_matches("${_workflow}" "tests/template_test/testWorkflowTemplates\\.py")
 _assert_matches("${_workflow}" "\\.github/workflows/build_ros2_overlay\\.yml")
@@ -783,7 +788,7 @@ _assert_matches("${_workflow}" "\\.github/workflows/build_ros2_overlay\\.yml\\.t
 _assert_matches("${_workflow}" "src/\\*\\*")
 _assert_matches("${_workflow}" "cmake/\\*\\*")
 _assert_matches("${_workflow}" "overlay-build:")
-_assert_matches("${_workflow}" "rollout-dogfood:")
+_assert_matches("${_workflow}" "rollout-rehearsal:")
 _assert_matches("${_workflow}" "ubuntu-24\\.04")
 _assert_matches("${_workflow}" "ros:jazzy")
 _assert_matches("${_workflow}" "build-essential")
@@ -797,6 +802,8 @@ _assert_matches("${_workflow}" "Synchronize ROS package metadata")
 _assert_matches("${_workflow}" "grep -q -- \"--sync-ros2\"")
 _assert_matches("${_workflow}" "grep -q -- \"ROS2_PROJECT_METADATA_SYNC=1\"")
 _assert_matches("${_workflow}" "\\./generate_version\\.sh --sync-ros2")
+_assert_matches("${_workflow}" "git diff --exit-code -- ros2/\\*/package\\.xml")
+_assert_not_matches("${_workflow}" "Skipping ROS package metadata sync")
 _assert_matches("${_workflow}" "\\./build_ros2\\.sh --clean")
 _assert_matches("${_workflow}" "name: Verify installed core header layout")
 _assert_matches("${_workflow}" "core_cmake_name_=")
@@ -811,11 +818,14 @@ _assert_matches("${_workflow}" "tests/template_test/testRos2OverlayStatic\\.py")
 _assert_matches("${_workflow}" "tests/template_test/testWorkflowTemplates\\.py")
 _assert_not_matches("${_workflow}" "Skipping template-only pytest checks")
 _assert_matches("${_workflow}" "expected_version")
-_assert_matches("${_workflow}" "ros2/template_project/package\\.xml")
+_assert_matches("${_workflow}" "Project version core")
+_assert_matches("${_workflow}" "strict X\\.Y\\.Z")
+_assert_not_matches("${_workflow}" "ET\\.parse\\(\"ros2/template_project/package\\.xml\"\\)")
 _assert_matches("${_workflow}" "-DEXPECTED_VERSION")
 _assert_matches("${_workflow}" "-P tests/cmake/VerifyTemplateProjectRos2Overlay\\.cmake")
 _assert_not_matches("${_workflow}" "Skipping template-only CMake checks")
 _assert_matches("${_workflow}" "tailor_template_cleanup\\.sh --apply --yes --remove-ros2")
+_assert_matches("${_workflow}" "name: Rehearse default-tailored overlay")
 _assert_matches("${_workflow}" "add_ros2_support\\.sh --root")
 _assert_matches("${_workflow}" "cmake -S \\. -B build_plain -DENABLE_TESTS=OFF")
 _assert_not_matches("${_workflow}" "build_ros2\\.sh[^\\n]*--cuda")
@@ -826,10 +836,14 @@ foreach(_owned_trigger_pattern
     "AGENTS\\.md"
     "CLAUDE\\.md"
     "- CMakeLists\\.txt"
+    "- cmake/\\*\\*"
+    "- src/\\*\\*"
     "python/COLCON_IGNORE"
     "lib/COLCON_IGNORE"
     "examples/COLCON_IGNORE"
-    "tests/COLCON_IGNORE")
+    "tests/COLCON_IGNORE"
+    "tests/cmake/VerifyTemplateProjectNestedInstallHeaders\\.cmake"
+    "tests/cmake/VerifyTemplateProjectCudaSources\\.cmake")
   string(REGEX MATCHALL "${_owned_trigger_pattern}" _owned_trigger_paths "${_workflow_contents}")
   list(LENGTH _owned_trigger_paths _owned_trigger_count)
   if(NOT _owned_trigger_count EQUAL 2)
@@ -838,6 +852,19 @@ foreach(_owned_trigger_pattern
         "found ${_owned_trigger_count} occurrences.")
   endif()
 endforeach()
+string(REGEX MATCHALL "\n  schedule:" _workflow_schedules "${_workflow_contents}")
+list(LENGTH _workflow_schedules _workflow_schedule_count)
+string(REGEX MATCHALL
+    "cron:[ ]*\"17 3 \\* \\* 2\""
+    _workflow_weekly_crons
+    "${_workflow_contents}")
+list(LENGTH _workflow_weekly_crons _workflow_weekly_cron_count)
+if(NOT _workflow_schedule_count EQUAL 1 OR NOT _workflow_weekly_cron_count EQUAL 1)
+  message(FATAL_ERROR
+      "ROS 2 overlay workflow must define exactly one Tuesday 03:17 UTC schedule; "
+      "found ${_workflow_schedule_count} schedule blocks and "
+      "${_workflow_weekly_cron_count} matching cron entries.")
+endif()
 string(REGEX MATCHALL "- generate_version\\.sh" _version_trigger_paths "${_workflow_contents}")
 list(LENGTH _version_trigger_paths _version_trigger_count)
 if(NOT _version_trigger_count EQUAL 2)
@@ -851,6 +878,16 @@ if(NOT _workflow_metadata_sync_count EQUAL 2)
   message(FATAL_ERROR
       "Both ROS 2 workflow jobs must synchronize project metadata before rosdep; "
       "found ${_workflow_metadata_sync_count} invocations.")
+endif()
+string(REGEX MATCHALL
+    "git diff --exit-code -- ros2/\\*/package\\.xml"
+    _workflow_manifest_drift_guards
+    "${_workflow_contents}")
+list(LENGTH _workflow_manifest_drift_guards _workflow_manifest_drift_guard_count)
+if(NOT _workflow_manifest_drift_guard_count EQUAL 2)
+  message(FATAL_ERROR
+      "Both ROS 2 workflow metadata syncs must reject tracked manifest drift; "
+      "found ${_workflow_manifest_drift_guard_count} guards.")
 endif()
 string(REGEX MATCHALL "grep -q -- \"--sync-ros2\"" _workflow_metadata_guards "${_workflow_contents}")
 list(LENGTH _workflow_metadata_guards _workflow_metadata_guard_count)
@@ -878,13 +915,16 @@ endif()
 
 _assert_not_matches("${_workflow}" "id: rollout-tooling")
 _assert_not_matches("${_workflow}" "steps\\.rollout-tooling")
-_assert_not_matches("${_workflow}" "Skipping template-only rollout dogfood")
+_assert_not_matches("${_workflow}" "Skipping template-only rollout validation")
 
 set(_workflow_template
     "${_root}/.github/workflows/build_ros2_overlay.yml.tpl")
 _assert_matches("${_workflow_template}" "# project-ci-template: generic")
 _assert_matches("${_workflow_template}" "workflow_dispatch")
+_assert_matches("${_workflow_template}" "schedule:")
+_assert_matches("${_workflow_template}" "cron:[ ]*\"17 3 \\* \\* 2\"")
 _assert_matches("${_workflow_template}" "push:")
+_assert_matches("${_workflow_template}" "tags:[ ]*\n[ ]*- \"v\\*\\.\\*\\.\\*\"")
 _assert_matches("${_workflow_template}" "pull_request:")
 _assert_matches("${_workflow_template}" "CMakeLists\\.txt")
 _assert_matches("${_workflow_template}" "cmake/\\*\\*")
@@ -895,6 +935,8 @@ _assert_matches("${_workflow_template}" "build_ros2\\.sh")
 _assert_matches("${_workflow_template}" "generate_version\\.sh")
 _assert_matches("${_workflow_template}" "overlay-build:")
 _assert_matches("${_workflow_template}" "rosdep install --from-paths ros2 -i -r -y --rosdistro jazzy")
+_assert_matches("${_workflow_template}" "git diff --exit-code -- ros2/\\*/package\\.xml")
+_assert_matches("${_workflow_template}" "::warning::")
 _assert_matches("${_workflow_template}" "\\./build_ros2\\.sh --clean")
 foreach(_template_only_pattern
     "Verify installed core header layout"
@@ -904,11 +946,28 @@ foreach(_template_only_pattern
     "tailor_template_cleanup"
     "add_ros2_support"
     "CWrapperPlaceholder"
-    "rollout-dogfood")
+    "rollout-rehearsal")
   _assert_not_matches("${_workflow_template}" "${_template_only_pattern}")
 endforeach()
 
 _read_required("${_workflow_template}" _workflow_template_contents)
+string(REGEX MATCHALL
+    "\n  schedule:"
+    _project_workflow_schedules
+    "${_workflow_template_contents}")
+list(LENGTH _project_workflow_schedules _project_workflow_schedule_count)
+string(REGEX MATCHALL
+    "cron:[ ]*\"17 3 \\* \\* 2\""
+    _project_workflow_weekly_crons
+    "${_workflow_template_contents}")
+list(LENGTH _project_workflow_weekly_crons _project_workflow_weekly_cron_count)
+if(NOT _project_workflow_schedule_count EQUAL 1
+    OR NOT _project_workflow_weekly_cron_count EQUAL 1)
+  message(FATAL_ERROR
+      "Generic ROS workflow must define exactly one Tuesday 03:17 UTC schedule; "
+      "found ${_project_workflow_schedule_count} schedule blocks and "
+      "${_project_workflow_weekly_cron_count} matching cron entries.")
+endif()
 string(REGEX MATCHALL
     "\\./generate_version\\.sh --sync-ros2"
     _project_workflow_metadata_syncs
@@ -918,6 +977,18 @@ if(NOT _project_workflow_metadata_sync_count EQUAL 1)
   message(FATAL_ERROR
       "Generic ROS workflow must synchronize metadata exactly once; "
       "found ${_project_workflow_metadata_sync_count} invocations.")
+endif()
+string(REGEX MATCHALL
+    "git diff --exit-code -- ros2/\\*/package\\.xml"
+    _project_workflow_manifest_drift_guards
+    "${_workflow_template_contents}")
+list(LENGTH
+    _project_workflow_manifest_drift_guards
+    _project_workflow_manifest_drift_guard_count)
+if(NOT _project_workflow_manifest_drift_guard_count EQUAL 1)
+  message(FATAL_ERROR
+      "Generic ROS workflow must reject tracked manifest drift after supported sync; "
+      "found ${_project_workflow_manifest_drift_guard_count} guards.")
 endif()
 string(REGEX MATCHALL
     "uses: actions/checkout@v[0-9]+"

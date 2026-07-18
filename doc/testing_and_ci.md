@@ -103,7 +103,7 @@ template-only checks from the dormant definitions, and requires the generic
 CPU, CUDA, docs, and ROS gates.
 
 Dormant workflow templates must not rely on parse-only coverage. The active
-Linux `tailored-project-dogfood` job applies cleanup in a full-history scratch
+Linux `tailored-project-validation` job applies cleanup in a full-history scratch
 clone of the exact CI revision,
 parses the materialized workflows, builds/tests the tailored C++ fixture, and
 builds its docs. The active ROS workflow separately removes and re-adds the
@@ -113,6 +113,26 @@ workflow-template contract, materializes the project in both jobs, and then
 builds/tests that tailored source tree on the GPU runner.
 
 The Linux workflows keep CPU tuning portable because build artifacts are tested in a separate job. Do not re-enable `CPU_ENABLE_NATIVE_TUNING=ON` in GitHub Actions unless build and test run on the same pinned CPU family.
+
+The active and generic native CPU, CUDA, and ROS workflows also run for
+`v*.*.*` tag pushes. Their existing `paths` filters continue to scope branch
+pushes and pull requests; GitHub does not evaluate path filters for tag pushes,
+so a release tag still executes the release-relevant build gates. See
+[GitHub workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#onpushpull_requestpull_request_targetpathspaths-ignore).
+
+The active template ROS workflow requires the full metadata capability marker,
+runs `./generate_version.sh --sync-ros2`, and rejects any tracked manifest
+change with:
+
+```bash
+git diff --exit-code -- ros2/*/package.xml
+```
+
+The generic derived-project ROS workflow applies the same drift guard whenever
+the helper supports full metadata synchronization. It emits a compatibility
+warning instead of failing when an older derived project has not adopted that
+capability yet. After the workflow-owned synchronization, CI passes
+`--no-version-sync` to the build helper to avoid a second unguarded rewrite.
 
 Template-validation Linux and ROS jobs install `python3-pytest` and
 `python3-yaml`; PyYAML parses the active/dormant workflow pairs. Jobs that run
@@ -126,12 +146,13 @@ unless the project adds its own YAML-backed tests.
 
 The Pages workflow is separate from the C++ build workflow. It has these stages:
 
-1. Configure docs with CUDA, OptiX, and tests disabled.
-2. Build Doxygen HTML and XML.
-3. Verify `index.html` exists before upload.
-4. Upload the Pages artifact.
-5. Deploy only for default-branch pushes, or manual dispatch when `deploy_pages=true`.
-6. Fetch the deployed Pages URL and check that the published index contains the expected documentation links.
+1. Run the repository-owned `VerifyTemplateProjectDocsStatic.cmake` contract.
+2. Configure docs with CUDA, OptiX, and tests disabled.
+3. Build Doxygen HTML and XML.
+4. Verify `index.html` exists before upload.
+5. Upload the Pages artifact.
+6. Deploy only for default-branch pushes, or manual dispatch when `deploy_pages=true`.
+7. Fetch the deployed Pages URL and check that the published index contains the expected documentation links.
 
 ## Issue Templates
 

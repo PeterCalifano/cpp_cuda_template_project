@@ -9,6 +9,8 @@ on:
       - "master"
       - "main"
       - "develop"
+    tags:
+      - "v*.*.*"
     paths:
       - CMakeLists.txt
       - cmake/**
@@ -57,8 +59,9 @@ jobs:
               && grep -q -- "--sync-ros2" ./generate_version.sh \
               && grep -q -- "ROS2_PROJECT_METADATA_SYNC=1" ./generate_version.sh; then
             ./generate_version.sh --sync-ros2
+            git diff --exit-code -- ros2/*/package.xml
           else
-            echo "Skipping ROS package metadata sync; generate_version.sh is missing or predates project metadata sync."
+            echo "::warning::Skipping ROS package metadata sync; generate_version.sh is missing or predates full project metadata sync."
           fi
 
       - name: Resolve ROS 2 package dependencies
@@ -68,4 +71,4 @@ jobs:
 
       - name: Build and test ROS 2 overlay
         shell: bash
-        run: ./build_ros2.sh --clean
+        run: ./build_ros2.sh --clean --no-version-sync
