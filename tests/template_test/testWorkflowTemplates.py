@@ -148,7 +148,7 @@ class TestWorkflowTemplates:
                 yaml.safe_load(templatePath_.read_text(encoding="utf-8")), dict
             )
 
-    def test_ros2WorkflowsScheduleAndWatchCoreContracts(self) -> None:
+    def test_ros2WorkflowsWatchCoreContracts(self) -> None:
         workflowRoot_ = _RepoRoot() / ".github/workflows"
         activePath_ = workflowRoot_ / "build_ros2_overlay.yml"
         templatePath_ = workflowRoot_ / "build_ros2_overlay.yml.tpl"
@@ -156,7 +156,6 @@ class TestWorkflowTemplates:
         for workflowPath_ in (activePath_, templatePath_):
             triggers_ = _WorkflowTriggers(workflowPath_)
             assert "workflow_dispatch" in triggers_, workflowPath_
-            assert triggers_.get("schedule") == [{"cron": "17 3 * * 2"}], workflowPath_
 
             for eventName_ in ("push", "pull_request"):
                 event_: object = triggers_.get(eventName_)

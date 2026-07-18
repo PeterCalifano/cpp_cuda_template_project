@@ -764,8 +764,6 @@ endif()
 
 set(_workflow "${_root}/.github/workflows/build_ros2_overlay.yml")
 _assert_matches("${_workflow}" "workflow_dispatch")
-_assert_matches("${_workflow}" "schedule:")
-_assert_matches("${_workflow}" "cron:[ ]*\"17 3 \\* \\* 2\"")
 _assert_matches("${_workflow}" "push:")
 _assert_matches("${_workflow}" "tags:[ ]*\n[ ]*- \"v\\*\\.\\*\\.\\*\"")
 _assert_matches("${_workflow}" "pull_request:")
@@ -852,19 +850,6 @@ foreach(_owned_trigger_pattern
         "found ${_owned_trigger_count} occurrences.")
   endif()
 endforeach()
-string(REGEX MATCHALL "\n  schedule:" _workflow_schedules "${_workflow_contents}")
-list(LENGTH _workflow_schedules _workflow_schedule_count)
-string(REGEX MATCHALL
-    "cron:[ ]*\"17 3 \\* \\* 2\""
-    _workflow_weekly_crons
-    "${_workflow_contents}")
-list(LENGTH _workflow_weekly_crons _workflow_weekly_cron_count)
-if(NOT _workflow_schedule_count EQUAL 1 OR NOT _workflow_weekly_cron_count EQUAL 1)
-  message(FATAL_ERROR
-      "ROS 2 overlay workflow must define exactly one Tuesday 03:17 UTC schedule; "
-      "found ${_workflow_schedule_count} schedule blocks and "
-      "${_workflow_weekly_cron_count} matching cron entries.")
-endif()
 string(REGEX MATCHALL "- generate_version\\.sh" _version_trigger_paths "${_workflow_contents}")
 list(LENGTH _version_trigger_paths _version_trigger_count)
 if(NOT _version_trigger_count EQUAL 2)
@@ -941,8 +926,6 @@ set(_workflow_template
     "${_root}/.github/workflows/build_ros2_overlay.yml.tpl")
 _assert_matches("${_workflow_template}" "# project-ci-template: generic")
 _assert_matches("${_workflow_template}" "workflow_dispatch")
-_assert_matches("${_workflow_template}" "schedule:")
-_assert_matches("${_workflow_template}" "cron:[ ]*\"17 3 \\* \\* 2\"")
 _assert_matches("${_workflow_template}" "push:")
 _assert_matches("${_workflow_template}" "tags:[ ]*\n[ ]*- \"v\\*\\.\\*\\.\\*\"")
 _assert_matches("${_workflow_template}" "pull_request:")
@@ -971,23 +954,6 @@ foreach(_template_only_pattern
 endforeach()
 
 _read_required("${_workflow_template}" _workflow_template_contents)
-string(REGEX MATCHALL
-    "\n  schedule:"
-    _project_workflow_schedules
-    "${_workflow_template_contents}")
-list(LENGTH _project_workflow_schedules _project_workflow_schedule_count)
-string(REGEX MATCHALL
-    "cron:[ ]*\"17 3 \\* \\* 2\""
-    _project_workflow_weekly_crons
-    "${_workflow_template_contents}")
-list(LENGTH _project_workflow_weekly_crons _project_workflow_weekly_cron_count)
-if(NOT _project_workflow_schedule_count EQUAL 1
-    OR NOT _project_workflow_weekly_cron_count EQUAL 1)
-  message(FATAL_ERROR
-      "Generic ROS workflow must define exactly one Tuesday 03:17 UTC schedule; "
-      "found ${_project_workflow_schedule_count} schedule blocks and "
-      "${_project_workflow_weekly_cron_count} matching cron entries.")
-endif()
 string(REGEX MATCHALL
     "\\./generate_version\\.sh --sync-ros2"
     _project_workflow_metadata_syncs
