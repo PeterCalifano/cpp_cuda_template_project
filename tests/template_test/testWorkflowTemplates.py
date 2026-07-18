@@ -17,6 +17,12 @@ _WORKFLOW_NAMES = (
 
 _PROJECT_WORKFLOW_MARKER = "# project-ci-template: generic"
 _MANIFEST_DRIFT_GUARD: str = "git diff --exit-code -- ros2/*/package.xml"
+_WORKSPACE_TRUST: str = (
+    'git config --global --add safe.directory "${GITHUB_WORKSPACE}"'
+)
+_WORKTREE_PROBE: str = (
+    'git -C "${GITHUB_WORKSPACE}" rev-parse --is-inside-work-tree'
+)
 
 _TEMPLATE_ONLY_PATTERNS = (
     "VerifyTemplateProject",
@@ -239,6 +245,32 @@ class TestWorkflowTemplates:
                     templatePath_,
                     requiredGate_,
                 )
+
+    def test_ros2ContainerJobsTrustExactWorkspaceBeforeMetadataSync(self) -> None:
+        workflowRoot_ = _RepoRoot() / ".github/workflows"
+        activeText_ = (
+            workflowRoot_ / "build_ros2_overlay.yml"
+        ).read_text(encoding="utf-8")
+        templateText_ = (
+            workflowRoot_ / "build_ros2_overlay.yml.tpl"
+        ).read_text(encoding="utf-8")
+
+        overlayJob_, rolloutJob_ = activeText_.split(
+            "  rollout-rehearsal:", maxsplit=1
+        )
+        for jobText_ in (overlayJob_, rolloutJob_, templateText_):
+            trustIndex_ = jobText_.find(_WORKSPACE_TRUST)
+            probeIndex_ = jobText_.find(_WORKTREE_PROBE)
+            syncIndex_ = jobText_.find("./generate_version.sh --sync-ros2")
+            assert min(trustIndex_, probeIndex_, syncIndex_) >= 0
+            assert trustIndex_ < probeIndex_ < syncIndex_
+            assert "safe.directory '*'" not in jobText_
+            assert 'safe.directory "*"' not in jobText_
+
+        assert activeText_.count(_WORKSPACE_TRUST) == 2
+        assert activeText_.count(_WORKTREE_PROBE) == 2
+        assert templateText_.count(_WORKSPACE_TRUST) == 1
+        assert templateText_.count(_WORKTREE_PROBE) == 1
 
     def test_manifestDriftGuardRejectsTrackedChanges(self, tmp_path: Path) -> None:
         repositoryRoot_ = tmp_path / "manifest-drift"

@@ -364,9 +364,21 @@ class TestRos2OverlayStatic:
         overlayJob_, rolloutJob_ = workflowText_.split("  rollout-rehearsal:", maxsplit=1)
         for jobText_ in (overlayJob_, rolloutJob_):
             installIndex_ = jobText_.find("apt-get install")
+            trustIndex_ = jobText_.find(
+                'git config --global --add safe.directory "${GITHUB_WORKSPACE}"'
+            )
+            worktreeIndex_ = jobText_.find(
+                'git -C "${GITHUB_WORKSPACE}" rev-parse --is-inside-work-tree'
+            )
             syncIndex_ = jobText_.find("./generate_version.sh --sync-ros2")
             rosdepIndex_ = jobText_.find("rosdep install --from-paths ros2")
-            assert min(installIndex_, syncIndex_, rosdepIndex_) >= 0
-            assert installIndex_ < syncIndex_ < rosdepIndex_
+            assert min(
+                installIndex_, trustIndex_, worktreeIndex_, syncIndex_, rosdepIndex_
+            ) >= 0
+            assert trustIndex_ < worktreeIndex_ < syncIndex_ < rosdepIndex_
+            assert installIndex_ < syncIndex_
             assert 'grep -q -- "--sync-ros2"' in jobText_
             assert 'grep -q -- "ROS2_PROJECT_METADATA_SYNC=1"' in jobText_
+
+        assert "safe.directory '*'" not in workflowText_
+        assert 'safe.directory "*"' not in workflowText_

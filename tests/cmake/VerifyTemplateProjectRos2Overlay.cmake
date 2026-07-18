@@ -880,6 +880,26 @@ if(NOT _workflow_metadata_sync_count EQUAL 2)
       "found ${_workflow_metadata_sync_count} invocations.")
 endif()
 string(REGEX MATCHALL
+    "git config --global --add safe\\.directory \"\\$\\{GITHUB_WORKSPACE\\}\""
+    _workflow_workspace_trusts
+    "${_workflow_contents}")
+list(LENGTH _workflow_workspace_trusts _workflow_workspace_trust_count)
+string(REGEX MATCHALL
+    "git -C \"\\$\\{GITHUB_WORKSPACE\\}\" rev-parse --is-inside-work-tree"
+    _workflow_worktree_probes
+    "${_workflow_contents}")
+list(LENGTH _workflow_worktree_probes _workflow_worktree_probe_count)
+if(NOT _workflow_workspace_trust_count EQUAL 2
+    OR NOT _workflow_worktree_probe_count EQUAL 2)
+  message(FATAL_ERROR
+      "Both ROS 2 workflow jobs must trust and validate the exact mounted Git workspace; "
+      "found ${_workflow_workspace_trust_count} trust commands and "
+      "${_workflow_worktree_probe_count} worktree probes.")
+endif()
+if(_workflow_contents MATCHES "safe\\.directory[^\n]*[\"']?\\*")
+  message(FATAL_ERROR "ROS 2 workflow must not trust every Git repository with safe.directory '*'.")
+endif()
+string(REGEX MATCHALL
     "git diff --exit-code -- ros2/\\*/package\\.xml"
     _workflow_manifest_drift_guards
     "${_workflow_contents}")
@@ -977,6 +997,30 @@ if(NOT _project_workflow_metadata_sync_count EQUAL 1)
   message(FATAL_ERROR
       "Generic ROS workflow must synchronize metadata exactly once; "
       "found ${_project_workflow_metadata_sync_count} invocations.")
+endif()
+string(REGEX MATCHALL
+    "git config --global --add safe\\.directory \"\\$\\{GITHUB_WORKSPACE\\}\""
+    _project_workflow_workspace_trusts
+    "${_workflow_template_contents}")
+list(LENGTH
+    _project_workflow_workspace_trusts
+    _project_workflow_workspace_trust_count)
+string(REGEX MATCHALL
+    "git -C \"\\$\\{GITHUB_WORKSPACE\\}\" rev-parse --is-inside-work-tree"
+    _project_workflow_worktree_probes
+    "${_workflow_template_contents}")
+list(LENGTH
+    _project_workflow_worktree_probes
+    _project_workflow_worktree_probe_count)
+if(NOT _project_workflow_workspace_trust_count EQUAL 1
+    OR NOT _project_workflow_worktree_probe_count EQUAL 1)
+  message(FATAL_ERROR
+      "Generic ROS workflow must trust and validate the exact mounted Git workspace once; "
+      "found ${_project_workflow_workspace_trust_count} trust commands and "
+      "${_project_workflow_worktree_probe_count} worktree probes.")
+endif()
+if(_workflow_template_contents MATCHES "safe\\.directory[^\n]*[\"']?\\*")
+  message(FATAL_ERROR "Generic ROS workflow must not trust every Git repository with safe.directory '*'.")
 endif()
 string(REGEX MATCHALL
     "git diff --exit-code -- ros2/\\*/package\\.xml"

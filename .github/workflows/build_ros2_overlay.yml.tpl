@@ -47,6 +47,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Trust checked-out Git worktree
+        shell: bash
+        run: |
+          git config --global --add safe.directory "${GITHUB_WORKSPACE}"
+          git -C "${GITHUB_WORKSPACE}" rev-parse --is-inside-work-tree
+
       - name: Install ROS 2 overlay dependencies
         run: |
           apt-get update
