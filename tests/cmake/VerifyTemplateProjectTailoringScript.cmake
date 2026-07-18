@@ -83,6 +83,8 @@ set(_fake_missing_template "${TEST_BINARY_ROOT}/fake_missing_template")
 set(_fake_orphan_fence "${TEST_BINARY_ROOT}/fake_orphan_fence")
 set(_fake_nested_fence "${TEST_BINARY_ROOT}/fake_nested_fence")
 set(_fake_unclosed_fence "${TEST_BINARY_ROOT}/fake_unclosed_fence")
+set(_fake_missing_namespace "${TEST_BINARY_ROOT}/fake_missing_namespace")
+set(_fake_invalid_namespace "${TEST_BINARY_ROOT}/fake_invalid_namespace")
 set(_workflow_names
     "build_linux.yml"
     "build_linux_cuda.yml"
@@ -133,15 +135,26 @@ function(_create_fake_project fake_root)
   file(MAKE_DIRECTORY "${fake_root}/lib")
   file(MAKE_DIRECTORY "${fake_root}/examples")
   file(MAKE_DIRECTORY "${fake_root}/profiling")
+  file(MAKE_DIRECTORY "${fake_root}/src/bin")
+  file(MAKE_DIRECTORY "${fake_root}/src/template_src")
   file(MAKE_DIRECTORY "${fake_root}/src/utils/logging")
 
   file(WRITE "${fake_root}/build_lib.sh" "#!/usr/bin/env bash\n")
   file(WRITE "${fake_root}/build_ros2.sh" "#!/usr/bin/env bash\n")
   file(WRITE "${fake_root}/add_ros2_support.sh" "#!/usr/bin/env bash\n")
   file(WRITE "${fake_root}/generate_version.sh" "#!/usr/bin/env bash\n")
-  file(WRITE "${fake_root}/src/utils/logging/CLogger.h" "reusable logger header\n")
-  file(WRITE "${fake_root}/src/utils/logging/CLogger.cpp" "reusable logger source\n")
-  file(WRITE "${fake_root}/doc/logging.md" "reusable logger guide\n")
+  file(WRITE "${fake_root}/src/utils/logging/CLogger.h"
+      "namespace template_project::logging { class CLogger; }\n")
+  file(WRITE "${fake_root}/src/utils/logging/CLogger.cpp"
+      "namespace template_project::logging { }\n")
+  file(WRITE "${fake_root}/src/bin/example_program.cpp"
+      "template_project::logging::CLogger objLogger;\n")
+  file(WRITE "${fake_root}/src/template_src/placeholder.cpp"
+      "template_project::logging::CLogger objLogger;\n")
+  file(WRITE "${fake_root}/tests/template_test/testProjectLogger.cpp"
+      "using namespace template_project::logging;\n")
+  file(WRITE "${fake_root}/doc/logging.md"
+      "Use template_project::logging::CLogger.\n")
   file(WRITE "${fake_root}/CMakeLists.txt"
 "cmake_minimum_required(VERSION 3.15)
 project(fake_tailored_project)
@@ -170,6 +183,12 @@ endif()
   _run_step(
       "Set fake tests CMake mode"
       chmod 0600 "${fake_root}/tests/CMakeLists.txt")
+  _run_step(
+      "Set fake logger header mode"
+      chmod 0640 "${fake_root}/src/utils/logging/CLogger.h")
+  _run_step(
+      "Set fake logger guide mode"
+      chmod 0444 "${fake_root}/doc/logging.md")
 
   foreach(_path
       "AGENTS.md"
@@ -308,12 +327,26 @@ function(_assert_fake_project_cleaned fake_root expect_profiling)
   foreach(_retained_logger_path
       "src/utils/logging/CLogger.h"
       "src/utils/logging/CLogger.cpp"
+      "src/bin/example_program.cpp"
+      "src/template_src/placeholder.cpp"
+      "tests/template_test/testProjectLogger.cpp"
       "doc/logging.md")
     if(NOT EXISTS "${fake_root}/${_retained_logger_path}")
       message(FATAL_ERROR
           "Expected cleanup to retain reusable logger path '${_retained_logger_path}'")
     endif()
+    file(READ "${fake_root}/${_retained_logger_path}" _retained_logger_contents)
+    if(NOT _retained_logger_contents MATCHES "tailored_project::logging")
+      message(FATAL_ERROR
+          "Expected cleanup to tailor logger namespace in '${_retained_logger_path}'")
+    endif()
+    if(_retained_logger_contents MATCHES "template_project::logging")
+      message(FATAL_ERROR
+          "Cleanup left the template logger namespace in '${_retained_logger_path}'")
+    endif()
   endforeach()
+  _assert_mode("${fake_root}/src/utils/logging/CLogger.h" "640")
+  _assert_mode("${fake_root}/doc/logging.md" "444")
 
   foreach(_workflow_name build_linux.yml build_linux_cuda.yml docs_pages.yml)
     set(_materialized_workflow "${fake_root}/.github/workflows/${_workflow_name}")
@@ -447,7 +480,9 @@ function(_assert_malformed_fence_rejected fake_root readme_contents case_name)
       chmod 0644 "${fake_root}/README.md")
   _snapshot_tree("${fake_root}" _inventory_before _hashes_before)
   execute_process(
-      COMMAND bash "${_script}" --apply --yes --remove-ros2 --root "${fake_root}"
+      COMMAND bash "${_script}" --apply --yes
+          --project-namespace tailored_project
+          --remove-ros2 --root "${fake_root}"
       RESULT_VARIABLE _malformed_result
       OUTPUT_VARIABLE _malformed_stdout
       ERROR_VARIABLE _malformed_stderr)
@@ -475,6 +510,39 @@ function(_assert_malformed_fence_rejected fake_root readme_contents case_name)
   endif()
 endfunction()
 
+function(_assert_namespace_rejected_unchanged fake_root expected_error)
+  _create_fake_project("${fake_root}")
+  _snapshot_tree("${fake_root}" _inventory_before _hashes_before)
+  execute_process(
+      COMMAND bash "${_script}" --apply --yes ${ARGN} --root "${fake_root}"
+      RESULT_VARIABLE _namespace_result
+      OUTPUT_VARIABLE _namespace_stdout
+      ERROR_VARIABLE _namespace_stderr)
+  if(_namespace_result EQUAL 0)
+    message(FATAL_ERROR "Tailoring accepted invalid namespace arguments: ${ARGN}")
+  endif()
+  if(NOT _namespace_stderr MATCHES "${expected_error}")
+    message(FATAL_ERROR
+        "Tailoring rejected namespace arguments for the wrong reason.\n"
+        "stdout:\n${_namespace_stdout}\n"
+        "stderr:\n${_namespace_stderr}")
+  endif()
+  _snapshot_tree("${fake_root}" _inventory_after _hashes_after)
+  if(NOT _inventory_after STREQUAL _inventory_before OR
+     NOT _hashes_after STREQUAL _hashes_before)
+    message(FATAL_ERROR
+        "Tailoring changed the tree before rejecting namespace arguments: ${ARGN}")
+  endif()
+endfunction()
+
+_assert_namespace_rejected_unchanged(
+    "${_fake_missing_namespace}"
+    "--project-namespace is required")
+_assert_namespace_rejected_unchanged(
+    "${_fake_invalid_namespace}"
+    "Invalid project namespace"
+    --project-namespace bad-name)
+
 _assert_malformed_fence_rejected(
     "${_fake_nested_fence}"
     "before\n<!-- ros2-overlay-begin -->\nouter\n<!-- ros2-overlay-begin -->\ninner\n<!-- ros2-overlay-end -->\n<!-- ros2-overlay-end -->\nafter\n"
@@ -498,12 +566,14 @@ _create_fake_project("${_fake_default}")
 
 _run_step(
     "Apply tailoring cleanup to fake project"
-    bash "${_script}" --apply --yes --root "${_fake_default}")
+    bash "${_script}" --apply --yes --project-namespace tailored_project
+        --root "${_fake_default}")
 _assert_fake_project_cleaned("${_fake_default}" FALSE)
 _assert_ros2_overlay_kept("${_fake_default}")
 _run_step(
     "Reapply tailoring cleanup to an already materialized project"
-    bash "${_script}" --apply --yes --root "${_fake_default}")
+    bash "${_script}" --apply --yes --project-namespace tailored_project
+        --root "${_fake_default}")
 _assert_fake_project_cleaned("${_fake_default}" FALSE)
 _assert_ros2_overlay_kept("${_fake_default}")
 
@@ -511,7 +581,8 @@ _create_fake_project("${_fake_keep}")
 
 _run_step(
     "Apply tailoring cleanup to fake project with profiling preserved"
-    bash "${_script}" --apply --yes --keep-profiling --root "${_fake_keep}")
+    bash "${_script}" --apply --yes --project-namespace tailored_project
+        --keep-profiling --root "${_fake_keep}")
 _assert_fake_project_cleaned("${_fake_keep}" TRUE)
 _assert_ros2_overlay_kept("${_fake_keep}")
 
@@ -519,12 +590,14 @@ _create_fake_project("${_fake_remove_ros2}")
 
 _run_step(
     "Apply tailoring cleanup to fake project with ROS 2 removed"
-    bash "${_script}" --apply --yes --remove-ros2 --root "${_fake_remove_ros2}")
+    bash "${_script}" --apply --yes --project-namespace tailored_project
+        --remove-ros2 --root "${_fake_remove_ros2}")
 _assert_fake_project_cleaned("${_fake_remove_ros2}" FALSE)
 _assert_ros2_overlay_removed("${_fake_remove_ros2}")
 _run_step(
     "Reapply tailoring cleanup after ROS 2 removal"
-    bash "${_script}" --apply --yes --remove-ros2 --root "${_fake_remove_ros2}")
+    bash "${_script}" --apply --yes --project-namespace tailored_project
+        --remove-ros2 --root "${_fake_remove_ros2}")
 _assert_fake_project_cleaned("${_fake_remove_ros2}" FALSE)
 _assert_ros2_overlay_removed("${_fake_remove_ros2}")
 
@@ -532,7 +605,8 @@ _create_fake_project("${_fake_missing_template}")
 file(REMOVE
     "${_fake_missing_template}/.github/workflows/build_linux.yml.tpl")
 execute_process(
-    COMMAND bash "${_script}" --apply --yes --root "${_fake_missing_template}"
+    COMMAND bash "${_script}" --apply --yes
+        --project-namespace tailored_project --root "${_fake_missing_template}"
     RESULT_VARIABLE _missing_template_result
     OUTPUT_VARIABLE _missing_template_stdout
     ERROR_VARIABLE _missing_template_stderr)

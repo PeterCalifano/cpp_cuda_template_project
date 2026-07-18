@@ -198,7 +198,7 @@ jobs:
 
           (
             cd "${target_dir}"
-            ./tailor_template_cleanup.sh --apply --yes
+            ./tailor_template_cleanup.sh --apply --yes --project-namespace tailored_project
             test -z "$(find .github/workflows -maxdepth 1 -name '*.tpl' -print -quit)"
             if grep -R -E 'VerifyTemplateProject|testWorkflowTemplates|testRos2OverlayStatic|CWrapperPlaceholder|rollout-rehearsal' .github/workflows; then
               echo "Tailored workflows retain template-only validation." >&2

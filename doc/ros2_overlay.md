@@ -214,7 +214,7 @@ Derived repositories that intentionally removed optional template features need 
 The overlay is kept by default during template cleanup. Remove it explicitly:
 
 ```bash
-./tailor_template_cleanup.sh --apply --yes --remove-ros2
+./tailor_template_cleanup.sh --apply --yes --project-namespace my_project --remove-ros2
 ```
 
 `--remove-ros2` deletes `ros2/`, `build_ros2.sh`, `add_ros2_support.sh`, the colcon markers, the ROS overlay CI workflow, this file, and the ROS static pytest. It also strips `<!-- ros2-overlay-begin -->` / `<!-- ros2-overlay-end -->` fenced blocks from the template docs. `generate_version.sh` is left in place because `--sync-ros2` already no-ops without `ros2/`.

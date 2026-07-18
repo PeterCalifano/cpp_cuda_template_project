@@ -17,10 +17,10 @@ Tailoring helper:
 
 ```bash
 ./tailor_template_cleanup.sh --list
-./tailor_template_cleanup.sh --apply --yes
+./tailor_template_cleanup.sh --apply --yes --project-namespace my_project
 ```
 
-Run the cleanup before a broad `template_project` replacement, because the script contains template-specific cleanup paths. After cleanup succeeds, delete `tailor_template_cleanup.sh` or exclude it from the rename pass. `profiling/` is removed by default. Use `./tailor_template_cleanup.sh --apply --yes --keep-profiling` when the new project should keep the Valgrind/perf helper scripts.
+The required namespace option replaces `template_project::logging` in the reusable logger sources and examples. Run the cleanup before a broad `template_project` replacement, because the script contains template-specific cleanup paths. After cleanup succeeds, delete `tailor_template_cleanup.sh` or exclude it from the rename pass. `profiling/` is removed by default. Add `--keep-profiling` when the new project should keep the Valgrind/perf helper scripts.
 
 <!-- ros2-overlay-begin -->
 ## Optional ROS 2 Overlay
@@ -30,7 +30,7 @@ See [`doc/ros2_overlay.md`](doc/ros2_overlay.md) for the optional ROS 2 overlay 
 - `./build_lib.sh`: C++-first library entry point; it never needs ROS.
 - `./build_ros2.sh`: optional ROS 2 overlay build and test entry point.
 
-Use `./tailor_template_cleanup.sh --apply --yes --remove-ros2` when a derived project should not carry the overlay.
+Use `./tailor_template_cleanup.sh --apply --yes --project-namespace my_project --remove-ros2` when a derived project should not carry the overlay.
 <!-- ros2-overlay-end -->
 
 ## Requirements

@@ -32,7 +32,7 @@ Ask only for values that cannot be inferred from the user request or repository 
 2. Apply cleanup before broad renaming:
 
    ```bash
-   ./tailor_template_cleanup.sh --apply --yes
+   ./tailor_template_cleanup.sh --apply --yes --project-namespace <cpp_namespace>
    ```
 
    Use `--keep-profiling` only when requested.
@@ -95,7 +95,7 @@ Ask only for choices that cannot be inferred from the request:
 
 Execution flow:
 
-1. For a fresh template checkout, decide whether to run `./tailor_template_cleanup.sh --apply --yes` with or without `--remove-ros2`.
+1. For a fresh template checkout, run `./tailor_template_cleanup.sh --apply --yes --project-namespace <cpp_namespace>` with or without `--remove-ros2`.
 2. For an existing derived repository without ROS support, prefer `./add_ros2_support.sh --root <repo> --apply --yes --verify`.
 3. Update the EDIT-ME core-call block in `ros2/<ros_prefix>_ros/src/conversions.cpp` to call the real library API. Use the ROS-valid prefix reported by `add_ros2_support.sh`, which may differ from the CMake project name.
 4. Review `ros2/<ros_prefix>_ros/src/CTemplateLifecycleNode.cpp` only when ROS node wiring, parameters, publishers, or services need changes.

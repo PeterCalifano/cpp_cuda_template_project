@@ -23,6 +23,10 @@ _WORKSPACE_TRUST: str = (
 _WORKTREE_PROBE: str = (
     'git -C "${GITHUB_WORKSPACE}" rev-parse --is-inside-work-tree'
 )
+_TAILORING_COMMAND: str = (
+    "tailor_template_cleanup.sh --apply --yes "
+    "--project-namespace tailored_project"
+)
 
 _TEMPLATE_ONLY_PATTERNS = (
     "VerifyTemplateProject",
@@ -65,7 +69,7 @@ _PROJECT_WORKFLOW_GATES = {
 _TEMPLATE_WORKFLOW_GATES = {
     "build_linux.yml": (
         "tailored-project-validation",
-        "tailor_template_cleanup.sh --apply --yes",
+        _TAILORING_COMMAND,
         "git clone --no-local",
         "./build_lib.sh -B build_tailored_ci",
         "cmake --preset docs",
@@ -212,14 +216,13 @@ class TestWorkflowTemplates:
         cudaWorkflow_ = (
             workflowRoot_ / "build_linux_cuda.yml"
         ).read_text(encoding="utf-8")
-        assert cudaWorkflow_.count(
-            "tailor_template_cleanup.sh --apply --yes"
-        ) == 2
+        assert cudaWorkflow_.count(_TAILORING_COMMAND) == 2
 
         rosWorkflow_ = (
             workflowRoot_ / "build_ros2_overlay.yml"
         ).read_text(encoding="utf-8")
         assert rosWorkflow_.count(_MANIFEST_DRIFT_GUARD) == 2
+        assert rosWorkflow_.count(_TAILORING_COMMAND) == 2
         assert "Skipping ROS package metadata sync" not in rosWorkflow_
         assert "Project version core" in rosWorkflow_
         assert 'ET.parse("ros2/template_project/package.xml")' not in rosWorkflow_

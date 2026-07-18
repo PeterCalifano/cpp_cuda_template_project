@@ -13,10 +13,10 @@ Use this order for a new library checkout:
 
    ```bash
    ./tailor_template_cleanup.sh --list
-   ./tailor_template_cleanup.sh --apply --yes
+   ./tailor_template_cleanup.sh --apply --yes --project-namespace my_project
    ```
 
-   Add `--keep-profiling` only when the new project should keep the optional Valgrind/perf helper scripts.
+   Replace `my_project` with the chosen C++ project namespace. Add `--keep-profiling` only when the new project should keep the optional Valgrind/perf helper scripts.
 3. Rename the template identifiers in tracked source files only. Exclude build trees, install trees, virtual environments, generated Python build metadata, and other generated artifacts. After cleanup succeeds, either delete `tailor_template_cleanup.sh` or exclude it from the rename pass; it is a one-shot template helper.
 4. Remove optional skeletons that the project will not use. For example, if the CUDA module directory is deleted, also remove the matching `add_subdirectory()` entry from `src/CMakeLists.txt`.
 5. Configure, build, and run CTest from a clean build directory.
@@ -74,7 +74,7 @@ does not rename ROS packages or their dependencies.
 Remove the overlay with:
 
 ```bash
-./tailor_template_cleanup.sh --apply --yes --remove-ros2
+./tailor_template_cleanup.sh --apply --yes --project-namespace my_project --remove-ros2
 ```
 
 `--remove-ros2` strips the fenced ROS documentation blocks and removes the overlay files. Leave the flag off when the derived project should keep ROS support.
@@ -187,16 +187,16 @@ Before broad renaming, list template-development-only files:
 Apply the cleanup once the list is acceptable:
 
 ```bash
-./tailor_template_cleanup.sh --apply --yes
+./tailor_template_cleanup.sh --apply --yes --project-namespace my_project
 ```
 
 By default this also removes `profiling/`. Keep those scripts only when the new project will use Valgrind/perf helpers:
 
 ```bash
-./tailor_template_cleanup.sh --apply --yes --keep-profiling
+./tailor_template_cleanup.sh --apply --yes --project-namespace my_project --keep-profiling
 ```
 
-The script removes agent/context notes, internal development notes, workflow snapshot files, template-specific validation CTest scripts, optional profiling scripts, and the workspace file tied to this template checkout. It keeps reusable project infrastructure such as `cmake/`, `build_lib.sh`, docs workflow files, issue forms, examples, toolchains, starter unit tests, `.devcontainer/`, and `.vscode/`.
+The script replaces `template_project::logging` with the required project namespace, then removes agent/context notes, internal development notes, workflow snapshot files, template-specific validation CTest scripts, optional profiling scripts, and the workspace file tied to this template checkout. It keeps reusable project infrastructure such as `cmake/`, `build_lib.sh`, docs workflow files, issue forms, examples, toolchains, starter unit tests, `.devcontainer/`, and `.vscode/`.
 
 It also removes the root CMake hook for the template MATLAB regression helper and rewrites `tests/CMakeLists.txt` so only starter project unit tests remain registered.
 

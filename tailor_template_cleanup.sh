@@ -11,6 +11,7 @@ ASSUME_YES=0
 LIST_ONLY=0
 KEEP_PROFILING=0
 REMOVE_ROS2=0
+PROJECT_NAMESPACE=""
 TEMPORARY_PATHS=()
 
 info() { printf '\033[34m[INFO]\033[0m %s\n' "$*"; }
@@ -33,7 +34,7 @@ usage() {
     cat <<'EOF'
 Usage:
   ./tailor_template_cleanup.sh --list
-  ./tailor_template_cleanup.sh --apply [--yes] [--root <dir>] [--keep-profiling] [--remove-ros2]
+  ./tailor_template_cleanup.sh --apply --project-namespace <identifier> [--yes] [--root <dir>] [--keep-profiling] [--remove-ros2]
 
 Purpose:
   Remove files that are only useful while developing cpp_cuda_template_project
@@ -43,6 +44,8 @@ Options:
   --list          Print the cleanup list and exit.
   --apply         Remove files and patch CMake files.
   --yes           Do not prompt before applying.
+  --project-namespace <identifier>
+                  Replace the template_project logger namespace.
   --root <dir>    Project root to clean. Defaults to the script directory.
   --keep-profiling
                   Keep profiling/ scripts. By default profiling/ is removed.
@@ -116,6 +119,15 @@ ros2_overlay_doc_paths=(
     "doc/versioning.md"
 )
 
+logger_namespace_paths=(
+    "src/utils/logging/CLogger.h"
+    "src/utils/logging/CLogger.cpp"
+    "src/bin/example_program.cpp"
+    "src/template_src/placeholder.cpp"
+    "tests/template_test/testProjectLogger.cpp"
+    "doc/logging.md"
+)
+
 print_cleanup_list() {
     cat <<'EOF'
 Template-development-only files/directories removed by --apply:
@@ -145,6 +157,9 @@ CMake edits made by --apply:
   - Remove the root CMake include/call for AddMatlabWrapperRegressionTests.cmake.
   - Replace tests/CMakeLists.txt template-validation registrations with the project unit-test section.
   - With --remove-ros2, strip <!-- ros2-overlay-begin/end --> fenced doc blocks.
+
+Logger namespace edit made by --apply:
+  - --project-namespace replaces template_project::logging in the reusable logger files.
 
 Workflow edits made by --apply:
   - Materialize generic project CI workflows from the dormant *.yml.tpl files.
@@ -176,6 +191,11 @@ parse_args() {
                 ASSUME_YES=1
                 shift
                 ;;
+            --project-namespace)
+                [[ $# -ge 2 ]] || die "--project-namespace requires an identifier"
+                PROJECT_NAMESPACE="$2"
+                shift 2
+                ;;
             --keep-profiling)
                 KEEP_PROFILING=1
                 shift
@@ -198,6 +218,15 @@ parse_args() {
                 ;;
         esac
     done
+}
+
+validate_project_namespace() {
+    [[ -n "${PROJECT_NAMESPACE}" ]] \
+        || die "--project-namespace is required with --apply"
+    [[ "${PROJECT_NAMESPACE}" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] \
+        || die "Invalid project namespace: ${PROJECT_NAMESPACE}"
+    [[ "${PROJECT_NAMESPACE}" != "template_project" ]] \
+        || die "Invalid project namespace: template_project"
 }
 
 validate_root() {
@@ -235,6 +264,30 @@ validate_workflow_templates() {
         fi
 
         die "Missing runnable workflow and generic template: .github/workflows/${workflow_name_}"
+    done
+}
+
+tailor_logger_namespace() {
+    local relative_path_
+    local source_file_
+    local tmp_
+
+    for relative_path_ in "${logger_namespace_paths[@]}"; do
+        source_file_="${ROOT_DIR}/${relative_path_}"
+        [[ -f "${source_file_}" ]] || continue
+
+        if ! grep -Fq "template_project::logging" "${source_file_}"; then
+            info "logger namespace already tailored in ${relative_path_}"
+            continue
+        fi
+
+        tmp_="$(mktemp "${source_file_}.tmp.XXXXXX")"
+        TEMPORARY_PATHS+=("${tmp_}")
+        sed "s/template_project::logging/${PROJECT_NAMESPACE}::logging/g" \
+            "${source_file_}" > "${tmp_}"
+        chmod --reference="${source_file_}" "${tmp_}"
+        mv -f -- "${tmp_}" "${source_file_}"
+        info "tailored logger namespace in ${relative_path_}"
     done
 }
 
@@ -469,11 +522,14 @@ main() {
         exit 1
     fi
 
+    validate_project_namespace
     validate_root
     validate_workflow_templates
     validate_ros2_overlay_doc_fences
     print_cleanup_list
     confirm_apply
+
+    tailor_logger_namespace
 
     for path_ in "${template_development_paths[@]}"; do
         remove_path "${path_}"

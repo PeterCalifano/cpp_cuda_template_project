@@ -207,7 +207,7 @@ jobs:
           target_dir="${scratch_dir}/target"
           git clone --no-local "${GITHUB_WORKSPACE}" "${target_dir}"
           git -C "${target_dir}" checkout --detach "${GITHUB_SHA}"
-          (cd "${target_dir}" && ./tailor_template_cleanup.sh --apply --yes)
+          (cd "${target_dir}" && ./tailor_template_cleanup.sh --apply --yes --project-namespace tailored_project)
           test -f "${target_dir}/.github/workflows/build_ros2_overlay.yml"
           test ! -e "${target_dir}/.github/workflows/build_ros2_overlay.yml.tpl"
           ! grep -q "VerifyTemplateProject" "${target_dir}/.github/workflows/build_ros2_overlay.yml"
@@ -221,7 +221,7 @@ jobs:
           target_dir="${scratch_dir}/target"
           git clone --no-local "${GITHUB_WORKSPACE}" "${target_dir}"
           git -C "${target_dir}" checkout --detach "${GITHUB_SHA}"
-          (cd "${target_dir}" && ./tailor_template_cleanup.sh --apply --yes --remove-ros2)
+          (cd "${target_dir}" && ./tailor_template_cleanup.sh --apply --yes --project-namespace tailored_project --remove-ros2)
           ./add_ros2_support.sh --root "${target_dir}" --apply --yes --verify
           (cd "${target_dir}" && ./build_ros2.sh --clean --no-version-sync)
           (cd "${target_dir}" && cmake -S . -B build_plain -DENABLE_TESTS=OFF && cmake --build build_plain -j2)
