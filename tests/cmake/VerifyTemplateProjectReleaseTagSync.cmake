@@ -8,11 +8,14 @@ endforeach()
 
 find_program(_git_executable NAMES git REQUIRED)
 find_program(_bash_executable NAMES bash REQUIRED)
+find_program(_cpack_executable NAMES cpack REQUIRED)
 
 set(_synthetic_version "99.98.97")
 set(_synthetic_tag "v${_synthetic_version}")
-set(_scratch_root "${TEST_BINARY_ROOT}/release_clone")
+set(_scratch_root "${TEST_BINARY_ROOT}/build_parent/release_clone")
 set(_scratch_verifier "${_scratch_root}/tests/cmake/VerifyTemplateProjectRos2Overlay.cmake")
+set(_source_release_verifier
+    "${TEST_TEMPLATE_SOURCE_DIR}/tests/cmake/VerifySourceReleaseArchive.cmake")
 set(_manifest_paths
     "ros2/template_project/package.xml"
     "ros2/template_project_interfaces/package.xml"
@@ -75,6 +78,41 @@ _run_success("Configure scratch Git name" "${_git_executable}" -C "${_scratch_ro
 _run_success("Configure scratch Git email" "${_git_executable}" -C "${_scratch_root}" config user.email "release-test@example.invalid")
 _run_success("Disable scratch commit signing" "${_git_executable}" -C "${_scratch_root}" config commit.gpgSign false)
 _run_success("Disable scratch tag signing" "${_git_executable}" -C "${_scratch_root}" config tag.gpgSign false)
+
+execute_process(
+    COMMAND "${_git_executable}" -C "${TEST_TEMPLATE_SOURCE_DIR}" diff --binary HEAD
+    RESULT_VARIABLE _source_diff_result
+    OUTPUT_VARIABLE _source_diff
+    ERROR_VARIABLE _source_diff_stderr)
+if(NOT _source_diff_result EQUAL 0)
+  message(FATAL_ERROR "Could not capture source working-tree diff: ${_source_diff_stderr}")
+endif()
+if(NOT _source_diff STREQUAL "")
+  set(_source_patch "${TEST_BINARY_ROOT}/source_worktree.patch")
+  file(WRITE "${_source_patch}" "${_source_diff}")
+  _run_success(
+      "Apply source working-tree diff to scratch clone"
+      "${_git_executable}" -C "${_scratch_root}" apply --whitespace=nowarn "${_source_patch}")
+endif()
+
+_run_success(
+    "List untracked source files"
+    "${_git_executable}" -C "${TEST_TEMPLATE_SOURCE_DIR}" ls-files --others --exclude-standard)
+string(REPLACE "\r\n" "\n" _untracked_files "${_last_stdout}")
+string(REPLACE "\n" ";" _untracked_files "${_untracked_files}")
+list(FILTER _untracked_files EXCLUDE REGEX "^$")
+foreach(_untracked_file IN LISTS _untracked_files)
+  get_filename_component(_untracked_parent "${_scratch_root}/${_untracked_file}" DIRECTORY)
+  file(MAKE_DIRECTORY "${_untracked_parent}")
+  configure_file(
+      "${TEST_TEMPLATE_SOURCE_DIR}/${_untracked_file}"
+      "${_scratch_root}/${_untracked_file}"
+      COPYONLY)
+endforeach()
+_run_success("Stage source snapshot" "${_git_executable}" -C "${_scratch_root}" add -A)
+_run_success(
+    "Commit source snapshot under test"
+    "${_git_executable}" -C "${_scratch_root}" commit --allow-empty -m "Snapshot source under test")
 _run_success(
     "Create synthetic release-preparation commit"
     "${_git_executable}" -C "${_scratch_root}" commit --allow-empty -m "Start synthetic release preparation")
@@ -147,6 +185,13 @@ _run_failure(
 _run_success(
     "Create final annotated release tag"
     "${_git_executable}" -C "${_scratch_root}" tag -a "${_synthetic_tag}" -m "Synthetic release ${_synthetic_version}")
+_run_success(
+    "Synchronize exact-tag release metadata"
+    "${CMAKE_COMMAND}" -E env GIT_CONFIG_NOSYSTEM=1 GIT_TERMINAL_PROMPT=0
+    "${_bash_executable}" "${_scratch_root}/generate_version.sh" --sync-ros2)
+_run_success(
+    "Confirm exact-tag synchronization left manifests clean"
+    "${_git_executable}" -C "${_scratch_root}" diff --exit-code -- ${_manifest_paths})
 
 foreach(_manifest_path IN LISTS _manifest_paths)
   _run_success(
@@ -165,6 +210,96 @@ _run_success(
     -DTEST_BINARY_ROOT=${TEST_BINARY_ROOT}/final_overlay
     -DEXPECTED_VERSION=${_synthetic_version}
     -P "${_scratch_verifier}")
+
+set(_release_build "${TEST_BINARY_ROOT}/release_build")
+set(_archive_output "${TEST_BINARY_ROOT}/archive_output")
+set(_archive_extract "${TEST_BINARY_ROOT}/archive_extract")
+file(MAKE_DIRECTORY
+    "${_scratch_root}/build_release_sentinel"
+    "${_scratch_root}/ros2/build/generated"
+    "${_scratch_root}/ros2/install/generated"
+    "${_scratch_root}/ros2/log/generated"
+    "${_archive_output}"
+    "${_archive_extract}")
+file(WRITE "${_scratch_root}/build_release_sentinel/must_not_ship.txt" "generated build output\n")
+file(WRITE "${_scratch_root}/ros2/build/generated/must_not_ship.txt" "generated ROS build output\n")
+file(WRITE "${_scratch_root}/ros2/install/generated/must_not_ship.txt" "generated ROS install output\n")
+file(WRITE "${_scratch_root}/ros2/log/generated/must_not_ship.txt" "generated ROS log output\n")
+
+_run_success(
+    "Configure full exact-tag source release"
+    "${CMAKE_COMMAND}"
+    -S "${_scratch_root}"
+    -B "${_release_build}"
+    -DCMAKE_BUILD_TYPE=Release
+    -DENABLE_TESTS=OFF
+    -DENABLE_CUDA=OFF
+    -DENABLE_OPTIX=OFF
+    -DENABLE_SPDLOG=OFF
+    -DENABLE_FETCH_CATCH2=OFF
+    -DENABLE_FETCH_SPDLOG=OFF
+    -Dtemplate_project_BUILD_PROGRAMS=OFF
+    -Dtemplate_project_BUILD_EXAMPLES=OFF)
+_run_success(
+    "Create canonical CPack source TGZ"
+    "${CMAKE_COMMAND}" -E chdir "${_archive_output}"
+    "${_cpack_executable}" --config "${_release_build}/CPackSourceConfig.cmake")
+
+file(GLOB _source_archives "${_archive_output}/template_project-${_synthetic_version}.tar.gz")
+list(LENGTH _source_archives _source_archive_count)
+if(NOT _source_archive_count EQUAL 1)
+  message(FATAL_ERROR
+      "Expected one canonical source archive, found ${_source_archive_count}: ${_source_archives}")
+endif()
+list(GET _source_archives 0 _source_archive)
+_run_success(
+    "Extract canonical source TGZ outside Git"
+    "${CMAKE_COMMAND}" -E chdir "${_archive_extract}"
+    "${CMAKE_COMMAND}" -E tar xzf "${_source_archive}")
+
+file(GLOB _extracted_entries LIST_DIRECTORIES TRUE "${_archive_extract}/*")
+set(_extracted_roots)
+foreach(_extracted_entry IN LISTS _extracted_entries)
+  if(IS_DIRECTORY "${_extracted_entry}")
+    list(APPEND _extracted_roots "${_extracted_entry}")
+  endif()
+endforeach()
+list(LENGTH _extracted_roots _extracted_root_count)
+if(NOT _extracted_root_count EQUAL 1)
+  message(FATAL_ERROR
+      "Expected one extracted source root, found ${_extracted_root_count}: ${_extracted_roots}")
+endif()
+list(GET _extracted_roots 0 _extracted_root)
+
+_run_success(
+    "Validate extracted no-Git canonical source"
+    "${CMAKE_COMMAND}"
+    -DTEST_SOURCE_ROOT=${_extracted_root}
+    -DTEST_BINARY_ROOT=${TEST_BINARY_ROOT}/archive_validation
+    -DEXPECTED_VERSION=${_synthetic_version}
+    -DEXPECTED_FULL_VERSION=${_synthetic_version}
+    -DTEST_ROS_STATIC_VERIFIER=${_extracted_root}/tests/cmake/VerifyTemplateProjectRos2Overlay.cmake
+    -P "${_source_release_verifier}")
+
+set(_missing_version_root "${TEST_BINARY_ROOT}/missing_version_source")
+file(MAKE_DIRECTORY "${_missing_version_root}")
+file(COPY "${_extracted_root}/" DESTINATION "${_missing_version_root}")
+file(REMOVE "${_missing_version_root}/VERSION")
+_run_failure(
+    "Reject source archive without VERSION"
+    "missing required VERSION"
+    "${CMAKE_COMMAND}"
+    -DTEST_SOURCE_ROOT=${_missing_version_root}
+    -DTEST_BINARY_ROOT=${TEST_BINARY_ROOT}/missing_version_validation
+    -DEXPECTED_VERSION=${_synthetic_version}
+    -DEXPECTED_FULL_VERSION=${_synthetic_version}
+    -P "${_source_release_verifier}")
+
+file(REMOVE_RECURSE
+    "${_scratch_root}/build_release_sentinel"
+    "${_scratch_root}/ros2/build"
+    "${_scratch_root}/ros2/install"
+    "${_scratch_root}/ros2/log")
 _run_success("Check final scratch status" "${_git_executable}" -C "${_scratch_root}" status --porcelain)
 if(NOT _last_stdout STREQUAL "")
   message(FATAL_ERROR "Final tagged scratch clone is dirty:\n${_last_stdout}")
