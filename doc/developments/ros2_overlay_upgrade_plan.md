@@ -103,7 +103,7 @@
   - `--verify`: configure-only `cmake -S <target> -B <mktemp scratch> -DENABLE_TESTS=OFF`; `die` on failure — proves the standalone build is untouched.
   - Never copies `add_ros2_support.sh` itself or template-dev Verify scripts into targets.
 - [x] Extend `VerifyTemplateProjectRos2Overlay.cmake`: fixture-run `--list` against a fake minimal target; assert refusal when `ros2/` pre-exists, correct name detection, and word-boundary rename safety (fixture name like `my_template_project_x`).
-- [x] Validate: `ctest -R ros2_overlay`; local dogfood: scratch copy → `tailor --apply --yes --remove-ros2` → `./add_ros2_support.sh --root <copy> --apply --yes --verify` → `(cd <copy> && ./build_ros2.sh --clean)` (placeholder API survives tailoring, so this must build).
+- [x] Validate: `ctest -R ros2_overlay`; local validation: scratch copy → `tailor --apply --yes --remove-ros2` → `./add_ros2_support.sh --root <copy> --apply --yes --verify` → `(cd <copy> && ./build_ros2.sh --clean)` (placeholder API survives tailoring, so this must build).
 
 ### Δ Stage 5 review deltas (2026-07-07, confirmed in review — debug & fix pass)
 
@@ -111,14 +111,14 @@
 - [x] **Post-apply checklist points at the wrong file** (same root cause as the Stage 2 delta): step 1 of `print_post_apply_checklist` names `ros2/<name>_ros/src/CTemplateLifecycleNode.cpp`, but the include + core symbol to adapt live in `ros2/<name>_ros/src/conversions.cpp`. Fix the checklist (and `--list` output if it repeats it) to name `conversions.cpp` (primary) and the node file (secondary).
 - [x] **Readability**: `target_has_conflicts()` returns success when there are *no* conflicts — inverted semantics vs its name (functionally correct at both call sites). Rename (e.g. `target_is_clean`) or invert the return convention, and adjust callers.
 - [x] **Scratch hygiene**: `run_verify()` leaves its `mktemp -d` scratch behind; add a `trap ... EXIT` cleanup (or explicit `rm -rf` on both success and `die` paths).
-- [x] Validate: `bash -n add_ros2_support.sh`; `ctest -R ros2_overlay`; rerun the local dogfood loop (strip → re-add → `./build_ros2.sh --clean` → standalone build) green; add an empty file to a scratch copy's `ros2/` tree and confirm rollout survives it.
+- [x] Validate: `bash -n add_ros2_support.sh`; `ctest -R ros2_overlay`; rerun the local validation loop (strip → re-add → `./build_ros2.sh --clean` → standalone build) green; add an empty file to a scratch copy's `ros2/` tree and confirm rollout survives it.
 
 ## Stage 6 - CI: `.github/workflows/build_ros2_overlay.yml`
 
 - [x] Create workflow (adapted from donor `build_ros2.yml`; Jazzy-only):
   - Triggers: push/PR path-filtered to `ros2/**`, `build_ros2.sh`, `add_ros2_support.sh`, `tailor_template_cleanup.sh`, the workflow itself + `workflow_dispatch` (core `src/**` deliberately not a trigger — `build_linux.yml` covers the library; dispatch covers on-demand cross-checks).
   - Job `overlay-build` (`ubuntu-24.04`, container `ros:jazzy`): checkout `fetch-depth: 0`; apt `build-essential cmake libeigen3-dev python3-colcon-common-extensions python3-pytest ros-dev-tools`; `rosdep update && rosdep install --from-paths ros2 -i -r -y --rosdistro jazzy`; `./build_ros2.sh --clean`; `python3 -m pytest -q tests/template_test/testRos2OverlayStatic.py`.
-  - Job `rollout-dogfood` (same container — the no-regression proof): copy checkout → `tailor_template_cleanup.sh --apply --yes --remove-ros2` in the copy → `./add_ros2_support.sh --root <copy> --apply --yes --verify` from the original → `(cd <copy> && ./build_ros2.sh --clean)` → plain `cmake -S . -B build_plain -DENABLE_TESTS=OFF && cmake --build build_plain -j2` in the copy (standalone build of an overlaid derived repo).
+  - Job `rollout-rehearsal` (same container — the no-regression proof): copy checkout → `tailor_template_cleanup.sh --apply --yes --remove-ros2` in the copy → `./add_ros2_support.sh --root <copy> --apply --yes --verify` from the original → `(cd <copy> && ./build_ros2.sh --clean)` → plain `cmake -S . -B build_plain -DENABLE_TESTS=OFF && cmake --build build_plain -j2` in the copy (standalone build of an overlaid derived repo).
 - [x] CUDA+ROS: no CI job (self-hosted GPU runner lacks ROS); document `./build_ros2.sh --cuda [--optix]` locally / in the ROS devcontainer (`./configure_devcontainer.sh --ros2 jazzy` already exists) in `doc/ros2_overlay.md`.
 - [x] Leave `build_linux.yml`, `build_linux_cuda.yml`, `docs_pages.yml` untouched.
 - [x] Validate: rehearse both jobs locally in `docker run --rm -v "$PWD":/ws -w /ws ros:jazzy ...`; YAML sanity check.
@@ -145,7 +145,7 @@
 ## Stage 8 - Testfield mirroring (`../cpp_cuda_template_testfield`)
 
 - [x] Run `./add_ros2_support.sh --root ../cpp_cuda_template_testfield --apply --yes --verify` (script detects the testfield's project name and renames the overlay).
-- [x] Adapt the single EDIT-ME core-call block to a real testfield API symbol — intended dogfood of the derived-repo experience; record friction in `doc/developments/`.
+- [x] Adapt the single EDIT-ME core-call block to a real testfield API symbol — intended validation of the derived-repo experience; record friction in `doc/developments/`.
 - [x] Add the testfield's `build_ros2_overlay.yml` following its submodule/`TEMPLATE_PROJECT_SOURCE_DIR` checkout convention (mirror its `build_linux.yml` checkout steps).
 - [x] Validate: `(cd ../cpp_cuda_template_testfield && ./build_ros2.sh --clean)`; its plain `./build_lib.sh` still green.
 
@@ -202,7 +202,7 @@ Stage 8 friction note, 2026-07-07:
 
 - [x] Document supplied-launch autostart versus externally managed lifecycle startup in `doc/ros2_overlay.md`.
 - [x] Mirror and red-green test the operational changes in `cpp_cuda_template_testfield` without changing its adapted `conversions.cpp` seam.
-- [x] Run the full standalone, ROS, dogfood, lint, parse, invariant, and Docker gates; append evidence to `doc/developments/ROS2_OVERLAY_STAGE_OUTPUTS.md`.
+- [x] Run the full standalone, ROS, validation, lint, parse, invariant, and Docker gates; append evidence to `doc/developments/ROS2_OVERLAY_STAGE_OUTPUTS.md`.
 - [x] Perform an extensive correctness and design review, then create only the two approved testfield commits without pushing.
 
 ## 2026-07-16 project metadata flowdown
@@ -228,7 +228,7 @@ Stage 8 friction note, 2026-07-07:
 
 ### Stage M4 - Validation and review
 
-- [x] Run the metadata-only configure probe, direct helper/pytest/CMake verifiers, full standalone tests, clean ROS tests, and scratch remove/re-add dogfood with non-default metadata and a non-ROS CMake name.
+- [x] Run the metadata-only configure probe, direct helper/pytest/CMake verifiers, full standalone tests, clean ROS tests, and scratch remove/re-add validation with non-default metadata and a non-ROS CMake name.
 - [x] Run shell lint, YAML/XML/Python parsing, manifest mode checks, conflict scan, and confirm `src/` and `python/` remain untouched; the only root CMake change must be the approved metadata contract.
 - [x] Perform a final correctness/design review, tick this section, and append validation evidence to `doc/developments/ROS2_OVERLAY_STAGE_OUTPUTS.md` and `CONTEXT.md` without staging those bookkeeping files.
 
@@ -295,7 +295,7 @@ stage for review.
   generic workflow, never the active template-validation workflow.
 - [x] Add auto-discovered YAML/ownership tests plus byte-equivalent tailoring
   and additive-rollout fixtures so dormant templates cannot rot silently.
-- [x] Dogfood materialized CPU/docs, CUDA, and ROS project paths from active
+- [x] Validate materialized CPU/docs, CUDA, and ROS project paths from active
   template CI, using full-history scratch clones where version provenance is
   required.
 - [x] Pass standalone `26/26`, clean ROS `10/10`, tailored CUDA `9/9`, normal
@@ -325,3 +325,59 @@ stage for review.
 - [x] Keep the real-source compile-graph assertion in active template CUDA CI
   after it materializes the dormant generic workflow; leave that dormant
   workflow free of template-specific source names.
+
+## 2026-07-18 release/version-sync extension
+
+This final extension closes the cross-repository release and metadata gaps
+without changing the C++/CUDA/ROS API surface or broadening CI topology.
+
+### Stage R3 - Atomic project tailoring
+
+- [x] Preflight every removable ROS documentation fence before confirmation or
+  mutation.
+- [x] Replace root/test CMake and documentation targets atomically while
+  preserving their original modes.
+- [x] Prove all malformed-fence failures preserve the complete input tree and
+  do not materialize workflows or partially remove development content.
+
+### Stage R4 - Testfield-owned metadata
+
+- [x] Centralize testfield description, homepage, maintainer/contact, license,
+  prerelease-aware version, and CPack fields in its root CMake contract.
+- [x] Add metadata-only configuration and a typed, mode-preserving full ROS
+  manifest synchronizer with explicit capability detection.
+- [x] Preserve manifest identities/dependencies and the adapted testfield core
+  seam while validating idempotence, invalid-input rejection, native CTest, and
+  clean ROS behavior.
+
+### Stage R5 - Canonical source releases
+
+- [x] Define CPack source TGZ, not GitHub's automatic source links, as the
+  canonical release artifact in both repositories.
+- [x] Extend synthetic-tag tests through archive generation and no-Git
+  extraction/consumption, including strict core/full version equivalence and a
+  missing-`VERSION` negative case.
+- [x] Keep artifact upload automation deferred to a later CI upgrade.
+
+### Stage R6 - Narrow CI drift gates
+
+- [x] Run native and ROS workflows for `v*.*.*` pushes while retaining branch
+  path filters.
+- [x] Reject tracked manifest changes after supported metadata synchronization;
+  retain the compatibility warning only in the generic derived-project
+  workflow.
+- [x] Derive active-template expected version from generated `VERSION` and run
+  repository-owned documentation static verifiers directly.
+- [x] Guard active/generic separation with semantic workflow tests and pass
+  active-template, tailored-generic, and testfield rehearsals in `ros:jazzy`.
+
+### Stage R7 - Full closeout and handoff
+
+- [x] Pass main native, CPU ROS, CUDA+OptiX, ROS CUDA+OptiX, documentation, and
+  both real tailoring outcomes.
+- [x] Pass testfield native, ROS, metadata-idempotence, canonical-archive, and
+  documentation gates without changing `conversions.cpp` or `lib/wrap`.
+- [x] Reconstruct and verify the proposed five-main/three-testfield commit split
+  in disposable clones; leave both source repositories uncommitted.
+- [x] Inventory every build and temporary artifact created by the extension so
+  the final post-verification cleanup removes only those paths.

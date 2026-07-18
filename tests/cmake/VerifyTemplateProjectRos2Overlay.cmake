@@ -1052,7 +1052,8 @@ _assert_matches("${_ros2_doc}" "overlay-then-rename")
 _assert_matches("${_ros2_doc}" "--remove-ros2")
 _assert_matches("${_ros2_doc}" "ROS_DISTRO")
 _assert_matches("${_ros2_doc}" "ros:jazzy")
-_assert_matches("${_ros2_doc}" "python/ bindings remain a separate ROS-free optional feature")
+_assert_matches("${_ros2_doc}" "`python/` bindings remain a separate ROS-free optional feature")
+_assert_not_matches("${_ros2_doc}" "`python/ bindings remain a separate ROS-free optional feature`")
 
 foreach(_fenced_doc
     "README.md"

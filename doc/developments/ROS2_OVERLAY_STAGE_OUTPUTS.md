@@ -128,7 +128,7 @@ Validation:
 - Initial red CMake verifier failed because `add_ros2_support.sh` was missing.
 - `./build_lib.sh -B build_stage5 --skip-tests`
 - `ctest --test-dir build_stage5 -R ros2_overlay --output-on-failure`
-- Scratch copy `/tmp/cpp_cuda_template_stage5_dogfood_O1uBWB`: remove overlay, re-add with `add_ros2_support.sh --apply --yes --verify`, then `./build_ros2.sh --clean`.
+- Temporary scratch copy: remove overlay, re-add with `add_ros2_support.sh --apply --yes --verify`, then `./build_ros2.sh --clean`.
 - Scratch overlay build reported `5 tests, 0 errors, 0 failures, 0 skipped`.
 - `git diff --stat CMakeLists.txt src/ python/`
 - `git diff --check`
@@ -145,7 +145,7 @@ Add additive ROS 2 overlay rollout script
 Summary:
 - Added `.github/workflows/build_ros2_overlay.yml`.
 - Added the `overlay-build` job for Jazzy container CI: full-depth checkout, ROS dependency install, `./build_ros2.sh --clean`, and static pytest coverage.
-- Added the `rollout-dogfood` job: copy checkout, remove overlay, re-add with `add_ros2_support.sh --verify`, rebuild the ROS overlay, then run a plain standalone CMake build.
+- Added the `rollout-rehearsal` job: copy checkout, remove overlay, re-add with `add_ros2_support.sh --verify`, rebuild the ROS overlay, then run a plain standalone CMake build.
 - Added a minimal `doc/ros2_overlay.md` CUDA/CI note: overlay CI is CPU-only; local CUDA/OptiX checks use `./build_ros2.sh --cuda` or `./build_ros2.sh --cuda --optix`.
 - Extended the ROS overlay static verifier for the workflow contract, no `src/**` trigger, checkout depth, dependency commands, no CUDA CI command, and minimal CUDA documentation.
 - Left `build_linux.yml`, `build_linux_cuda.yml`, and `docs_pages.yml` untouched.
@@ -158,7 +158,7 @@ Validation:
 - YAML sanity parse with Python `yaml.safe_load`.
 - `bash -n add_ros2_support.sh tailor_template_cleanup.sh generate_version.sh build_ros2.sh`
 - Docker `ros:jazzy` overlay-build rehearsal: dependency install, `rosdep install`, `./build_ros2.sh --clean`, and pytest; colcon reported `5 tests, 0 errors, 0 failures, 0 skipped`, pytest reported `5 passed`.
-- Docker `ros:jazzy` rollout-dogfood rehearsal: remove overlay, re-add overlay with `--verify`, `./build_ros2.sh --clean`, and plain `cmake -S . -B build_plain -DENABLE_TESTS=OFF && cmake --build build_plain -j2`.
+- Docker `ros:jazzy` rollout rehearsal: remove overlay, re-add overlay with `--verify`, `./build_ros2.sh --clean`, and plain `cmake -S . -B build_plain -DENABLE_TESTS=OFF && cmake --build build_plain -j2`.
 - `git diff --stat CMakeLists.txt src/ python/`
 - `git diff -- .github/workflows/build_linux.yml .github/workflows/build_linux_cuda.yml .github/workflows/docs_pages.yml`
 - `git diff --check`
@@ -166,7 +166,7 @@ Validation:
 Proposed commit message:
 
 ```text
-Add ROS 2 overlay CI and rollout dogfood workflow
+Add ROS 2 overlay CI and rollout rehearsal workflow
 ```
 
 ## Stage 7 - Documentation and rollout instructions
@@ -225,7 +225,7 @@ Validation:
 Proposed commit message:
 
 ```text
-Dogfood ROS 2 overlay rollout in testfield
+Validate ROS 2 overlay rollout in testfield
 ```
 
 ## Delta fix pass - 2026-07-07
@@ -254,7 +254,7 @@ Green evidence:
 - `./build_lib.sh -B build_deltas` passed `24/24`.
 - `ctest --test-dir build_deltas -L "ros2|docs|tailoring" --output-on-failure` passed `5/5`.
 - `./build_ros2.sh --clean` passed; colcon reported `5 tests, 0 errors, 0 failures, 0 skipped`.
-- Current-state dogfood loop passed in `/tmp/ros2_delta_dogfood_current_IQoUhA`: scratch copy, `tailor_template_cleanup.sh --apply --yes --remove-ros2`, `add_ros2_support.sh --apply --yes --verify`, `build_ros2.sh --clean`, and `build_lib.sh --skip-tests`.
+- Current-state rollout validation passed in a temporary scratch copy: `tailor_template_cleanup.sh --apply --yes --remove-ros2`, `add_ros2_support.sh --apply --yes --verify`, `build_ros2.sh --clean`, and `build_lib.sh --skip-tests`.
 - `bash -n build_ros2.sh add_ros2_support.sh` passed.
 - `shellcheck build_ros2.sh add_ros2_support.sh` passed.
 - YAML parse of `.github/workflows/build_ros2_overlay.yml` passed with Python `yaml.safe_load`.
@@ -327,8 +327,8 @@ Fresh local test evidence:
 Docker CI rehearsal evidence:
 - Docker version: `29.6.1`.
 - Overlay-build rehearsal in `ros:jazzy` passed in scratch copy `/tmp/ros2_stage9_docker_overlay_ehkFzn`; colcon reported `5 tests, 0 errors, 0 failures, 0 skipped`, and `python3 -m pytest -q tests/template_test/testRos2OverlayStatic.py` reported `5 passed`.
-- Rollout-dogfood rehearsal in `ros:jazzy` passed in scratch copy `/tmp/ros2_stage9_docker_rollout_ndIVMM`; the stripped target re-added the overlay with `add_ros2_support.sh --apply --yes --verify`, `./build_ros2.sh --clean` reported `5 tests, 0 errors, 0 failures, 0 skipped`, and the plain `cmake -S . -B build_plain -DENABLE_TESTS=OFF && cmake --build build_plain -j2` build completed.
-- One earlier rollout-dogfood rehearsal failed because the local rehearsal harness used an over-broad tar exclude that removed `build_lib.sh`; rerunning with the workflow's narrower excludes passed.
+- Rollout rehearsal in `ros:jazzy` passed in a temporary scratch copy; the stripped target re-added the overlay with `add_ros2_support.sh --apply --yes --verify`, `./build_ros2.sh --clean` reported `5 tests, 0 errors, 0 failures, 0 skipped`, and the plain `cmake -S . -B build_plain -DENABLE_TESTS=OFF && cmake --build build_plain -j2` build completed.
+- One earlier rollout rehearsal failed because the local rehearsal harness used an over-broad tar exclude that removed `build_lib.sh`; rerunning with the workflow's narrower excludes passed.
 
 Detailed temporary command logs:
 - `/tmp/ros2_overlay_verify_20260707_175226`
@@ -369,7 +369,7 @@ Red/green evidence:
 Validation:
 - `./build_lib.sh -B build_deltas && ctest --test-dir build_deltas -L "ros2|docs|tailoring" --output-on-failure`: passed; the focused CTest subset passed `5/5`.
 - `./build_ros2.sh --clean`: passed; colcon reported `5 tests, 0 errors, 0 failures, 0 skipped`.
-- Local dogfood loop in `/tmp/ros2_delta_dogfood_uCkGfp/target`: `tailor_template_cleanup.sh --apply --yes --remove-ros2`, `add_ros2_support.sh --apply --yes --verify`, `./build_ros2.sh --clean`, and `./build_lib.sh --skip-tests` all passed. One earlier harness attempt failed because an over-broad tar exclude removed `build_lib.sh`; rerunning with explicit build-directory excludes passed.
+- Local rollout validation in a temporary scratch target: `tailor_template_cleanup.sh --apply --yes --remove-ros2`, `add_ros2_support.sh --apply --yes --verify`, `./build_ros2.sh --clean`, and `./build_lib.sh --skip-tests` all passed. One earlier harness attempt failed because an over-broad tar exclude removed `build_lib.sh`; rerunning with explicit build-directory excludes passed.
 - `bash -n build_ros2.sh add_ros2_support.sh` and `shellcheck build_ros2.sh add_ros2_support.sh`: passed.
 - YAML parse of `.github/workflows/build_ros2_overlay.yml` with Python `yaml.safe_load`: passed.
 - `git diff --stat CMakeLists.txt src/ python/`: empty.
@@ -411,7 +411,7 @@ Green evidence:
 - `./build_lib.sh -B build_review_fixes`: passed `24/24`.
 - `ctest --test-dir build_review_fixes -L "ros2|docs|tailoring" --output-on-failure`: passed `5/5`.
 - `./build_ros2.sh --clean`: built four packages and reported `8 tests, 0 errors, 0 failures, 0 skipped`; both launch variants configured, activated, and served the algorithm request.
-- Local dogfood `/tmp/ros2_post_review_dogfood_lY4WbJ/target`: remove overlay, additive reapply with `--verify`, ROS build/tests `8/8`, and plain `./build_lib.sh --skip-tests` all passed.
+- Local rollout validation in a temporary scratch target: remove overlay, additive reapply with `--verify`, ROS build/tests `8/8`, and plain `./build_lib.sh --skip-tests` all passed.
 - `bash -n` and `shellcheck` passed for `build_ros2.sh`, `add_ros2_support.sh`, `tailor_template_cleanup.sh`, and `generate_version.sh`.
 - Workflow YAML, all four package manifests, and all changed launch/test Python files parsed or compiled successfully.
 - Docker `ros:jazzy` rehearsal passed both workflow behaviors; overlay tests reported `8/8`, pytest reported `6/6`, the direct CMake verifier passed, rollout reapplication passed, and the downstream plain CMake build completed. Full temporary log: `/tmp/ros2_post_review_docker_ky8Ckw/docker_rehearsal.log`.
@@ -498,7 +498,7 @@ Document optional ROS 2 overlay workflow
 Scope:
 - Staged the ROS-free CMake overlay contract, the auto-discovered pytest contract, their CTest registration, the Jazzy overlay workflow, and the docs verifier path-canonicalization fix.
 - Kept editor state, reports, `CONTEXT.md`, and this evidence log unstaged.
-- Hardened the workflow copied by `add_ros2_support.sh`: template-only pytest/CMake checks now run only when their files exist, and the rollout-dogfood job skips dependency installation and rehearsal when the template rollout helpers are absent.
+- Hardened the workflow copied by `add_ros2_support.sh`: template-only pytest/CMake checks now run only when their files exist, and the rollout-rehearsal job skips dependency installation and rehearsal when the template rollout helpers are absent.
 
 Red evidence:
 - A real fake derived target created by `add_ros2_support.sh` reproduced the copied-workflow defects: `python3 -m pytest -q tests/template_test/testRos2OverlayStatic.py` exited `4` because the template-only test is intentionally not copied, and `./tailor_template_cleanup.sh --apply --yes --remove-ros2` exited `127` because rollout helpers are intentionally not shipped.
@@ -512,7 +512,7 @@ Green evidence:
 - `./build_lib.sh -B build_static_ci`: passed `24/24` tests.
 - `ctest --test-dir build_static_ci -L "ros2|docs|tailoring" --output-on-failure`: passed `5/5` tests.
 - `./build_ros2.sh --clean`: passed with `10 tests, 0 errors, 0 failures, 0 skipped`.
-- Full scratch dogfood at `/tmp/ros2_static_ci_dogfood_RfLDAB/target`: remove overlay, additive reapply with `--verify`, copied-workflow skip checks, ROS build/tests `10/10`, and `./build_lib.sh --skip-tests` all passed.
+- Full scratch rollout validation: remove overlay, additive reapply with `--verify`, copied-workflow skip checks, ROS build/tests `10/10`, and `./build_lib.sh --skip-tests` all passed.
 - `ros:jazzy` static workflow rehearsal at `/tmp/ros2_static_ci_docker_NvoyJL/source`: workflow dependency installation, pytest `6/6`, and the direct CMake verifier passed.
 - Direct docs workflow verification with a non-canonical `../cpp_cuda_template_project` source path passed after canonicalization.
 - YAML/package XML/Python parsing, `bash -n`, `shellcheck`, conflict scan, cached whitespace, and root CMake/core-source invariants passed.
@@ -569,8 +569,8 @@ Validation evidence:
 - `./build_lib.sh -B build_metadata_flowdown`: built successfully; fresh `ctest --test-dir build_metadata_flowdown --output-on-failure` passed `24/24`.
 - `ctest --test-dir build_metadata_flowdown -L "ros2|docs|tailoring" --output-on-failure`: passed `5/5`.
 - `./build_ros2.sh --clean`: built all four packages and reported `10 tests, 0 errors, 0 failures, 0 skipped`; metadata synchronization ran before colcon.
-- Scratch dogfood at `/tmp/cpp_cuda_template_metadata_dogfood_ngSamb/target` passed cleanup with `--remove-ros2`, additive reapplication with `--verify`, clean ROS build/tests, and ROS-free `./build_lib.sh --skip-tests`.
-- The scratch target used CMake name `space-nav-frontend`, ROS prefix `space_nav_frontend`, description `Non-default navigation frontend metadata dogfood project`, homepage `https://example.test/space-nav-frontend`, maintainer `Dogfood Maintainer <dogfood@example.test>`, and license `Apache-2.0`; all four package names and adapted core CMake links remained correct.
+- Scratch metadata validation passed cleanup with `--remove-ros2`, additive reapplication with `--verify`, clean ROS build/tests, and ROS-free `./build_lib.sh --skip-tests`.
+- The scratch target used CMake name `space-nav-frontend`, ROS prefix `space_nav_frontend`, description `Non-default navigation frontend metadata validation project`, homepage `https://example.test/space-nav-frontend`, maintainer `Validation Maintainer <validation@example.test>`, and license `Apache-2.0`; all four package names and adapted core CMake links remained correct.
 - `bash -n` and `shellcheck` passed for `build_ros2.sh`, `add_ros2_support.sh`, and `generate_version.sh`.
 - Strict mypy, Python bytecode compilation, workflow YAML parsing, and all four package XML parses passed.
 - Repeated synchronization was byte-idempotent; manifest SHA-256 hashes and modes were unchanged on the second run. Source modes remained `0664`, while Git records the expected non-executable `100644` mode.
@@ -737,7 +737,7 @@ Scope:
   verifier whose dormant source was lost.
 - Made `add_ros2_support.sh` require that marker and copy only the dormant
   generic ROS workflow into derived projects.
-- Made active CPU/docs and ROS dogfood use full-history clones of the exact CI
+- Made active CPU/docs and ROS end-to-end checks use full-history clones of the exact CI
   revision. CUDA build and test jobs now materialize the tailored project
   before configuring or testing it.
 
@@ -750,10 +750,10 @@ Red evidence:
   `.github/workflows/build_ros2_overlay.yml.tpl` did not exist and rollout
   still sourced the active workflow.
 - The active-workflow ownership test first failed because Linux CI had no
-  `tailored-project-dogfood` job.
+  `tailored-project-validation` job.
 - A new archive guard failed on `--exclude='./build*'`, which could exclude
   `build_lib.sh`; a second clean-source audit found that excluding `.git` also
-  allowed a clean runner to lose version provenance. Both active dogfood jobs
+  allowed a clean runner to lose version provenance. Both active validation jobs
   now use local full-history clones instead of archives.
 - The CUDA ownership test failed before its build and test jobs materialized
   the project source tree.
@@ -825,7 +825,7 @@ Proposed commit message:
 Separate template and project CI workflows
 - Materialize generic workflows during project tailoring.
 
-- Dogfood tailored CPU, CUDA, docs, and ROS paths.
+- Validate tailored CPU, CUDA, docs, and ROS paths.
 
 - Guard workflow ownership and cleanup idempotency.
 ```
@@ -1065,3 +1065,178 @@ Harden ROS overlay tailoring and documentation hygiene
 
 - Keep implementation reports and stage evidence internal to template development.
 ```
+
+## 2026-07-17 - Review remediation pass
+
+Scope:
+- Stage 6 bound core-to-overlay CI drift with core path filters, one weekly
+  schedule, semantic YAML guards, and runtime validation of active-template,
+  default-tailored, and additive-rollout modes.
+- Stage 7 mirrored applicable fixes into the testfield, ran both repositories'
+  native and ROS gates, and closed the implementation review without changing
+  the overlay architecture.
+- The testfield documentation workflow became build-only after a remote run
+  exhausted artifact storage. Its prior Pages workflow was disabled remotely;
+  the replacement checks generated HTML/XML without upload or deployment.
+
+Red evidence:
+- The Stage 6 CMake and semantic YAML guards failed before the active and
+  generic ROS workflows carried the exact weekly schedule and watched all core
+  ownership paths.
+- Testfield nested-install verification failed while headers escaped
+  `include/template_project`; the first corrected nested configure then exposed
+  version-file ownership tied to the outer build.
+- Testfield CUDA verification failed because the malformed source list omitted
+  `placeholder.cu` from the real target.
+- Expanded namespaced launch cases exposed parameter scoping and Jazzy composed
+  lifecycle-autostart identity defects before the wildcard parameters and
+  namespace-aware adapter were applied.
+- The remote documentation run built its site successfully, then failed only
+  when the Pages artifact action reported exhausted storage quota.
+
+Validation evidence:
+- Main `./build_lib.sh -B build_review_final --clean` and explicit full CTest
+  passed `27/27`; the focused `ros2|docs|tailoring|nested|release` gate passed
+  `7/7`.
+- Main clean CPU and CUDA+OptiX ROS runs each built four packages and reported
+  `10 tests, 0 errors, 0 failures, 0 skipped`. The CUDA compile database
+  contains the real `placeholder.cu` object and excludes ordinary compilation
+  of `placeholder_to_ptx.ptx.cu`; the OptiX path generated PTX and embedded-C
+  artifacts.
+- Container rehearsals passed active-template, default-tailored, and additive
+  rollout modes. Each ROS mode built four packages and passed all 10 tests.
+- A fresh local rollout validation applied default tailoring, separately
+  removed and re-added the overlay with `--verify`, passed the clean ROS build,
+  and passed the standalone ROS-free build.
+- Testfield `./build_lib.sh --clean` passed `41/41`. Its clean ROS build built
+  four packages and passed all 10 tests, including standalone/composition and
+  root/namespaced lifecycle cases with response/status assertions.
+- A fresh testfield documentation configure/build generated
+  `build_docs/doc/html/index.html` and `build_docs/doc/xml`. The static verifier
+  and semantic YAML check require a single `build-docs` job and reject artifact
+  upload, Pages configuration, deployment actions, and publication permissions.
+- Shell syntax and shellcheck passed the root helpers. Strict metadata-helper
+  typing, Python compilation, workflow YAML parsing, manifest XML parsing,
+  exact conflict-marker and placeholder scans, and diff whitespace checks
+  passed.
+- The main closeout diff leaves root `CMakeLists.txt`, `src/`, and `python/`
+  unchanged. The testfield's adapted `conversions.cpp` and unrelated
+  `lib/wrap` state remain untouched.
+- Final review found stale publication guidance in the testfield usage guide,
+  focused CTest command, and issue forms. A new static guard failed on the old
+  wording, passed after correction, and the build-only documentation target was
+  rebuilt successfully.
+- A broad shellcheck sweep found the pre-existing unused
+  `wrapper_interface_override` assignment in `build_lib.sh`. Removing only the
+  dead assignments made all five main root helpers shellcheck-clean; the three
+  wrapper-script behavior regressions passed afterward.
+
+Review result:
+- Install/export semantics, ordinary-CUDA versus PTX ownership, release-tag
+  reproducibility, copied-workflow portability, and previously resolved review
+  findings were re-audited. No unresolved critical or major issue was found in
+  the reviewed scope.
+- GCC 13 still emits the pre-existing non-fatal fmt/spdlog
+  `-Warray-bounds` warning.
+
+## 2026-07-18 - Atomic tailoring, release archives, and version-sync closeout
+
+Scope:
+- Stage 8 made template tailoring preflighted, atomic, and mode-preserving.
+- Stage 9 gave the testfield a centralized prerelease-aware project/CPack/ROS
+  metadata contract.
+- Stage 10 established CPack source TGZ as the canonical release artifact for
+  both repositories.
+- Stage 11 narrowed CI correctness gaps around release tags, manifest drift,
+  expected-version ownership, and documentation static checks.
+- Stage 12 aligned public guidance and executed the final two-repository host
+  and Jazzy-container regression.
+
+Red evidence:
+- New tailoring fixtures rejected the former rewrite path because it could
+  change target modes and begin cleanup before discovering a later malformed
+  documentation fence. Nested, orphaned, and unclosed fixtures established the
+  required zero-mutation failure baseline.
+- Testfield version/CPack regressions initially rejected legacy-only parsing,
+  missing metadata-only configuration, and source package names that omitted
+  the full prerelease-aware version. Copied-manifest tests rejected the absence
+  of a structured full-metadata synchronizer.
+- The initial release-archive tests stopped at tag verification and therefore
+  could not prove no-Git consumption or rejection of a missing `VERSION` file.
+- Workflow contract tests rejected missing release-tag triggers, sync paths
+  without a post-sync Git drift check, manifest-derived expected versions, and
+  docs workflows that did not run their owned static verifier directly.
+- The first final native rerun exposed one stale ROS static assertion that
+  still required the malformed inline-code wording. The assertion was reversed
+  to require the corrected form; its two focused tests and the complete native
+  suite then passed.
+
+Green implementation evidence:
+- `VerifyTemplateProjectTailoringScript.cmake` now checks original modes and
+  complete tree immutability. Real default and `--remove-ros2` tailored clones
+  each passed all seven native starter tests; the default-tailored ROS overlay
+  built four packages and passed 10 tests.
+- Both metadata helpers pass strict mypy and shellcheck. Two consecutive syncs
+  in clean snapshots produced identical hashes for all four manifests and zero
+  Git drift. The testfield manifests retain package names, dependencies, XML
+  processing instructions, and modes while carrying its own description,
+  maintainer, license, website, and version.
+- Both synthetic release tests create CPack TGZ archives, extract them outside
+  Git, verify required/excluded paths, configure metadata-only from the
+  extraction, compare strict core/full versions, and reject an archive with no
+  `VERSION`.
+- Semantic workflow pytest passed `6/6`; active/dormant main workflows and all
+  testfield workflows parse as YAML. Direct CMake workflow, docs, and ROS
+  contracts pass, including a real temporary-repository stale-manifest failure.
+
+Final host regression:
+- Main clean native build and CTest: `27/27` passed.
+- Main clean CPU ROS: four packages, `10 tests, 0 errors, 0 failures, 0 skipped`.
+- Main standalone CUDA+OptiX: `31/31` passed. Build rules compile the real
+  `placeholder.cu` for `sm_120`, compile `placeholder_to_ptx.ptx.cu` only via
+  the dedicated PTX rule, and produce PTX, embedded C, and embedded object.
+- Main clean ROS CUDA+OptiX: four packages and all 10 tests passed with the same
+  real CUDA/PTX artifact ownership.
+- Testfield clean native build and CTest: `43/43` passed. Its clean ROS build
+  completed four packages and all 10 tests.
+- Fresh Doxygen HTML/XML builds passed in both repositories. Strict Python 3.12
+  compilation, mypy, shell syntax/lint, workflow YAML and manifest XML parsing,
+  exact conflict-marker scans, and staged/unstaged whitespace checks passed.
+
+Jazzy workflow rehearsal:
+- One clean `ros:jazzy` environment executed the affected install, metadata
+  capability, sync, drift, rosdep, build/test, installed-header, and static
+  blocks against isolated active-template, tailored-generic, and testfield
+  workspaces.
+- Active template: four packages, 10 tests, static pytest `14/14`, and the full
+  CMake ROS verifier passed.
+- Tailored generic: four packages and 10 tests passed; the generic workflow was
+  materialized, its dormant form removed, and no template-only verifier leaked.
+- Testfield: four packages and 10 tests passed against an external template
+  checkout; helper syntax and full metadata drift gates passed.
+
+Preserved boundaries and known output:
+- No C++, CUDA, ROS message/service, lifecycle-node, or wrapper API changed in
+  Stages 8-12.
+- Testfield `ros2/template_project_ros/src/conversions.cpp` retains SHA-256
+  `9d19c20deb777a3f41305e9f977d08cda51741e419a2a382e40cc8ff04279255`;
+  `lib/wrap` remains at `55f7cf30f47972a7055266bd4308614e8fe8aca2`.
+- GCC 13 continues to emit the pre-existing non-fatal fmt/spdlog
+  `-Warray-bounds` warning. Testfield's broad colcon CMake argument produces
+  expected unused-variable warnings in packages that do not consume the
+  external-template path.
+
+Commit-split reconstruction:
+- The main disposable clone applied and committed, in order, atomic tailoring,
+  canonical source releases, ROS/docs CI contracts, and dead wrapper-state
+  removal. Their focused gates passed the direct tailoring verifier and
+  shellcheck; the full synthetic release/archive test; static pytest `14/14`,
+  eight-workflow YAML parsing and both CMake static verifiers; and build-helper
+  syntax/shellcheck/help behavior respectively.
+- The testfield disposable clone then applied and committed centralized
+  metadata, source-release/CI drift, and docs-CI contracts. Their focused gates
+  passed strict mypy, metadata pytest `5/5`, version/CPack side effects and
+  shellcheck; synthetic CPack archive plus native/ROS workflow contracts and
+  clean post-sync manifests; and direct docs static plus fresh HTML/XML output.
+- The final main closeout commit was reconstructed only after all seven prior
+  gates. No commit was created in either source repository.

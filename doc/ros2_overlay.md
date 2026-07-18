@@ -35,6 +35,10 @@ The overlay packages are:
 
 The `template_project_ros` package keeps a conversions-vs-node split. `template_project_ros_conversions` links the core library and interfaces but does not depend on `rclcpp`; it is safe to test without a ROS executor. `template_project_ros_component` owns lifecycle, parameters, publishers, services, and component registration.
 
+Core C++ and CUDA unit tests remain Catch2-based. ROS package tests use
+`ament_cmake_gtest` as the narrow ROS-specific exception so ament registers and
+reports them through colcon.
+
 The bridge is intentionally source-adjacent: its private include path can reach core headers under the repository `src/` tree without making those headers part of the installed public API. A derived project should adapt `conversions.cpp` to use an exported public core header whenever one exists. An installed-only bridge consumer requires the core project to install/export that header first; the overlay does not turn private source headers into a public SDK.
 
 ## Build usage
@@ -261,4 +265,4 @@ CUDA+ROS is local-only in this repository. The available self-hosted GPU runner 
 
 ## Python boundary
 
-`python/ bindings remain a separate ROS-free optional feature`. The overlay does not depend on Python bindings, and the static tests check that `python/` stays free of `rclcpp`, `ament`, and `rosidl` references.
+`python/` bindings remain a separate ROS-free optional feature. The overlay does not depend on Python bindings, and the static tests check that `python/` stays free of `rclcpp`, `ament`, and `rosidl` references.

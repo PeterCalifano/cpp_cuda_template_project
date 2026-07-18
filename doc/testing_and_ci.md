@@ -16,6 +16,12 @@ Compiled tests are discovered from `test*.cpp` and `test*.cu` files and run with
 Catch2. Python tests are discovered from `test*.py` files and registered as
 normal CTest entries that execute `python -m pytest -q <test-file>`.
 
+Catch2 remains the unit-test framework for the core C++ and CUDA project. Tests
+inside ROS packages are the deliberate exception: they use
+`ament_cmake_gtest` so test targets and results participate in the ament/colcon
+workspace contract. This ROS-specific integration does not change the native
+project's Catch2 policy.
+
 The discovery helper is shared by starter projects and downstream projects:
 
 - `test*.cpp` and `test*.cu`: compiled only when Catch2 is available.

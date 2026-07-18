@@ -192,7 +192,7 @@ Not triggering on `src/**` is a sound, documented decision, but its residual ris
 
 The plan deserves separate credit and critique from the implementation:
 
-**Strengths.** Fixed design decisions stated up front with rationale; assumptions explicitly labeled with fallbacks; per-stage validation gates that were actually executed and logged; review-delta subsections that record *found* defects with root causes instead of silently fixing them; a dogfood stage (8) against a real derived repo that surfaced two genuine compatibility gaps; and a final audit stage with banned-naming greps. This is a model for how to run a multi-stage upgrade.
+**Strengths.** Fixed design decisions stated up front with rationale; assumptions explicitly labeled with fallbacks; per-stage validation gates that were actually executed and logged; review-delta subsections that record *found* defects with root causes instead of silently fixing them; a validation stage (8) against a real derived repo that surfaced two genuine compatibility gaps; and a final audit stage with banned-naming greps. This is a model for how to run a multi-stage upgrade.
 
 **Gaps, with hindsight:**
 
@@ -313,3 +313,114 @@ point-in-time record.
   source graph after materializing the generic project workflow. A tailored
   scratch compiled `placeholder.cu`, excluded `placeholder_to_ptx.ptx.cu`, and
   passed all nine project tests. **Confidence: 100/100.**
+
+---
+
+## 8. Review remediation closeout - 2026-07-17
+
+This addendum records the final disposition after all remediation stages. It
+does not replace the historical findings or the independent evaluation above.
+
+- **M1, nested header installation:** Fixed. All six module install paths are
+  rooted at `PROJECT_SOURCE_DIR`; the colcon shim no longer masks the defect
+  with a private core-source include. A nested install and installed-only
+  consumer regression resolves a public header exclusively through
+  `template_project::template_project`. **Confidence: 100/100.**
+- **M2, copied bytecode:** Remains fixed. Additive rollout removes Python cache
+  directories and bytecode, and the copied-tree fixture rejects recurrence.
+  **Confidence: 100/100.**
+- **M3, release-tag coupling:** Fixed as a tested release contract. The
+  documented and locally rehearsed sequence synchronizes all four manifests on
+  the commit referenced by the final annotated tag; the strict overlay version
+  verifier passes on that tagged tree. **Confidence: 100/100.**
+- **M4 and N1, CUDA/OptiX execution and source discovery:** Fixed for the local
+  CUDA 12.9 and OptiX 8.0 toolchain. Standalone and ROS builds compile the real
+  project CUDA translation unit, keep `*.ptx.cu` under the dedicated PTX path,
+  and validate installed OptiX consumption without exporting a machine-local
+  SDK path. **Confidence: 100/100.**
+- **m2, development evidence ownership:** Fixed. Stage evidence is under
+  `doc/developments`; reports and development evidence are excluded from
+  generated documentation and removed during project tailoring.
+  **Confidence: 100/100.**
+- **m5, service/status coverage:** Fixed. All standalone/composition and
+  root/namespaced launch variants assert lifecycle activation, the service
+  response, every `AlgorithmStatus` field, and a populated timestamp.
+  **Confidence: 100/100.**
+- **m8 and m10, fence handling and documentation precision:** Fixed. Tailoring
+  rejects nested, orphaned, and unclosed fences. Overlay removal and the stable
+  CUDA/OptiX facade contract are documented without implying that direct core
+  cache variables survive shim configuration. **Confidence: 100/100.**
+- **m11, overlay drift detection:** Fixed. Core CMake/source ownership paths
+  trigger the active overlay workflow, and both the template workflow and the
+  derived-project workflow template carry one weekly schedule. Static CMake
+  and semantic YAML tests guard the trigger mapping. **Confidence: 100/100.**
+- **P1-P5 and A1-A8:** Closed by the staged remediation plan. The explicit
+  source-area exception was limited to the verified nested-install and CUDA
+  ownership defects; release, GPU, publication, tailoring, and copied-workflow
+  contracts now have behavioral tests. **Confidence: 99/100.**
+- **Final helper-lint correction:** The closeout lint sweep found that
+  `build_lib.sh` assigned `wrapper_interface_override` without ever reading it.
+  Removing the two dead assignments cleared shellcheck and preserved all three
+  wrapper-script behavior regressions. **Confidence: 100/100.**
+
+The final implementation and design review found no unresolved critical or
+major defect in the reviewed scope. The remaining observed output is the
+pre-existing non-fatal GCC/fmt/spdlog `-Warray-bounds` warning.
+
+---
+
+## 9. Release and two-repository version-sync closeout - 2026-07-18
+
+This addendum records the final release-contract review. It preserves all
+historical findings above and evaluates only the Stage 8-13 extension.
+
+- **Tailoring mutation safety:** Fixed. All removable documentation fences are
+  validated before confirmation or removal. Rewritten CMake/documentation files
+  are generated beside their targets, retain original modes, and are atomically
+  installed. Nested, orphaned, and unclosed fences return nonzero with identical
+  checksums, modes, and path inventory. **Confidence: 100/100.**
+- **Testfield metadata ownership:** Fixed. The testfield owns its description,
+  homepage, maintainer/contact, MIT license, and prerelease-aware version in one
+  CMake contract. Its structured helper synchronizes only owned manifest fields
+  while preserving identities, dependencies, processing instructions, and
+  modes. Two consecutive syncs are byte-idempotent. **Confidence: 100/100.**
+- **Canonical source release:** Fixed. CPack TGZ is the documented canonical
+  release artifact in both repositories. Synthetic final-tag regressions create
+  and extract the archive outside Git, require `VERSION`, manifests, license and
+  source, exclude generated/VCS trees, compare core/full version resolution,
+  and reject a missing-`VERSION` archive. GitHub-generated source links are
+  explicitly non-canonical. **Confidence: 100/100.**
+- **CI metadata drift:** Fixed. Active template and testfield workflows require
+  the full-metadata capability marker and fail on any post-sync manifest diff.
+  The generic project workflow retains a visible compatibility warning for old
+  helpers and enforces the same diff gate whenever full sync is supported.
+  **Confidence: 100/100.**
+- **Release-tag and expected-version CI:** Fixed. Native and ROS workflows accept
+  `v*.*.*` tag pushes. The active ROS verifier derives strict `X.Y.Z` from
+  generated `VERSION`, independently of synchronized manifests. Semantic tests
+  cover tag triggers and stale-manifest failure. **Confidence: 100/100.**
+- **Documentation CI ownership:** Fixed. The template docs workflow runs the
+  template verifier, the testfield build-only docs workflow runs the testfield
+  verifier, and the generic docs workflow remains free of template-only checks.
+  Both repositories produce fresh Doxygen HTML/XML. **Confidence: 100/100.**
+- **Runtime regression:** Green. Main passed native `27/27`, standalone
+  CUDA+OptiX `31/31`, CPU ROS `10/10`, and ROS CUDA+OptiX `10/10`; testfield
+  passed native `43/43` and ROS `10/10`. Jazzy rehearsals passed active-template,
+  tailored-generic, and testfield modes with four packages and 10 tests each.
+  **Confidence: 100/100.**
+- **Scope preservation:** Confirmed. No C++/CUDA/ROS API changed. Testfield's
+  adapted `conversions.cpp` and `lib/wrap` state are unchanged. Canonical archive
+  upload automation, cache/artifact redesign, and runner-topology changes remain
+  explicitly deferred. **Confidence: 100/100.**
+
+No unresolved critical or major defect remains in the reviewed extension. The
+only recurring host output is the pre-existing non-fatal GCC/fmt/spdlog
+`-Warray-bounds` warning; the testfield colcon invocation also reports expected
+unused-variable warnings in packages that do not consume its external-template
+path.
+
+The proposed five-main/three-testfield history was reconstructed in disposable
+clones in the required order. Every commit passed its focused gate before the
+next was applied, and the source repositories remained uncommitted. This closes
+the review at commit-ready, user-owned handoff rather than changing repository
+history automatically.

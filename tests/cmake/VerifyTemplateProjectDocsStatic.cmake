@@ -79,6 +79,7 @@ _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/testing_and_ci.md" "test\\*\\.p
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/testing_and_ci.md" "PYTHON_TEST_CONDA_ENV")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/testing_and_ci.md" "PYTHON_TEST_CONDA_PREFIX")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/testing_and_ci.md" "CATCH2_TEST_PROPERTIES")
+_assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/testing_and_ci.md" "ament_cmake_gtest")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/testing_and_ci.md" "v\\*\\.\\*\\.\\*")
 _assert_matches(
     "${TEST_TEMPLATE_SOURCE_DIR}/doc/testing_and_ci.md"
@@ -107,6 +108,7 @@ _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/ros2_overlay.md" "build_ros2_ov
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/ros2_overlay.md" "does not copy")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/ros2_overlay.md" "active template-validation workflow")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/ros2_overlay.md" "Release tagging with the ROS 2 overlay")
+_assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/ros2_overlay.md" "ament_cmake_gtest")
 _assert_matches(
     "${TEST_TEMPLATE_SOURCE_DIR}/doc/ros2_overlay.md"
     "git diff --exit-code -- ros2/\\*/package\\.xml")
