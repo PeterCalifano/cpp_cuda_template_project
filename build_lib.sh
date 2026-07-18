@@ -315,12 +315,10 @@ if [[ -n "$python_test_executable" && ! -x "$python_test_executable" ]]; then
 fi
 
 project_name="$(detect_project_name || true)"
-wrapper_interface_override=false
 prepare_wrap_checkout=false
 
 if [[ "$rebuild_only" == false && ( "$python_wrap" == true || "$matlab_wrap" == true ) ]]; then
   if has_wrapper_interface_override; then
-    wrapper_interface_override=true
     prepare_wrap_checkout=true
   elif [[ -f "src/wrap_interface.i" ]]; then
     prepare_wrap_checkout=true
