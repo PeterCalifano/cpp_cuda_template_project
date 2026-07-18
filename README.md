@@ -9,6 +9,7 @@ A CMake template for building GPU-accelerated C++ libraries with optional CUDA/O
 - [`doc/cpp_cuda_build.md`](doc/cpp_cuda_build.md): C++ build modes, CUDA, OptiX, toolchains, CPU tuning, and profiling toggles.
 - [`doc/wrappers.md`](doc/wrappers.md): gtwrap setup, Python package workflow, MATLAB wrappers, and wrapper docstrings.
 - [`doc/versioning.md`](doc/versioning.md): git tags, source/build/install `VERSION` files, C++ config macros, Python metadata, and packages.
+- [`doc/logging.md`](doc/logging.md): dependency-free component logging, level configuration, stream routing, and capture.
 - [`doc/documentation_workflow.md`](doc/documentation_workflow.md): Doxygen, CMake docs targets, XML output, GitHub Pages, and output checks.
 - [`doc/testing_and_ci.md`](doc/testing_and_ci.md): CTest gates, CI workflow expectations, issue forms, and validation reports.
 

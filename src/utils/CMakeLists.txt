@@ -20,12 +20,9 @@ message(STATUS "Library src files found in ${CURRENT_FOLDER_NAME}: ${srcLibFiles
 #################
 # User specified subdirectories
 
-# Add subdirectories here
-if(SPDLOG_ENABLED)
-    add_subdirectory(logging)
-else()
-    message(STATUS "Skipping logging module sources because spdlog support is disabled.")
-endif()
+# Add subdirectories here. The project logger is dependency-free and remains
+# available regardless of optional third-party logging configuration.
+add_subdirectory(logging)
 add_subdirectory(wrap_adapters)
 #################
 

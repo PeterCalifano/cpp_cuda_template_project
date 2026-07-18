@@ -32,6 +32,7 @@ set(_doc_files
     "doc/cpp_cuda_build.md"
     "doc/wrappers.md"
     "doc/versioning.md"
+    "doc/logging.md"
     "doc/documentation_workflow.md"
     "doc/testing_and_ci.md")
 
@@ -46,6 +47,7 @@ _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/README.md" "doc/bootstrap_prompts.m
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/README.md" "doc/cpp_cuda_build.md")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/README.md" "doc/wrappers.md")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/README.md" "doc/versioning.md")
+_assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/README.md" "doc/logging.md")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/README.md" "doc/documentation_workflow.md")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/README.md" "doc/testing_and_ci.md")
 
@@ -71,6 +73,9 @@ _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/versioning.md" "CPackSourceConf
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/versioning.md" "cpack --config")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/versioning.md" "canonical source release")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/versioning.md" "GitHub's automatic source")
+_assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/logging.md" "src/utils/logging/")
+_assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/logging.md" "TEMPLATE_PROJECT_LOG_LEVEL")
+_assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/logging.md" "v1.11.0")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/documentation_workflow.md" "GitHub Pages")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/documentation_workflow.md" "doc/developments")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/testing_and_ci.md" "Issue Templates")
@@ -118,6 +123,7 @@ _assert_matches(
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/README.md" "tailor_template_cleanup.sh")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/tailor_template_cleanup.sh" "doc/developments")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/tailor_template_cleanup.sh" "doc/reports")
+_assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/tailor_template_cleanup.sh" "src/utils/logging/")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/tailor_template_cleanup.sh" "VerifyTemplateProjectDocsWorkflow.cmake")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/build_script_doc.md" "build_lib.sh Reference")
 _assert_matches("${TEST_TEMPLATE_SOURCE_DIR}/doc/build_script_doc.md" "--python-test-conda-env")

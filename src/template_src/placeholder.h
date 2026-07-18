@@ -1,8 +1,6 @@
 #pragma once
-#include <iostream>
 
-
-namespace placeholder 
+namespace placeholder
 {
     void placeholder_fcn();
 } // namespace placeholder

@@ -153,6 +153,7 @@ Workflow edits made by --apply:
 
 Not removed:
   - cmake/, build_lib.sh, generate_version.sh, docs workflow files, issue forms, and docs guides.
+  - src/utils/logging/ and doc/logging.md, because the logger is reusable project infrastructure.
   - tests/template_test and tests/template_fixtures, because they are starter project tests.
   - .devcontainer, .vscode, examples/, and toolchains, because they are reusable project infrastructure.
   - profiling/ only when --keep-profiling is set.

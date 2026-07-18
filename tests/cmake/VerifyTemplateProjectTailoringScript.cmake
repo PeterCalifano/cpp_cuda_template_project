@@ -112,6 +112,7 @@ foreach(_expected
     "tests/cmake/VerifyTemplateProjectOptixInstallExport.cmake"
     "tests/cmake/VerifyTemplateProjectRos2Overlay.cmake"
     "tests/template_test/testWorkflowTemplates.py"
+    "src/utils/logging/ and doc/logging.md"
     "ROS 2 overlay KEPT by default; pass --remove-ros2 to strip it"
     "Materialize generic project CI workflows"
     "CMake edits made by --apply")
@@ -132,11 +133,15 @@ function(_create_fake_project fake_root)
   file(MAKE_DIRECTORY "${fake_root}/lib")
   file(MAKE_DIRECTORY "${fake_root}/examples")
   file(MAKE_DIRECTORY "${fake_root}/profiling")
+  file(MAKE_DIRECTORY "${fake_root}/src/utils/logging")
 
   file(WRITE "${fake_root}/build_lib.sh" "#!/usr/bin/env bash\n")
   file(WRITE "${fake_root}/build_ros2.sh" "#!/usr/bin/env bash\n")
   file(WRITE "${fake_root}/add_ros2_support.sh" "#!/usr/bin/env bash\n")
   file(WRITE "${fake_root}/generate_version.sh" "#!/usr/bin/env bash\n")
+  file(WRITE "${fake_root}/src/utils/logging/CLogger.h" "reusable logger header\n")
+  file(WRITE "${fake_root}/src/utils/logging/CLogger.cpp" "reusable logger source\n")
+  file(WRITE "${fake_root}/doc/logging.md" "reusable logger guide\n")
   file(WRITE "${fake_root}/CMakeLists.txt"
 "cmake_minimum_required(VERSION 3.15)
 project(fake_tailored_project)
@@ -299,6 +304,16 @@ function(_assert_fake_project_cleaned fake_root expect_profiling)
     message(FATAL_ERROR "tests/CMakeLists.txt still passes CTest/Catch2 runner flags as Catch2 test properties.")
   endif()
   _assert_mode("${fake_root}/tests/CMakeLists.txt" "600")
+
+  foreach(_retained_logger_path
+      "src/utils/logging/CLogger.h"
+      "src/utils/logging/CLogger.cpp"
+      "doc/logging.md")
+    if(NOT EXISTS "${fake_root}/${_retained_logger_path}")
+      message(FATAL_ERROR
+          "Expected cleanup to retain reusable logger path '${_retained_logger_path}'")
+    endif()
+  endforeach()
 
   foreach(_workflow_name build_linux.yml build_linux_cuda.yml docs_pages.yml)
     set(_materialized_workflow "${fake_root}/.github/workflows/${_workflow_name}")
