@@ -23,7 +23,7 @@ on:
       - CMakePresets.json
       - .github/workflows/docs_pages.yml
       - .github/workflows/docs_pages.yml.tpl
-      - tests/cmake/VerifyTemplateProjectDocsStatic.cmake
+      - tests/template_test/testWorkflowTemplates.py
   pull_request:
     branches:
       - "master"
@@ -39,7 +39,7 @@ on:
       - CMakePresets.json
       - .github/workflows/docs_pages.yml
       - .github/workflows/docs_pages.yml.tpl
-      - tests/cmake/VerifyTemplateProjectDocsStatic.cmake
+      - tests/template_test/testWorkflowTemplates.py
 
 permissions:
   contents: read
@@ -62,13 +62,11 @@ jobs:
       - name: Install documentation dependencies
         run: |
           sudo apt update
-          sudo apt install -y cmake ninja-build g++ doxygen graphviz libeigen3-dev
+          sudo apt install -y cmake ninja-build g++ doxygen graphviz libeigen3-dev python3-pytest python3-yaml
 
-      - name: Run template documentation static contract
-        run: |
-          cmake \
-            -DTEST_TEMPLATE_SOURCE_DIR="${GITHUB_WORKSPACE}" \
-            -P tests/cmake/VerifyTemplateProjectDocsStatic.cmake
+      - name: Run template workflow contracts
+        id: workflow_contracts
+        run: python3 -m pytest -q tests/template_test/testWorkflowTemplates.py
 
       - name: Configure documentation build
         run: |

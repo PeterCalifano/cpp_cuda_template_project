@@ -41,6 +41,8 @@ foreach(generated_path "ros2/build" "ros2/install" "ros2/log")
   endif()
 endforeach()
 
+find_program(_python_executable NAMES python3 REQUIRED)
+
 file(READ "${TEST_SOURCE_ROOT}/VERSION" _version_contents)
 if(NOT _version_contents MATCHES "Project version core: ([0-9]+\\.[0-9]+\\.[0-9]+)")
   message(FATAL_ERROR "Canonical source VERSION has no strict core version")
@@ -88,11 +90,22 @@ if(NOT _manifest_count EQUAL 4)
   message(FATAL_ERROR "Canonical source archive must contain four ROS manifests; found ${_manifest_count}")
 endif()
 foreach(_manifest_path IN LISTS _manifest_paths)
-  file(READ "${_manifest_path}" _manifest_contents)
-  if(NOT _manifest_contents MATCHES "<version>${EXPECTED_VERSION}</version>")
-    message(FATAL_ERROR "Archive manifest does not contain ${EXPECTED_VERSION}: ${_manifest_path}")
+  execute_process(
+      COMMAND "${_python_executable}" -c
+          "import sys, xml.etree.ElementTree as ET; version=ET.parse(sys.argv[1]).getroot().findtext('version'); assert version == sys.argv[2], (sys.argv[1], version, sys.argv[2])"
+          "${_manifest_path}" "${EXPECTED_VERSION}"
+      RESULT_VARIABLE _manifest_parse_result
+      ERROR_VARIABLE _manifest_parse_stderr)
+  if(NOT _manifest_parse_result EQUAL 0)
+    message(FATAL_ERROR
+        "Archive manifest version validation failed: ${_manifest_path}\n"
+        "${_manifest_parse_stderr}")
   endif()
-  if(NOT _manifest_contents MATCHES "<\\?xml-model ")
+  file(READ "${_manifest_path}" _manifest_contents)
+  # The processing instruction is generated representation intentionally
+  # preserved byte-for-byte by the metadata synchronizer.
+  string(FIND "${_manifest_contents}" "<?xml-model " _xml_model_index)
+  if(_xml_model_index LESS 0)
     message(FATAL_ERROR "Archive manifest lost its XML model processing instruction: ${_manifest_path}")
   endif()
 endforeach()

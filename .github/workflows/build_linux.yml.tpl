@@ -28,6 +28,7 @@ on:
       - cmake/**
       - CMakeLists.txt
       - build_lib.sh
+      - generate_version.sh
       - .github/workflows/build_linux.yml
   pull_request:
     branches:
@@ -43,6 +44,7 @@ on:
       - cmake/**
       - CMakeLists.txt
       - build_lib.sh
+      - generate_version.sh
       - .github/workflows/build_linux.yml
 
 jobs:

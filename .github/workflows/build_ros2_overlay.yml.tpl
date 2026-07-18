@@ -43,22 +43,26 @@ jobs:
       image: ros:jazzy
     steps:
       - name: Checkout repository
+        id: checkout_repository
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Trust checked-out Git worktree
+        id: trust_worktree
         shell: bash
         run: |
           git config --global --add safe.directory "${GITHUB_WORKSPACE}"
           git -C "${GITHUB_WORKSPACE}" rev-parse --is-inside-work-tree
 
       - name: Install ROS 2 overlay dependencies
+        id: install_dependencies
         run: |
           apt-get update
           apt-get install -y --no-install-recommends build-essential cmake git libeigen3-dev python3-colcon-common-extensions ros-dev-tools
 
       - name: Synchronize ROS package metadata
+        id: sync_metadata
         shell: bash
         run: |
           if [[ -x ./generate_version.sh ]] \
@@ -71,10 +75,12 @@ jobs:
           fi
 
       - name: Resolve ROS 2 package dependencies
+        id: resolve_dependencies
         run: |
           rosdep update
           rosdep install --from-paths ros2 -i -r -y --rosdistro jazzy
 
       - name: Build and test ROS 2 overlay
+        id: build_overlay
         shell: bash
         run: ./build_ros2.sh --clean --no-version-sync

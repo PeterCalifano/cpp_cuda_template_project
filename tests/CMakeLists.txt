@@ -40,32 +40,6 @@ set_tests_properties(
 )
 
 add_test(
-    NAME template_project_ci_workflow_cpu_flags
-    COMMAND ${CMAKE_COMMAND}
-        -DTEST_TEMPLATE_SOURCE_DIR=${PROJECT_SOURCE_DIR}
-        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyTemplateProjectCiWorkflowFlags.cmake
-)
-set_tests_properties(
-    template_project_ci_workflow_cpu_flags
-    PROPERTIES
-    LABELS "flags;ci"
-    TIMEOUT 60
-)
-
-add_test(
-    NAME template_project_docs_static_contract
-    COMMAND ${CMAKE_COMMAND}
-        -DTEST_TEMPLATE_SOURCE_DIR=${PROJECT_SOURCE_DIR}
-        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyTemplateProjectDocsStatic.cmake
-)
-set_tests_properties(
-    template_project_docs_static_contract
-    PROPERTIES
-    LABELS "docs;workflow;issues"
-    TIMEOUT 60
-)
-
-add_test(
     NAME template_project_docs_build_output
     COMMAND ${CMAKE_COMMAND}
         -DTEST_TEMPLATE_SOURCE_DIR=${PROJECT_SOURCE_DIR}

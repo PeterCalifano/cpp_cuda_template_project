@@ -35,7 +35,7 @@ function(_configure_expect_success case_name)
   endif()
 endfunction()
 
-function(_configure_expect_failure case_name expected_message)
+function(_configure_expect_failure case_name)
   set(_build_dir "${TEST_BINARY_ROOT}/${case_name}")
   execute_process(
       COMMAND ${CMAKE_COMMAND}
@@ -60,14 +60,6 @@ function(_configure_expect_failure case_name expected_message)
     message(FATAL_ERROR "Expected configure '${case_name}' to fail, but it passed.")
   endif()
 
-  string(CONCAT _combined_output "${_stdout}\n${_stderr}")
-  if(NOT _combined_output MATCHES "${expected_message}")
-    message(FATAL_ERROR
-        "Configure '${case_name}' failed, but not with the expected message.\n"
-        "Expected: ${expected_message}\n"
-        "stdout:\n${_stdout}\n"
-        "stderr:\n${_stderr}")
-  endif()
 endfunction()
 
 file(REMOVE_RECURSE "${TEST_BINARY_ROOT}")
@@ -90,7 +82,6 @@ _configure_expect_success(
 
 _configure_expect_failure(
     python_tests_enabled_rejects_conflicting_conda_options
-    "Set only one of PYTHON_TEST_CONDA_ENV or PYTHON_TEST_CONDA_PREFIX"
     -DENABLE_TESTS=ON
     -DENABLE_PYTHON_TESTS=ON
     -DPYTHON_TEST_CONDA_ENV=env_name

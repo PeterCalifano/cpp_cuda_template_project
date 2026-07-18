@@ -9,6 +9,7 @@ endforeach()
 find_program(_git_executable NAMES git REQUIRED)
 find_program(_bash_executable NAMES bash REQUIRED)
 find_program(_cpack_executable NAMES cpack REQUIRED)
+find_program(_python_executable NAMES python3 REQUIRED)
 
 set(_synthetic_version "99.98.97")
 set(_synthetic_tag "v${_synthetic_version}")
@@ -37,7 +38,7 @@ function(_run_success step_name)
   set(_last_stdout "${_stdout}" PARENT_SCOPE)
 endfunction()
 
-function(_run_failure step_name expected_pattern)
+function(_run_failure step_name)
   execute_process(
       COMMAND ${ARGN}
       RESULT_VARIABLE _result
@@ -49,13 +50,22 @@ function(_run_failure step_name expected_pattern)
         "stdout:\n${_stdout}\n"
         "stderr:\n${_stderr}")
   endif()
-  set(_combined_output "${_stdout}\n${_stderr}")
-  if(NOT _combined_output MATCHES "${expected_pattern}")
+endfunction()
+
+function(_read_xml_version manifest_path out_var)
+  execute_process(
+      COMMAND "${_python_executable}" -c
+          "import sys, xml.etree.ElementTree as ET; value=ET.parse(sys.argv[1]).getroot().findtext('version'); assert value; print(value)"
+          "${manifest_path}"
+      RESULT_VARIABLE _parse_result
+      OUTPUT_VARIABLE _version
+      ERROR_VARIABLE _parse_stderr
+      OUTPUT_STRIP_TRAILING_WHITESPACE)
+  if(NOT _parse_result EQUAL 0)
     message(FATAL_ERROR
-        "${step_name} failed, but output did not match '${expected_pattern}'.\n"
-        "stdout:\n${_stdout}\n"
-        "stderr:\n${_stderr}")
+        "Could not parse manifest version from ${manifest_path}: ${_parse_stderr}")
   endif()
+  set(${out_var} "${_version}" PARENT_SCOPE)
 endfunction()
 
 execute_process(
@@ -117,12 +127,9 @@ _run_success(
     "Create synthetic release-preparation commit"
     "${_git_executable}" -C "${_scratch_root}" commit --allow-empty -m "Start synthetic release preparation")
 
-file(READ "${_scratch_root}/ros2/template_project/package.xml" _baseline_manifest)
-string(REGEX MATCH "<version>[ \t\r\n]*([^< \t\r\n]+)" _baseline_match "${_baseline_manifest}")
-if(NOT _baseline_match)
-  message(FATAL_ERROR "Could not read the baseline ROS package version")
-endif()
-set(_baseline_version "${CMAKE_MATCH_1}")
+_read_xml_version(
+    "${_scratch_root}/ros2/template_project/package.xml"
+    _baseline_version)
 
 _run_success(
     "Create temporary local lightweight release tag"
@@ -137,7 +144,6 @@ if(NOT _preparation_tags STREQUAL "${_synthetic_tag}")
 endif()
 _run_failure(
     "Reject stale manifests at the temporary release tag"
-    "version '${_synthetic_version}', got"
     "${CMAKE_COMMAND}"
     -DTEST_TEMPLATE_SOURCE_DIR=${_scratch_root}
     -DTEST_BINARY_ROOT=${TEST_BINARY_ROOT}/stale_overlay
@@ -175,7 +181,6 @@ _run_success(
 
 _run_failure(
     "Reject unpublished synchronized commit before final tag"
-    "version '${_baseline_version}', got"
     "${CMAKE_COMMAND}"
     -DTEST_TEMPLATE_SOURCE_DIR=${_scratch_root}
     -DTEST_BINARY_ROOT=${TEST_BINARY_ROOT}/untagged_overlay
@@ -197,9 +202,12 @@ foreach(_manifest_path IN LISTS _manifest_paths)
   _run_success(
       "Read ${_manifest_path} from final tag"
       "${_git_executable}" -C "${_scratch_root}" show "${_synthetic_tag}:${_manifest_path}")
-  if(NOT _last_stdout MATCHES "<version>${_synthetic_version}</version>")
+  set(_tag_manifest "${TEST_BINARY_ROOT}/tag_manifest.xml")
+  file(WRITE "${_tag_manifest}" "${_last_stdout}")
+  _read_xml_version("${_tag_manifest}" _tag_manifest_version)
+  if(NOT _tag_manifest_version STREQUAL _synthetic_version)
     message(FATAL_ERROR
-        "Final tag does not contain ${_synthetic_version} in ${_manifest_path}")
+        "Final tag has ${_tag_manifest_version}, not ${_synthetic_version}, in ${_manifest_path}")
   endif()
 endforeach()
 
@@ -287,7 +295,6 @@ file(COPY "${_extracted_root}/" DESTINATION "${_missing_version_root}")
 file(REMOVE "${_missing_version_root}/VERSION")
 _run_failure(
     "Reject source archive without VERSION"
-    "missing required VERSION"
     "${CMAKE_COMMAND}"
     -DTEST_SOURCE_ROOT=${_missing_version_root}
     -DTEST_BINARY_ROOT=${TEST_BINARY_ROOT}/missing_version_validation

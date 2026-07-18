@@ -104,9 +104,13 @@ delivered unchanged to a derived project.
 Derived-project workflow templates are stored as dormant matching
 `.github/workflows/*.yml.tpl` files. `tailor_template_cleanup.sh` materializes
 them as the runnable `.yml` files and removes the `.tpl` sources. The
-`testWorkflowTemplates.py` contract parses every active/dormant pair, rejects
-template-only checks from the dormant definitions, and requires the generic
-CPU, CUDA, docs, and ROS gates.
+`testWorkflowTemplates.py` contract parses every active/dormant pair,
+validates trigger, job, checkout, and action structure, and executes the ROS
+metadata synchronization blocks in temporary Git repositories. This proves
+clean synchronization and dirty-manifest rejection without duplicating shell
+command spelling in a text scanner.
+Executable workflow roles use stable `id` fields, so display names may be
+reworded without breaking the contract.
 
 Dormant workflow templates must not rely on parse-only coverage. The active
 Linux `tailored-project-validation` job applies cleanup in a full-history scratch
@@ -152,13 +156,20 @@ unless the project adds its own YAML-backed tests.
 
 The Pages workflow is separate from the C++ build workflow. It has these stages:
 
-1. Run the repository-owned `VerifyTemplateProjectDocsStatic.cmake` contract.
+1. Run the repository-owned parser-backed workflow contract.
 2. Configure docs with CUDA, OptiX, and tests disabled.
 3. Build Doxygen HTML and XML.
 4. Verify `index.html` exists before upload.
 5. Upload the Pages artifact.
 6. Deploy only for default-branch pushes, or manual dispatch when `deploy_pages=true`.
 7. Fetch the deployed Pages URL and check that the published index contains the expected documentation links.
+
+Repository tests prefer executable behavior or the native parser for YAML,
+JSON, XML, and generated CMake metadata. They do not use regular-expression
+matches against tracked implementation or documentation text. Exact text is
+reserved for generated output whose representation is itself contractual, such
+as tailoring markers, materialized workflow files, and preserved XML processing
+instructions.
 
 ## Issue Templates
 

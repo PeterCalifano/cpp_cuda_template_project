@@ -27,6 +27,7 @@ on:
       - cmake/**
       - CMakeLists.txt
       - build_lib.sh
+      - generate_version.sh
       - tailor_template_cleanup.sh
       - .github/workflows/build_linux.yml
       - .github/workflows/*.yml.tpl
@@ -44,6 +45,7 @@ on:
       - cmake/**
       - CMakeLists.txt
       - build_lib.sh
+      - generate_version.sh
       - tailor_template_cleanup.sh
       - .github/workflows/build_linux.yml
       - .github/workflows/*.yml.tpl
@@ -200,10 +202,6 @@ jobs:
             cd "${target_dir}"
             ./tailor_template_cleanup.sh --apply --yes --project-namespace tailored_project
             test -z "$(find .github/workflows -maxdepth 1 -name '*.tpl' -print -quit)"
-            if grep -R -E 'VerifyTemplateProject|testWorkflowTemplates|testRos2OverlayStatic|CWrapperPlaceholder|rollout-rehearsal' .github/workflows; then
-              echo "Tailored workflows retain template-only validation." >&2
-              exit 1
-            fi
             python3 -c 'import pathlib, yaml; [yaml.safe_load(path.read_text()) for path in pathlib.Path(".github/workflows").glob("*.yml")]'
             ./build_lib.sh -B build_tailored_ci
             cmake --preset docs

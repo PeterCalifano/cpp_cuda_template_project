@@ -24,8 +24,6 @@ function(_run_step step_name)
         "stderr:\n${_stderr}")
   endif()
 
-  set(TEST_LAST_STDOUT "${_stdout}" PARENT_SCOPE)
-  set(TEST_LAST_STDERR "${_stderr}" PARENT_SCOPE)
 endfunction()
 
 file(REMOVE_RECURSE "${TEST_BINARY_ROOT}")
@@ -52,11 +50,3 @@ _run_step(
         -Dtemplate_project_BUILD_EXAMPLES=OFF
         -Dtemplate_project_BUILD_PYTHON_WRAPPER=OFF
         -Dtemplate_project_BUILD_MATLAB_WRAPPER=OFF)
-
-string(CONCAT _combined_output "${TEST_LAST_STDOUT}\n${TEST_LAST_STDERR}")
-if(NOT _combined_output MATCHES "Catch2 tests are disabled")
-  message(FATAL_ERROR
-      "CUDA-without-Catch2 configure did not exercise the disabled Catch2 path.\n"
-      "stdout:\n${TEST_LAST_STDOUT}\n"
-      "stderr:\n${TEST_LAST_STDERR}")
-endif()

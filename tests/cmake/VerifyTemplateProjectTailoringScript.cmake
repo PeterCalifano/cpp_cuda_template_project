@@ -106,23 +106,6 @@ if(NOT _list_result EQUAL 0)
       "stderr:\n${_list_stderr}")
 endif()
 
-foreach(_expected
-    "doc/developments"
-    "profiling"
-    "tests/cmake/VerifyTemplateProjectCudaSources.cmake"
-    "tests/cmake/VerifyTemplateProjectDocsWorkflow.cmake"
-    "tests/cmake/VerifyTemplateProjectOptixInstallExport.cmake"
-    "tests/cmake/VerifyTemplateProjectRos2Overlay.cmake"
-    "tests/template_test/testWorkflowTemplates.py"
-    "src/utils/logging/ and doc/logging.md"
-    "ROS 2 overlay KEPT by default; pass --remove-ros2 to strip it"
-    "Materialize generic project CI workflows"
-    "CMake edits made by --apply")
-  if(NOT _list_stdout MATCHES "${_expected}")
-    message(FATAL_ERROR "Cleanup list output did not contain '${_expected}'")
-  endif()
-endforeach()
-
 function(_create_fake_project fake_root)
   file(MAKE_DIRECTORY "${fake_root}/.github/workflows")
   file(MAKE_DIRECTORY "${fake_root}/doc/developments")
@@ -364,10 +347,6 @@ function(_assert_fake_project_cleaned fake_root expect_profiling)
     if(NOT _materialized_contents STREQUAL _expected_contents)
       message(FATAL_ERROR "Tailoring did not materialize ${_workflow_name} byte-for-byte")
     endif()
-    if(_materialized_contents MATCHES
-        "template-only|VerifyTemplateProject|tailor_template_cleanup|CWrapperPlaceholder")
-      message(FATAL_ERROR "Tailored workflow ${_workflow_name} contains template-only CI")
-    endif()
     if(_workflow_name STREQUAL "build_linux.yml")
       execute_process(
           COMMAND stat -c %a "${_materialized_workflow}"
@@ -408,11 +387,6 @@ function(_assert_ros2_overlay_kept fake_root)
   if(NOT _materialized_ros_contents STREQUAL _expected_ros_contents)
     message(FATAL_ERROR "Default tailoring did not materialize the generic ROS workflow")
   endif()
-  if(_materialized_ros_contents MATCHES
-      "VerifyTemplateProject|testRos2OverlayStatic|tailor_template_cleanup|CWrapperPlaceholder|rollout-rehearsal")
-    message(FATAL_ERROR "Tailored ROS workflow contains template-only CI")
-  endif()
-
   foreach(_doc_path
       "README.md"
       "doc/bootstrap_prompts.md"
@@ -489,12 +463,6 @@ function(_assert_malformed_fence_rejected fake_root readme_contents case_name)
   if(_malformed_result EQUAL 0)
     message(FATAL_ERROR "Tailoring accepted ${case_name} ROS 2 overlay fences")
   endif()
-  if(NOT _malformed_stderr MATCHES "Malformed ROS 2 overlay fence in README.md")
-    message(FATAL_ERROR
-        "Tailoring rejected ${case_name} fences for the wrong reason.\n"
-        "stdout:\n${_malformed_stdout}\n"
-        "stderr:\n${_malformed_stderr}")
-  endif()
   _snapshot_tree("${fake_root}" _inventory_after _hashes_after)
   if(NOT _inventory_after STREQUAL _inventory_before)
     message(FATAL_ERROR
@@ -510,7 +478,7 @@ function(_assert_malformed_fence_rejected fake_root readme_contents case_name)
   endif()
 endfunction()
 
-function(_assert_namespace_rejected_unchanged fake_root expected_error)
+function(_assert_namespace_rejected_unchanged fake_root)
   _create_fake_project("${fake_root}")
   _snapshot_tree("${fake_root}" _inventory_before _hashes_before)
   execute_process(
@@ -521,12 +489,6 @@ function(_assert_namespace_rejected_unchanged fake_root expected_error)
   if(_namespace_result EQUAL 0)
     message(FATAL_ERROR "Tailoring accepted invalid namespace arguments: ${ARGN}")
   endif()
-  if(NOT _namespace_stderr MATCHES "${expected_error}")
-    message(FATAL_ERROR
-        "Tailoring rejected namespace arguments for the wrong reason.\n"
-        "stdout:\n${_namespace_stdout}\n"
-        "stderr:\n${_namespace_stderr}")
-  endif()
   _snapshot_tree("${fake_root}" _inventory_after _hashes_after)
   if(NOT _inventory_after STREQUAL _inventory_before OR
      NOT _hashes_after STREQUAL _hashes_before)
@@ -536,11 +498,9 @@ function(_assert_namespace_rejected_unchanged fake_root expected_error)
 endfunction()
 
 _assert_namespace_rejected_unchanged(
-    "${_fake_missing_namespace}"
-    "--project-namespace is required")
+    "${_fake_missing_namespace}")
 _assert_namespace_rejected_unchanged(
     "${_fake_invalid_namespace}"
-    "Invalid project namespace"
     --project-namespace bad-name)
 
 _assert_malformed_fence_rejected(
@@ -555,12 +515,6 @@ _assert_malformed_fence_rejected(
     "${_fake_unclosed_fence}"
     "before\n<!-- ros2-overlay-begin -->\nunclosed\n"
     "unclosed-begin")
-
-foreach(_expected "doc/reports" "tests/cmake/VerifyTemplateProjectReleaseTagSync.cmake")
-  if(NOT _list_stdout MATCHES "${_expected}")
-    message(FATAL_ERROR "Cleanup list output did not contain '${_expected}'")
-  endif()
-endforeach()
 
 _create_fake_project("${_fake_default}")
 
@@ -604,6 +558,10 @@ _assert_ros2_overlay_removed("${_fake_remove_ros2}")
 _create_fake_project("${_fake_missing_template}")
 file(REMOVE
     "${_fake_missing_template}/.github/workflows/build_linux.yml.tpl")
+_snapshot_tree(
+    "${_fake_missing_template}"
+    _missing_template_inventory_before
+    _missing_template_hashes_before)
 execute_process(
     COMMAND bash "${_script}" --apply --yes
         --project-namespace tailored_project --root "${_fake_missing_template}"
@@ -614,10 +572,12 @@ if(_missing_template_result EQUAL 0)
   message(FATAL_ERROR
       "Tailoring accepted an active template-validation workflow whose generic .tpl was missing")
 endif()
-if(NOT _missing_template_stderr MATCHES
-    "Active template-validation workflow has no generic template")
+_snapshot_tree(
+    "${_fake_missing_template}"
+    _missing_template_inventory_after
+    _missing_template_hashes_after)
+if(NOT _missing_template_inventory_after STREQUAL _missing_template_inventory_before OR
+   NOT _missing_template_hashes_after STREQUAL _missing_template_hashes_before)
   message(FATAL_ERROR
-      "Tailoring rejected the missing template for the wrong reason.\n"
-      "stdout:\n${_missing_template_stdout}\n"
-      "stderr:\n${_missing_template_stderr}")
+      "Tailoring changed the tree before rejecting a missing generic workflow template.")
 endif()

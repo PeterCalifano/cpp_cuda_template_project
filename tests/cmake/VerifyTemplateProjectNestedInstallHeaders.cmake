@@ -159,6 +159,8 @@ _run_step(
     "Install optional logging module headers"
     ${CMAKE_COMMAND} --install "${_logging_probe_build}")
 _assert_exists(
+    "${_logging_install_prefix}/include/template_project/utils/logging/CLogger.h")
+_assert_not_exists(
     "${_logging_install_prefix}/include/template_project/utils/logging/SpdlogUtils.h")
 _assert_not_exists("${_logging_install_prefix}/utils")
 

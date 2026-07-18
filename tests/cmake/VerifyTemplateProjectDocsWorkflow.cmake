@@ -63,6 +63,7 @@ _run_step(
         -DBUILD_DOC_HTML=ON
         -DBUILD_DOC_XML=ON
         -DBUILD_DOC_LATEX=OFF
+        -DDOC_WARN_AS_ERROR=ON
         -DWRITE_SOURCE_VERSION_FILE=OFF
         -Dtemplate_project_BUILD_PROGRAMS=OFF
         -Dtemplate_project_BUILD_EXAMPLES=OFF)
@@ -75,13 +76,6 @@ execute_process(
 if(NOT _doc_build_result EQUAL 0)
   message(FATAL_ERROR
       "Build documentation failed with exit code ${_doc_build_result}.\n"
-      "stdout:\n${_doc_build_stdout}\n"
-      "stderr:\n${_doc_build_stderr}")
-endif()
-set(_doc_build_output "${_doc_build_stdout}\n${_doc_build_stderr}")
-if(_doc_build_output MATCHES "(^|\n)[^\n]*(warning:|error:)")
-  message(FATAL_ERROR
-      "Doxygen documentation build emitted warnings/errors.\n"
       "stdout:\n${_doc_build_stdout}\n"
       "stderr:\n${_doc_build_stderr}")
 endif()
