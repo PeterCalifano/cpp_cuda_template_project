@@ -26,6 +26,55 @@ function(_run_step step_name)
   endif()
 endfunction()
 
+function(_assert_mode file_path expected_mode)
+  execute_process(
+      COMMAND stat -c %a "${file_path}"
+      RESULT_VARIABLE _mode_result
+      OUTPUT_VARIABLE _actual_mode
+      ERROR_VARIABLE _mode_stderr
+      OUTPUT_STRIP_TRAILING_WHITESPACE)
+  if(NOT _mode_result EQUAL 0)
+    message(FATAL_ERROR
+        "Failed to read mode for ${file_path}.\n"
+        "stderr:\n${_mode_stderr}")
+  endif()
+  if(NOT _actual_mode STREQUAL "${expected_mode}")
+    message(FATAL_ERROR
+        "Expected mode ${expected_mode} for ${file_path}, got ${_actual_mode}")
+  endif()
+endfunction()
+
+function(_snapshot_tree tree_root inventory_output hashes_output)
+  execute_process(
+      COMMAND bash -c
+          "find . -printf '%y|%m|%p|%l\\n' | LC_ALL=C sort"
+      WORKING_DIRECTORY "${tree_root}"
+      RESULT_VARIABLE _inventory_result
+      OUTPUT_VARIABLE _inventory
+      ERROR_VARIABLE _inventory_stderr)
+  if(NOT _inventory_result EQUAL 0)
+    message(FATAL_ERROR
+        "Failed to snapshot path inventory for ${tree_root}.\n"
+        "stderr:\n${_inventory_stderr}")
+  endif()
+
+  execute_process(
+      COMMAND bash -c
+          "find . -type f -print0 | LC_ALL=C sort -z | xargs -0 -r sha256sum"
+      WORKING_DIRECTORY "${tree_root}"
+      RESULT_VARIABLE _hashes_result
+      OUTPUT_VARIABLE _hashes
+      ERROR_VARIABLE _hashes_stderr)
+  if(NOT _hashes_result EQUAL 0)
+    message(FATAL_ERROR
+        "Failed to snapshot file hashes for ${tree_root}.\n"
+        "stderr:\n${_hashes_stderr}")
+  endif()
+
+  set(${inventory_output} "${_inventory}" PARENT_SCOPE)
+  set(${hashes_output} "${_hashes}" PARENT_SCOPE)
+endfunction()
+
 file(REMOVE_RECURSE "${TEST_BINARY_ROOT}")
 set(_fake_default "${TEST_BINARY_ROOT}/fake_default")
 set(_fake_keep "${TEST_BINARY_ROOT}/fake_keep")
@@ -110,6 +159,12 @@ if(Catch2_FOUND)
   add_subdirectory(template_test)
 endif()
 ")
+  _run_step(
+      "Set fake root CMake mode"
+      chmod 0640 "${fake_root}/CMakeLists.txt")
+  _run_step(
+      "Set fake tests CMake mode"
+      chmod 0600 "${fake_root}/tests/CMakeLists.txt")
 
   foreach(_path
       "AGENTS.md"
@@ -154,6 +209,18 @@ remove this ros2 overlay block
 after ros2 fence
 ")
   endforeach()
+  _run_step(
+      "Set fake README mode"
+      chmod 0644 "${fake_root}/README.md")
+  _run_step(
+      "Set fake bootstrap guide mode"
+      chmod 0640 "${fake_root}/doc/bootstrap_prompts.md")
+  _run_step(
+      "Set fake template usage mode"
+      chmod 0604 "${fake_root}/doc/template_usage.md")
+  _run_step(
+      "Set fake versioning guide mode"
+      chmod 0444 "${fake_root}/doc/versioning.md")
 
   foreach(_marker
       "python/COLCON_IGNORE"
@@ -213,6 +280,7 @@ function(_assert_fake_project_cleaned fake_root expect_profiling)
   if(_root_cmake MATCHES "AddMatlabWrapperRegressionTests|add_template_matlab_wrapper_regression_tests")
     message(FATAL_ERROR "Root CMakeLists.txt still references template MATLAB regression hook.")
   endif()
+  _assert_mode("${fake_root}/CMakeLists.txt" "640")
 
   file(READ "${fake_root}/tests/CMakeLists.txt" _tests_cmake)
   if(_tests_cmake MATCHES "template_project_docs|VerifyTemplateProject")
@@ -230,6 +298,7 @@ function(_assert_fake_project_cleaned fake_root expect_profiling)
   if(_tests_cmake MATCHES "--output-on-failure|--reporter=compact")
     message(FATAL_ERROR "tests/CMakeLists.txt still passes CTest/Catch2 runner flags as Catch2 test properties.")
   endif()
+  _assert_mode("${fake_root}/tests/CMakeLists.txt" "600")
 
   foreach(_workflow_name build_linux.yml build_linux_cuda.yml docs_pages.yml)
     set(_materialized_workflow "${fake_root}/.github/workflows/${_workflow_name}")
@@ -348,11 +417,20 @@ function(_assert_ros2_overlay_removed fake_root)
       message(FATAL_ERROR "Expected --remove-ros2 to preserve surrounding text in ${_doc_path}")
     endif()
   endforeach()
+
+  _assert_mode("${fake_root}/README.md" "644")
+  _assert_mode("${fake_root}/doc/bootstrap_prompts.md" "640")
+  _assert_mode("${fake_root}/doc/template_usage.md" "604")
+  _assert_mode("${fake_root}/doc/versioning.md" "444")
 endfunction()
 
 function(_assert_malformed_fence_rejected fake_root readme_contents case_name)
   _create_fake_project("${fake_root}")
   file(WRITE "${fake_root}/README.md" "${readme_contents}")
+  _run_step(
+      "Reset malformed-fence README mode"
+      chmod 0644 "${fake_root}/README.md")
+  _snapshot_tree("${fake_root}" _inventory_before _hashes_before)
   execute_process(
       COMMAND bash "${_script}" --apply --yes --remove-ros2 --root "${fake_root}"
       RESULT_VARIABLE _malformed_result
@@ -366,6 +444,19 @@ function(_assert_malformed_fence_rejected fake_root readme_contents case_name)
         "Tailoring rejected ${case_name} fences for the wrong reason.\n"
         "stdout:\n${_malformed_stdout}\n"
         "stderr:\n${_malformed_stderr}")
+  endif()
+  _snapshot_tree("${fake_root}" _inventory_after _hashes_after)
+  if(NOT _inventory_after STREQUAL _inventory_before)
+    message(FATAL_ERROR
+        "Tailoring changed the path inventory or modes before rejecting ${case_name} fences.\n"
+        "Before:\n${_inventory_before}\n"
+        "After:\n${_inventory_after}")
+  endif()
+  if(NOT _hashes_after STREQUAL _hashes_before)
+    message(FATAL_ERROR
+        "Tailoring changed file contents before rejecting ${case_name} fences.\n"
+        "Before:\n${_hashes_before}\n"
+        "After:\n${_hashes_after}")
   endif()
 endfunction()
 

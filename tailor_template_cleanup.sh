@@ -11,10 +11,23 @@ ASSUME_YES=0
 LIST_ONLY=0
 KEEP_PROFILING=0
 REMOVE_ROS2=0
+TEMPORARY_PATHS=()
 
 info() { printf '\033[34m[INFO]\033[0m %s\n' "$*"; }
 warn() { printf '\033[33m[WARN]\033[0m %s\n' "$*" >&2; }
 die() { printf '\033[31m[ERROR]\033[0m %s\n' "$*" >&2; exit 1; }
+
+cleanup_temporary_paths() {
+    local temporary_path_
+
+    for temporary_path_ in "${TEMPORARY_PATHS[@]}"; do
+        if [[ -n "${temporary_path_}" ]]; then
+            rm -f -- "${temporary_path_}" || true
+        fi
+    done
+}
+
+trap cleanup_temporary_paths EXIT
 
 usage() {
     cat <<'EOF'
@@ -246,7 +259,9 @@ materialize_project_workflows() {
 
         if ((APPLY)); then
             tmp_="$(mktemp "${active_workflow_}.tmp.XXXXXX")"
+            TEMPORARY_PATHS+=("${tmp_}")
             cp -p -- "${workflow_template_}" "${tmp_}"
+            chmod --reference="${workflow_template_}" "${tmp_}"
             mv -f -- "${tmp_}" "${active_workflow_}"
             rm -f -- "${workflow_template_}"
             info "materialized project workflow .github/workflows/${workflow_name_}"
@@ -283,13 +298,15 @@ patch_root_cmakelists() {
     fi
 
     if ((APPLY)); then
-        tmp_="$(mktemp)"
+        tmp_="$(mktemp "${cmakelists_}.tmp.XXXXXX")"
+        TEMPORARY_PATHS+=("${tmp_}")
         awk '
             /^[[:space:]]*include\("\$\{CMAKE_CURRENT_SOURCE_DIR\}\/tests\/cmake\/AddMatlabWrapperRegressionTests.cmake"\)/ {next}
             /^[[:space:]]*add_template_matlab_wrapper_regression_tests\(\)/ {next}
             {print}
         ' "${cmakelists_}" > "${tmp_}"
-        mv "${tmp_}" "${cmakelists_}"
+        chmod --reference="${cmakelists_}" "${tmp_}"
+        mv -f -- "${tmp_}" "${cmakelists_}"
         info "patched CMakeLists.txt"
     else
         info "would patch CMakeLists.txt"
@@ -316,7 +333,8 @@ patch_tests_cmakelists() {
     fi
 
     if ((APPLY)); then
-        tmp_="$(mktemp)"
+        tmp_="$(mktemp "${tests_cmake_}.tmp.XXXXXX")"
+        TEMPORARY_PATHS+=("${tmp_}")
         {
             cat <<'EOF'
 # Project unit tests. Template-development validation tests were removed by tailor_template_cleanup.sh.
@@ -341,11 +359,55 @@ add_tests(${project_name} EXCLUDED_LIST TESTS_LIST ${CUDA_COMPILE_TARGET} CATCH2
 message(STATUS "List of test targets: ${TESTS_LIST}")
 EOF
         } > "${tmp_}"
-        mv "${tmp_}" "${tests_cmake_}"
+        chmod --reference="${tests_cmake_}" "${tmp_}"
+        mv -f -- "${tmp_}" "${tests_cmake_}"
         info "patched tests/CMakeLists.txt"
     else
         info "would patch tests/CMakeLists.txt"
     fi
+}
+
+filter_ros2_overlay_doc() {
+    local doc_file_="$1"
+
+    awk '
+        /<!--[[:space:]]*ros2-overlay-begin[[:space:]]*-->/ {
+            if (in_ros2_overlay_) {
+                exit 1
+            }
+            in_ros2_overlay_ = 1
+            next
+        }
+        /<!--[[:space:]]*ros2-overlay-end[[:space:]]*-->/ {
+            if (!in_ros2_overlay_) {
+                exit 1
+            }
+            in_ros2_overlay_ = 0
+            next
+        }
+        !in_ros2_overlay_ { print }
+        END {
+            if (in_ros2_overlay_) {
+                exit 1
+            }
+        }
+    ' "${doc_file_}"
+}
+
+validate_ros2_overlay_doc_fences() {
+    local relative_path_
+    local doc_file_
+
+    ((REMOVE_ROS2)) || return 0
+
+    for relative_path_ in "${ros2_overlay_doc_paths[@]}"; do
+        doc_file_="${ROOT_DIR}/${relative_path_}"
+        [[ -f "${doc_file_}" ]] || continue
+
+        if ! filter_ros2_overlay_doc "${doc_file_}" > /dev/null; then
+            die "Malformed ROS 2 overlay fence in ${relative_path_}"
+        fi
+    done
 }
 
 strip_ros2_overlay_doc_fences() {
@@ -369,33 +431,13 @@ strip_ros2_overlay_doc_fences() {
         fi
 
         if ((APPLY)); then
-            tmp_="$(mktemp)"
-            if awk '
-                /<!--[[:space:]]*ros2-overlay-begin[[:space:]]*-->/ {
-                    if (in_ros2_overlay_) {
-                        exit 1
-                    }
-                    in_ros2_overlay_ = 1
-                    next
-                }
-                /<!--[[:space:]]*ros2-overlay-end[[:space:]]*-->/ {
-                    if (!in_ros2_overlay_) {
-                        exit 1
-                    }
-                    in_ros2_overlay_ = 0
-                    next
-                }
-                !in_ros2_overlay_ { print }
-                END {
-                    if (in_ros2_overlay_) {
-                        exit 1
-                    }
-                }
-            ' "${doc_file_}" > "${tmp_}"; then
-                mv "${tmp_}" "${doc_file_}"
+            tmp_="$(mktemp "${doc_file_}.tmp.XXXXXX")"
+            TEMPORARY_PATHS+=("${tmp_}")
+            if filter_ros2_overlay_doc "${doc_file_}" > "${tmp_}"; then
+                chmod --reference="${doc_file_}" "${tmp_}"
+                mv -f -- "${tmp_}" "${doc_file_}"
                 info "stripped ROS 2 overlay fence from ${relative_path_}"
             else
-                rm -f "${tmp_}"
                 die "Malformed ROS 2 overlay fence in ${relative_path_}"
             fi
         else
@@ -428,6 +470,7 @@ main() {
 
     validate_root
     validate_workflow_templates
+    validate_ros2_overlay_doc_fences
     print_cleanup_list
     confirm_apply
 
