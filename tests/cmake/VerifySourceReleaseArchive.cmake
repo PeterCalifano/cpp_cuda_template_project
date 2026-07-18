@@ -62,8 +62,13 @@ if(NOT _archive_full_version STREQUAL EXPECTED_FULL_VERSION)
 endif()
 
 file(REMOVE_RECURSE "${TEST_BINARY_ROOT}")
+get_filename_component(_source_discovery_ceiling "${TEST_SOURCE_ROOT}" DIRECTORY)
 execute_process(
-    COMMAND "${CMAKE_COMMAND}"
+    # Build directories commonly live below the producing Git checkout. Stop
+    # Git discovery at the extraction parent so this configure must use VERSION.
+    COMMAND "${CMAKE_COMMAND}" -E env
+        "GIT_CEILING_DIRECTORIES=${_source_discovery_ceiling}"
+        "${CMAKE_COMMAND}"
         -S "${TEST_SOURCE_ROOT}"
         -B "${TEST_BINARY_ROOT}/metadata"
         -DPROJECT_METADATA_ONLY=ON

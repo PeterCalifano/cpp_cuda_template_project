@@ -112,10 +112,16 @@ string(REPLACE "\r\n" "\n" _untracked_files "${_last_stdout}")
 string(REPLACE "\n" ";" _untracked_files "${_untracked_files}")
 list(FILTER _untracked_files EXCLUDE REGEX "^$")
 foreach(_untracked_file IN LISTS _untracked_files)
+  set(_untracked_source "${TEST_TEMPLATE_SOURCE_DIR}/${_untracked_file}")
+  # Git reports an untracked embedded repository, such as a fetched dependency,
+  # as one directory entry. It is build state, not part of the source snapshot.
+  if(IS_DIRECTORY "${_untracked_source}")
+    continue()
+  endif()
   get_filename_component(_untracked_parent "${_scratch_root}/${_untracked_file}" DIRECTORY)
   file(MAKE_DIRECTORY "${_untracked_parent}")
   configure_file(
-      "${TEST_TEMPLATE_SOURCE_DIR}/${_untracked_file}"
+      "${_untracked_source}"
       "${_scratch_root}/${_untracked_file}"
       COPYONLY)
 endforeach()
