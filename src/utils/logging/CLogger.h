@@ -69,7 +69,8 @@ namespace template_project::logging
          * @param objDiagnosticStream Stream for critical, error, and warning
          * messages.
          */
-        explicit CLogger(std::string charComponentName, ELogLevel enumLevel = ELogLevel::Info,
+        explicit CLogger(std::string charComponentName,
+                         ELogLevel enumLevel = ELogLevel::Error,
                          ELogColorMode enumColorMode = ELogColorMode::Disabled,
                          std::ostream &objOutputStream = std::cout,
                          std::ostream &objDiagnosticStream = std::clog);
@@ -80,6 +81,7 @@ namespace template_project::logging
         CLogger &operator=(CLogger &&) = delete;
         ~CLogger() = default;
 
+      public:
         /** @brief Change the active verbosity threshold. */
         void setLevel(ELogLevel enumLevel) noexcept;
 
@@ -152,6 +154,13 @@ namespace template_project::logging
         }
 
       private:
+        /**
+         * @brief Generic private implementation of the public logging methods.
+         *
+         * @tparam TArgs
+         * @param enumSeverity
+         * @param args
+         */
         template <StreamInsertable... TArgs>
         void write_(ELogLevel enumSeverity, TArgs &&...args)
         {
@@ -172,6 +181,8 @@ namespace template_project::logging
         [[nodiscard]] static std::string_view getLevelLabel_(ELogLevel enumSeverity) noexcept;
         [[nodiscard]] static std::string_view getColorCode_(ELogLevel enumSeverity) noexcept;
 
+      private:
+      // PRIVATE DATA MEMBERS
         std::string charComponentName_;
         std::atomic<ELogLevel> enumLevel_;
         ELogColorMode enumColorMode_;
