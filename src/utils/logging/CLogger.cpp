@@ -9,13 +9,13 @@ namespace template_project::logging
 {
     namespace
     {
-        constexpr std::string_view charColorReset_ = "\033[0m";
-        constexpr std::string_view charCriticalColor_ = "\033[1;31m";
-        constexpr std::string_view charErrorColor_ = "\033[31m";
-        constexpr std::string_view charWarningColor_ = "\033[33m";
-        constexpr std::string_view charInfoColor_ = "\033[34m";
-        constexpr std::string_view charDebugColor_ = "\033[36m";
-        constexpr std::string_view charTraceColor_ = "\033[2m";
+        constexpr std::string_view charColorReset_ = "\033[0m";         // Reset color and text intensity.
+        constexpr std::string_view charCriticalColor_ = "\033[1;31m";  // Bold red foreground.
+        constexpr std::string_view charErrorColor_ = "\033[31m";       // Red foreground.
+        constexpr std::string_view charWarningColor_ = "\033[33m";     // Yellow foreground.
+        constexpr std::string_view charInfoColor_ = "\033[34m";        // Blue foreground.
+        constexpr std::string_view charDebugColor_ = "\033[36m";       // Cyan foreground.
+        constexpr std::string_view charTraceColor_ = "\033[2m";        // Dimmed default foreground.
 
         std::mutex &GetOutputMutex_()
         {
