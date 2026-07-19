@@ -243,6 +243,20 @@ class TestWorkflowTemplates:
                 assert isinstance(push_, dict), workflowPath_
                 assert push_.get("tags") == ["v*.*.*"], workflowPath_
 
+    def test_cudaJobsRequireExplicitSelfHostedRunnerOptIn(self) -> None:
+        workflowRoot_ = _RepoRoot() / ".github/workflows"
+        expectedCondition_ = "${{ vars.CI_USE_SELF_HOSTED == 'true' }}"
+        for workflowPath_ in (
+            workflowRoot_ / "build_linux_cuda.yml",
+            workflowRoot_ / "build_linux_cuda.yml.tpl",
+        ):
+            for jobName_, job_ in _Jobs(workflowPath_).items():
+                assert jobName_ in {"build", "test"}, workflowPath_
+                assert job_.get("if") == expectedCondition_, (
+                    workflowPath_,
+                    jobName_,
+                )
+
     def test_branchPathFiltersOwnTheirSemanticTests(self) -> None:
         workflowRoot_ = _RepoRoot() / ".github/workflows"
         nativePaths_: tuple[Path, ...] = (

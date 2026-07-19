@@ -130,6 +130,12 @@ pushes and pull requests; GitHub does not evaluate path filters for tag pushes,
 so a release tag still executes the release-relevant build gates. See
 [GitHub workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#onpushpull_requestpull_request_targetpathspaths-ignore).
 
+CUDA jobs require a self-hosted runner with the labels `Linux`, `X64`, `gpu`,
+and `cuda`. Set the repository variable `CI_USE_SELF_HOSTED` to `true` only
+while such a runner is available. When the variable is unset or has any other
+value, both CUDA jobs are skipped before runner allocation, so release-tag and
+manual workflow runs do not remain queued indefinitely.
+
 The active template ROS workflow requires the full metadata capability marker,
 runs `./generate_version.sh --sync-ros2`, and rejects any tracked manifest
 change with:
