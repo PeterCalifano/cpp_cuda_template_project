@@ -7,6 +7,7 @@ See the [README](README.md) for the quick start, then use the focused guides bel
 - [C++ and CUDA build guide](cpp_cuda_build.md)
 - [Python and MATLAB wrappers](wrappers.md)
 - [Versioning](versioning.md)
+- [Dependency-free logging](logging.md)
 - [Documentation workflow](documentation_workflow.md)
 - [Testing, CI, and issue workflow](testing_and_ci.md)
 

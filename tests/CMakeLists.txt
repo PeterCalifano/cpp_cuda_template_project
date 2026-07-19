@@ -1,7 +1,7 @@
 # Basic usage of catch2 for build config:
 # These tests can use the Catch2-provided main
 #add_executable(tests test.cpp)
-#target_link_libraries(tests PRIVATE Catch2::Catch2WithMain) 
+#target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)
 
 # These tests need their own main
 #add_executable(custom-main-tests test.cpp test-main.cpp)
@@ -40,32 +40,6 @@ set_tests_properties(
 )
 
 add_test(
-    NAME template_project_ci_workflow_cpu_flags
-    COMMAND ${CMAKE_COMMAND}
-        -DTEST_TEMPLATE_SOURCE_DIR=${PROJECT_SOURCE_DIR}
-        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyTemplateProjectCiWorkflowFlags.cmake
-)
-set_tests_properties(
-    template_project_ci_workflow_cpu_flags
-    PROPERTIES
-    LABELS "flags;ci"
-    TIMEOUT 60
-)
-
-add_test(
-    NAME template_project_docs_static_contract
-    COMMAND ${CMAKE_COMMAND}
-        -DTEST_TEMPLATE_SOURCE_DIR=${PROJECT_SOURCE_DIR}
-        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyTemplateProjectDocsStatic.cmake
-)
-set_tests_properties(
-    template_project_docs_static_contract
-    PROPERTIES
-    LABELS "docs;workflow;issues"
-    TIMEOUT 60
-)
-
-add_test(
     NAME template_project_docs_build_output
     COMMAND ${CMAKE_COMMAND}
         -DTEST_TEMPLATE_SOURCE_DIR=${PROJECT_SOURCE_DIR}
@@ -91,6 +65,20 @@ set_tests_properties(
     PROPERTIES
     LABELS "docs;nested"
     TIMEOUT 180
+)
+
+add_test(
+    NAME template_project_nested_install_headers
+    COMMAND ${CMAKE_COMMAND}
+        -DTEST_TEMPLATE_SOURCE_DIR=${PROJECT_SOURCE_DIR}
+        -DTEST_BINARY_ROOT=${PROJECT_BINARY_DIR}/nested_install_headers
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyTemplateProjectNestedInstallHeaders.cmake
+)
+set_tests_properties(
+    template_project_nested_install_headers
+    PROPERTIES
+    LABELS "nested;install;template"
+    TIMEOUT 240
 )
 
 add_test(
@@ -162,6 +150,73 @@ set_tests_properties(
     TIMEOUT 60
 )
 
+add_test(
+    NAME template_project_ros2_overlay_static_contract
+    COMMAND ${CMAKE_COMMAND}
+        -DTEST_TEMPLATE_SOURCE_DIR=${PROJECT_SOURCE_DIR}
+        -DTEST_BINARY_ROOT=${PROJECT_BINARY_DIR}/ros2_overlay
+        -DEXPECTED_VERSION=${PROJECT_VERSION_CORE}
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyTemplateProjectRos2Overlay.cmake
+)
+set_tests_properties(
+    template_project_ros2_overlay_static_contract
+    PROPERTIES
+    LABELS "ros2;template"
+    TIMEOUT 60
+)
+
+add_test(
+    NAME template_project_release_tag_sync
+    COMMAND ${CMAKE_COMMAND}
+        -DTEST_TEMPLATE_SOURCE_DIR=${PROJECT_SOURCE_DIR}
+        -DTEST_BINARY_ROOT=${PROJECT_BINARY_DIR}/release_tag_sync
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyTemplateProjectReleaseTagSync.cmake
+)
+set_tests_properties(
+    template_project_release_tag_sync
+    PROPERTIES
+    LABELS "release;version;ros2"
+    TIMEOUT 180
+)
+
+if(ENABLE_CUDA)
+    add_test(
+        NAME template_project_cuda_sources
+        COMMAND ${CMAKE_COMMAND}
+            -DTEST_TEMPLATE_SOURCE_DIR=${PROJECT_SOURCE_DIR}
+            -DTEST_BINARY_ROOT=${PROJECT_BINARY_DIR}/cuda_sources
+            -DTEST_CORE_TARGET=${LIB_TARGET_NAME}
+            "-DTEST_CUDA_ARCHITECTURES=${CMAKE_CUDA_ARCHITECTURES}"
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyTemplateProjectCudaSources.cmake
+    )
+    set_tests_properties(
+        template_project_cuda_sources
+        PROPERTIES
+        LABELS "cuda;sources;template"
+        TIMEOUT 240
+    )
+endif()
+
+if(ENABLE_OPTIX)
+    add_test(
+        NAME template_project_optix_install_export
+        COMMAND ${CMAKE_COMMAND}
+            -DTEST_TEMPLATE_SOURCE_DIR=${PROJECT_SOURCE_DIR}
+            -DTEST_BINARY_ROOT=${PROJECT_BINARY_DIR}/optix_install_export
+            -DTEST_PROJECT_NAME=${project_name}
+            -DTEST_CORE_TARGET=${LIB_TARGET_NAME}
+            "-DTEST_CUDA_ARCHITECTURES=${CMAKE_CUDA_ARCHITECTURES}"
+            "-DTEST_OPTIX_ROOT=${OPTIX_ROOT}"
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyTemplateProjectOptixInstallExport.cmake
+    )
+    set_tests_properties(
+        template_project_optix_install_export
+        PROPERTIES
+        LABELS "optix;install;package;template"
+        TIMEOUT 360
+    )
+endif()
+
 find_program(
     TEMPLATE_NVCC_EXECUTABLE
     NAMES nvcc
@@ -223,7 +278,7 @@ endif()
 
 # Exclude EXCLUDED_LIST from the list of tests
 set(EXCLUDED_LIST "test_to_exclude")  # Specify files to exclude WE
-set(TESTS_LIST "") 
+set(TESTS_LIST "")
 
 # Include the content of the fixtures directory
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})

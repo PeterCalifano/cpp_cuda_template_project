@@ -1,16 +1,25 @@
-# Discover and install all header files
-file(GLOB installable_headers "*.h" "*.cuh")
+# The dependency-free logger is ordinary project infrastructure and is always
+# built. The legacy spdlog adapter remains conditional during the migration.
+set(installable_headers
+    "${CMAKE_CURRENT_SOURCE_DIR}/CLogger.h")
 
 # Get the relative path from the root
-file(RELATIVE_PATH relative_path_from_root ${CMAKE_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
+file(RELATIVE_PATH relative_path_from_root "${PROJECT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}")
 
 # Remove the 'src/' prefix from the relative path if it exists
 string(REPLACE "src/" "" relative_path_without_src ${relative_path_from_root})
 
-# Add src files to library
-set(SRC_PATTERN "*.cpp; *.cu")
-file(GLOB srcLibFiles_local ${SRC_PATTERN})
-file(GLOB srcCudaFilesToPTX_local "*.ptx.cu")
+# Add source files to the parent library.
+set(srcLibFiles_local
+    "${CMAKE_CURRENT_SOURCE_DIR}/CLogger.cpp")
+set(srcCudaFilesToPTX_local "")
+
+if(SPDLOG_ENABLED)
+    list(APPEND installable_headers
+        "${CMAKE_CURRENT_SOURCE_DIR}/SpdlogUtils.h")
+    list(APPEND srcLibFiles_local
+        "${CMAKE_CURRENT_SOURCE_DIR}/SpdlogUtils.cpp")
+endif()
 
 # Get current folder name
 get_filename_component(CURRENT_FOLDER_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)

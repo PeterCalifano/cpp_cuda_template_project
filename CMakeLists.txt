@@ -12,33 +12,38 @@ set(MATLAB_DEFAULT_RELEASE "R2023b")
 
 # PROJECT DEFINITION
 set(project_name "template_project")
+set(project_description
+    "Reusable C++/CUDA library template with optional CUDA, OptiX, Python, MATLAB, and ROS 2 support")
+set(project_homepage_url "https://github.com/PeterCalifano/cpp_cuda_template_project")
+set(PROJECT_MAINTAINER_NAME "Pietro Califano" CACHE STRING "Project maintainer name")
+set(PROJECT_MAINTAINER_EMAIL "petercalifano.gs@gmail.com" CACHE STRING "Project maintainer email")
+set(PROJECT_LICENSE "MIT" CACHE STRING "Project SPDX license identifier")
 
 # Set install default directory if not specified
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
   set(CMAKE_INSTALL_PREFIX ${CMAKE_SOURCE_DIR}/install CACHE PATH "Install path" FORCE)
 endif()
 
-# Major options
+option(PROJECT_METADATA_ONLY "Configure only project identity and version metadata" OFF)
 option(ENABLE_OPTIX "Enable OptiX" OFF)
 option(ENABLE_CUDA "Enable CUDA" OFF)
-option(BUILD_SHARED_LIBS "Build libraries as shared" ON)
-include(cmake/HandleOpenMP.cmake)
 
-set(languages CXX) # ACHTUNG: PTX code requires C language!
+if(PROJECT_METADATA_ONLY)
+  set(languages NONE)
+else()
+  set(languages CXX) # ACHTUNG: PTX code requires C language!
 
-if (ENABLE_OPTIX)
-  set(ENABLE_CUDA ON)
-endif()
+  if(ENABLE_OPTIX)
+    set(ENABLE_CUDA ON)
+  endif()
 
-if (ENABLE_CUDA)
+  if(ENABLE_CUDA)
     list(APPEND languages CUDA)
-    if (ENABLE_OPTIX)
+    if(ENABLE_OPTIX)
       list(APPEND languages C)
     endif()
+  endif()
 endif()
-
-# Add cmake folder to path
-list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
 # Add git version handling
 include(cmake/HandleGitVersion.cmake)
@@ -54,9 +59,21 @@ set(PROJECT_VERSION_CORE "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PR
 # Resolve version: git --> VERSION file --> hardcoded defaults above
 resolve_project_version()
 
-project( ${project_name} 
-        LANGUAGES ${languages}
-        VERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH})
+project(${project_name}
+        VERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}
+        DESCRIPTION "${project_description}"
+        HOMEPAGE_URL "${project_homepage_url}"
+        LANGUAGES ${languages})
+
+if(PROJECT_METADATA_ONLY)
+  return()
+endif()
+
+option(BUILD_SHARED_LIBS "Build libraries as shared" ON)
+include(cmake/HandleOpenMP.cmake)
+
+# Add cmake folder to path
+list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
 # Write VERSION file to the build directory by default. Writing into the source tree is opt-in so CI/test harness configures do not dirty the checkout.
 option(WRITE_SOURCE_VERSION_FILE "Write VERSION into the source tree during CMake configure" OFF)
@@ -514,6 +531,10 @@ set(CTEST_NIGHTLY_START_TIME "00:00:00 CET")
 # PACKAGING CONFIGURATION 
 include(InstallRequiredSystemLibraries)
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "${PROJECT_DESCRIPTION}")
+set(CPACK_PACKAGE_HOMEPAGE_URL "${PROJECT_HOMEPAGE_URL}")
+set(CPACK_PACKAGE_VENDOR "${PROJECT_MAINTAINER_NAME}")
+set(CPACK_PACKAGE_CONTACT "${PROJECT_MAINTAINER_NAME} <${PROJECT_MAINTAINER_EMAIL}>")
 set(CPACK_PACKAGE_VERSION_MAJOR "${PROJECT_VERSION_MAJOR}")
 set(CPACK_PACKAGE_VERSION_MINOR "${PROJECT_VERSION_MINOR}")
 set(CPACK_PACKAGE_VERSION_PATCH "${PROJECT_VERSION_PATCH}")
@@ -523,4 +544,16 @@ if(DEFINED FULL_VERSION AND NOT "${FULL_VERSION}" STREQUAL "")
 endif()
 set(CPACK_GENERATOR "TGZ")
 set(CPACK_SOURCE_GENERATOR "TGZ")
+set(_cpack_source_root_regex "${CMAKE_CURRENT_SOURCE_DIR}")
+string(
+  REGEX REPLACE "([][+.*^$()|?\\\\])" "\\\\\\1"
+  _cpack_source_root_regex "${_cpack_source_root_regex}")
+set(CPACK_SOURCE_IGNORE_FILES
+    "^${_cpack_source_root_regex}/\\.git/"
+    "^${_cpack_source_root_regex}/build[^/]*/"
+    "^${_cpack_source_root_regex}/install/"
+    "^${_cpack_source_root_regex}/ros2/(build|install|log)/"
+    "^${_cpack_source_root_regex}/(.*/)?\\.pytest_cache/"
+    "^${_cpack_source_root_regex}/(.*/)?__pycache__/"
+    "^${_cpack_source_root_regex}/.*\\.py[cod]$")
 include(CPack)

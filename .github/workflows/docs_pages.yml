@@ -1,5 +1,5 @@
-name: docs_pages
-run-name: Build and publish Doxygen documentation
+name: verify_template_docs
+run-name: Build and publish template documentation
 
 on:
   workflow_dispatch:
@@ -22,6 +22,8 @@ on:
       - CMakeLists.txt
       - CMakePresets.json
       - .github/workflows/docs_pages.yml
+      - .github/workflows/docs_pages.yml.tpl
+      - tests/template_test/testWorkflowTemplates.py
   pull_request:
     branches:
       - "master"
@@ -36,6 +38,8 @@ on:
       - CMakeLists.txt
       - CMakePresets.json
       - .github/workflows/docs_pages.yml
+      - .github/workflows/docs_pages.yml.tpl
+      - tests/template_test/testWorkflowTemplates.py
 
 permissions:
   contents: read
@@ -58,7 +62,11 @@ jobs:
       - name: Install documentation dependencies
         run: |
           sudo apt update
-          sudo apt install -y cmake ninja-build g++ doxygen graphviz libeigen3-dev
+          sudo apt install -y cmake ninja-build g++ doxygen graphviz libeigen3-dev python3-pytest python3-yaml
+
+      - name: Run template workflow contracts
+        id: workflow_contracts
+        run: python3 -m pytest -q tests/template_test/testWorkflowTemplates.py
 
       - name: Configure documentation build
         run: |

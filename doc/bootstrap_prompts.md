@@ -32,7 +32,7 @@ Ask only for values that cannot be inferred from the user request or repository 
 2. Apply cleanup before broad renaming:
 
    ```bash
-   ./tailor_template_cleanup.sh --apply --yes
+   ./tailor_template_cleanup.sh --apply --yes --project-namespace <cpp_namespace>
    ```
 
    Use `--keep-profiling` only when requested.
@@ -79,3 +79,26 @@ Stop and report instead of continuing when:
 - Pages publication cannot be checked because repository Pages settings or authentication are missing.
 
 The report should include the command that failed, the relevant error excerpt, files already changed, and the next concrete action.
+
+<!-- ros2-overlay-begin -->
+## ROS 2 Overlay Rollout Prompt
+
+Use this prompt when an agent is asked to keep, remove, or add the optional ROS 2 overlay while tailoring a derived project.
+
+Ask only for choices that cannot be inferred from the request:
+
+1. Should the project keep/remove the ROS 2 overlay?
+2. If adding it to an existing derived repository, should the agent use the `add_ros2_support.sh` script flow or a manual copy and review?
+3. What ROS node/topic names should replace the template defaults?
+4. Which ROS distro should be validated locally? Default to Jazzy unless the project already standardizes another distro.
+5. Should CUDA or OptiX be validated through `./build_ros2.sh --cuda` or `./build_ros2.sh --cuda --optix`?
+
+Execution flow:
+
+1. For a fresh template checkout, run `./tailor_template_cleanup.sh --apply --yes --project-namespace <cpp_namespace>` with or without `--remove-ros2`.
+2. For an existing derived repository without ROS support, prefer `./add_ros2_support.sh --root <repo> --apply --yes --verify`.
+3. Update the EDIT-ME core-call block in `ros2/<ros_prefix>_ros/src/conversions.cpp` to call the real library API. Use the ROS-valid prefix reported by `add_ros2_support.sh`, which may differ from the CMake project name.
+4. Review `ros2/<ros_prefix>_ros/src/CTemplateLifecycleNode.cpp` only when ROS node wiring, parameters, publishers, or services need changes.
+5. Validate `./build_ros2.sh --clean`; also validate `./build_lib.sh` when the rollout touched a derived repository.
+6. Report the ROS distro, node/topic names, edited files, and exact validation commands.
+<!-- ros2-overlay-end -->

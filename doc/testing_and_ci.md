@@ -16,6 +16,12 @@ Compiled tests are discovered from `test*.cpp` and `test*.cu` files and run with
 Catch2. Python tests are discovered from `test*.py` files and registered as
 normal CTest entries that execute `python -m pytest -q <test-file>`.
 
+Catch2 remains the unit-test framework for the core C++ and CUDA project. Tests
+inside ROS packages are the deliberate exception: they use
+`ament_cmake_gtest` so test targets and results participate in the ament/colcon
+workspace contract. This ROS-specific integration does not change the native
+project's Catch2 policy.
+
 The discovery helper is shared by starter projects and downstream projects:
 
 - `test*.cpp` and `test*.cu`: compiled only when Catch2 is available.
@@ -90,22 +96,80 @@ ctest --test-dir build --output-on-failure -R "docs|pages|issue_templates|versio
 
 ## CI Workflows
 
+Template-validation workflows are the active `.github/workflows/*.yml` files in
+this repository. They verify template-owned contracts such as cleanup,
+rollout, static CMake checks, and fixture builds; they are not the workflows
+delivered unchanged to a derived project.
+
+Derived-project workflow templates are stored as dormant matching
+`.github/workflows/*.yml.tpl` files. `tailor_template_cleanup.sh` materializes
+them as the runnable `.yml` files and removes the `.tpl` sources. The
+`testWorkflowTemplates.py` contract parses every active/dormant pair,
+validates trigger, job, checkout, and action structure, and executes the ROS
+metadata synchronization blocks in temporary Git repositories. This proves
+clean synchronization and dirty-manifest rejection without duplicating shell
+command spelling in a text scanner.
+Executable workflow roles use stable `id` fields, so display names may be
+reworded without breaking the contract.
+
+Dormant workflow templates must not rely on parse-only coverage. The active
+Linux `tailored-project-validation` job applies cleanup in a full-history scratch
+clone of the exact CI revision,
+parses the materialized workflows, builds/tests the tailored C++ fixture, and
+builds its docs. The active ROS workflow separately removes and re-adds the
+overlay in scratch, materializes the generic ROS workflow, and exercises the
+resulting ROS and standalone builds. The active CUDA workflow runs the common
+workflow-template contract, materializes the project in both jobs, and then
+builds/tests that tailored source tree on the GPU runner.
+
 The Linux workflows keep CPU tuning portable because build artifacts are tested in a separate job. Do not re-enable `CPU_ENABLE_NATIVE_TUNING=ON` in GitHub Actions unless build and test run on the same pinned CPU family.
 
-GitHub-hosted Linux jobs install `python3-pytest`, Doxygen, and Graphviz because
-the default CTest suite can include pytest-backed `test*.py` files and
-documentation CTests. Self-hosted and CUDA workflows validate the same tools with
-`python3 -m pytest --version`, `command -v doxygen`, and `command -v dot` before
-configuring or running tests.
+The active and generic native CPU, CUDA, and ROS workflows also run for
+`v*.*.*` tag pushes. Their existing `paths` filters continue to scope branch
+pushes and pull requests; GitHub does not evaluate path filters for tag pushes,
+so a release tag still executes the release-relevant build gates. See
+[GitHub workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#onpushpull_requestpull_request_targetpathspaths-ignore).
+
+The active template ROS workflow requires the full metadata capability marker,
+runs `./generate_version.sh --sync-ros2`, and rejects any tracked manifest
+change with:
+
+```bash
+git diff --exit-code -- ros2/*/package.xml
+```
+
+The generic derived-project ROS workflow applies the same drift guard whenever
+the helper supports full metadata synchronization. It emits a compatibility
+warning instead of failing when an older derived project has not adopted that
+capability yet. After the workflow-owned synchronization, CI passes
+`--no-version-sync` to the build helper to avoid a second unguarded rewrite.
+
+Template-validation Linux and ROS jobs install `python3-pytest` and
+`python3-yaml`; PyYAML parses the active/dormant workflow pairs. Jobs that run
+documentation CTests also install Doxygen and Graphviz. Self-hosted and CUDA
+template workflows validate the same requirements with
+`python3 -m pytest --version`, `python3 -c 'import yaml'`,
+`command -v doxygen`, and `command -v dot` before configuring or running tests.
+Cleanup removes the workflow-template
+pytest, so generic tailored-project CI does not inherit the PyYAML dependency
+unless the project adds its own YAML-backed tests.
 
 The Pages workflow is separate from the C++ build workflow. It has these stages:
 
-1. Configure docs with CUDA, OptiX, and tests disabled.
-2. Build Doxygen HTML and XML.
-3. Verify `index.html` exists before upload.
-4. Upload the Pages artifact.
-5. Deploy only for default-branch pushes, or manual dispatch when `deploy_pages=true`.
-6. Fetch the deployed Pages URL and check that the published index contains the expected documentation links.
+1. Run the repository-owned parser-backed workflow contract.
+2. Configure docs with CUDA, OptiX, and tests disabled.
+3. Build Doxygen HTML and XML.
+4. Verify `index.html` exists before upload.
+5. Upload the Pages artifact.
+6. Deploy only for default-branch pushes, or manual dispatch when `deploy_pages=true`.
+7. Fetch the deployed Pages URL and check that the published index contains the expected documentation links.
+
+Repository tests prefer executable behavior or the native parser for YAML,
+JSON, XML, and generated CMake metadata. They do not use regular-expression
+matches against tracked implementation or documentation text. Exact text is
+reserved for generated output whose representation is itself contractual, such
+as tailoring markers, materialized workflow files, and preserved XML processing
+instructions.
 
 ## Issue Templates
 

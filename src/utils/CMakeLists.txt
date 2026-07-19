@@ -2,15 +2,16 @@
 file(GLOB installable_headers "*.h" "*.cuh")
 
 # Get the relative path from the root
-file(RELATIVE_PATH relative_path_from_root ${CMAKE_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
+file(RELATIVE_PATH relative_path_from_root "${PROJECT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}")
 
 # Remove the 'src/' prefix from the relative path if it exists
 string(REPLACE "src/" "" relative_path_without_src ${relative_path_from_root})
 
 # Add src files to library
-set(SRC_PATTERN "*.cpp; *.cu")
+set(SRC_PATTERN "*.cpp" "*.cu")
 file(GLOB srcLibFiles_local ${SRC_PATTERN})
 file(GLOB srcCudaFilesToPTX_local "*.ptx.cu")
+list(FILTER srcLibFiles_local EXCLUDE REGEX "\\.ptx\\.cu$")
 
 # Get current folder name
 get_filename_component(CURRENT_FOLDER_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
@@ -19,12 +20,9 @@ message(STATUS "Library src files found in ${CURRENT_FOLDER_NAME}: ${srcLibFiles
 #################
 # User specified subdirectories
 
-# Add subdirectories here
-if(SPDLOG_ENABLED)
-    add_subdirectory(logging)
-else()
-    message(STATUS "Skipping logging module sources because spdlog support is disabled.")
-endif()
+# Add subdirectories here. The project logger is dependency-free and remains
+# available regardless of optional third-party logging configuration.
+add_subdirectory(logging)
 add_subdirectory(wrap_adapters)
 #################
 
