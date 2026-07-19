@@ -240,9 +240,9 @@ repository and runs the overlay in the `ros:jazzy` container. It has two jobs:
 - `overlay-build`: installs dependencies, synchronizes project metadata, rejects tracked manifest drift, runs `rosdep install --from-paths ros2 -i -r -y --rosdistro jazzy`, builds/tests the overlay, then runs the static pytest.
 - `rollout-rehearsal`: makes a full-history clone of the exact CI revision, performs the same pre-`rosdep` metadata sync and drift check, strips the overlay from the clone, re-adds it with `add_ros2_support.sh --verify`, builds the overlay, and checks a plain standalone CMake build.
 
-Both active jobs require an executable helper with
-`ROS2_PROJECT_METADATA_SYNC=1`; a missing or outdated helper is a CI error. Each
-supported synchronization is followed by:
+Both active jobs require an executable helper and exercise
+`./generate_version.sh --sync-ros2` directly; an unsupported invocation is a CI
+error. Each successful synchronization is followed by:
 
 ```bash
 git diff --exit-code -- ros2/*/package.xml

@@ -163,7 +163,9 @@ def _InitializeManifestRepository(repositoryRoot_: Path) -> None:
     )
 
 
-def _WriteMetadataHelper(repositoryRoot_: Path) -> None:
+def _WriteMetadataHelper(
+    repositoryRoot_: Path, *, includeCapabilityMarkers_: bool = True
+) -> None:
     """Write an executable fake metadata helper for workflow execution.
 
     Example:
@@ -171,11 +173,16 @@ def _WriteMetadataHelper(repositoryRoot_: Path) -> None:
         # Output: executable generate_version.sh
     """
     helperPath_ = repositoryRoot_ / "generate_version.sh"
+    capabilityMarkers_ = ""
+    if includeCapabilityMarkers_:
+        capabilityMarkers_ = (
+            "# Contract fixture supports --sync-ros2.\n"
+            "ROS2_PROJECT_METADATA_SYNC=1\n"
+        )
     helperPath_.write_text(
-        """#!/usr/bin/env bash
-# Contract fixture supports --sync-ros2.
-ROS2_PROJECT_METADATA_SYNC=1
-if [[ "${MUTATE_MANIFEST:-0}" == "1" ]]; then
+        "#!/usr/bin/env bash\n"
+        + capabilityMarkers_
+        + """if [[ "${MUTATE_MANIFEST:-0}" == "1" ]]; then
   python3 - <<'PY'
 from pathlib import Path
 import xml.etree.ElementTree as ET
@@ -465,6 +472,26 @@ class TestWorkflowTemplates:
             False,
         )
         assert compatibleResult_.returncode == 0, compatibleResult_.stderr
+
+    def test_activeMetadataSyncExecutesMarkerFreeHelper(
+        self, tmp_path: Path
+    ) -> None:
+        activeJobs_ = _Jobs(
+            _RepoRoot() / ".github/workflows/build_ros2_overlay.yml"
+        )
+        for jobName_, job_ in activeJobs_.items():
+            repositoryRoot_ = tmp_path / jobName_
+            _InitializeManifestRepository(repositoryRoot_)
+            _WriteMetadataHelper(
+                repositoryRoot_, includeCapabilityMarkers_=False
+            )
+            result_ = _RunMetadataStep(
+                _StepById(job_, "sync_metadata"), repositoryRoot_, False
+            )
+            assert result_.returncode == 0, (
+                result_.stdout,
+                result_.stderr,
+            )
 
     def test_structuredRepositoryConfigurationParses(self) -> None:
         repoRoot_ = _RepoRoot()

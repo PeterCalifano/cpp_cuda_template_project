@@ -102,14 +102,6 @@ jobs:
             echo "::error::generate_version.sh is missing or not executable."
             exit 1
           }
-          grep -q -- "--sync-ros2" ./generate_version.sh || {
-            echo "::error::generate_version.sh does not support --sync-ros2."
-            exit 1
-          }
-          grep -q -- "ROS2_PROJECT_METADATA_SYNC=1" ./generate_version.sh || {
-            echo "::error::generate_version.sh predates full project metadata sync."
-            exit 1
-          }
           ./generate_version.sh --sync-ros2
           git diff --exit-code -- ros2/*/package.xml
 
@@ -220,14 +212,6 @@ jobs:
         run: |
           test -x ./generate_version.sh || {
             echo "::error::generate_version.sh is missing or not executable."
-            exit 1
-          }
-          grep -q -- "--sync-ros2" ./generate_version.sh || {
-            echo "::error::generate_version.sh does not support --sync-ros2."
-            exit 1
-          }
-          grep -q -- "ROS2_PROJECT_METADATA_SYNC=1" ./generate_version.sh || {
-            echo "::error::generate_version.sh predates full project metadata sync."
             exit 1
           }
           ./generate_version.sh --sync-ros2

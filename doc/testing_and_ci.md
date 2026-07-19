@@ -136,9 +136,9 @@ while such a runner is available. When the variable is unset or has any other
 value, both CUDA jobs are skipped before runner allocation, so release-tag and
 manual workflow runs do not remain queued indefinitely.
 
-The active template ROS workflow requires the full metadata capability marker,
-runs `./generate_version.sh --sync-ros2`, and rejects any tracked manifest
-change with:
+The active template ROS workflow executes
+`./generate_version.sh --sync-ros2` and rejects any tracked manifest change
+with:
 
 ```bash
 git diff --exit-code -- ros2/*/package.xml
