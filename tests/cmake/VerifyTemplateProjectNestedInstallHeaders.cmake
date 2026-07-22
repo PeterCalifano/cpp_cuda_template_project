@@ -45,8 +45,6 @@ file(WRITE "${TEST_BINARY_ROOT}/parent/CMakeLists.txt"
 project(template_project_nested_install_parent LANGUAGES CXX)
 set(ENABLE_TESTS OFF CACHE BOOL \"\" FORCE)
 set(ENABLE_FETCH_CATCH2 OFF CACHE BOOL \"\" FORCE)
-set(ENABLE_SPDLOG OFF CACHE BOOL \"\" FORCE)
-set(ENABLE_FETCH_SPDLOG OFF CACHE BOOL \"\" FORCE)
 set(ENABLE_CUDA OFF CACHE BOOL \"\" FORCE)
 set(template_project_BUILD_PROGRAMS OFF CACHE BOOL \"\" FORCE)
 set(template_project_BUILD_EXAMPLES OFF CACHE BOOL \"\" FORCE)
@@ -118,8 +116,7 @@ foreach(_leaked_directory wrapped_impl template_src template_src_kernels utils)
   _assert_not_exists("${_install_prefix}/${_leaked_directory}")
 endforeach()
 
-# Exercise the optional logging module's real install rule without requiring a
-# system spdlog package or a network fetch in this regression test.
+# Exercise the logging module's real install rule in isolation.
 set(_logging_probe_source "${TEST_BINARY_ROOT}/logging_install_probe")
 set(_logging_probe_build "${TEST_BINARY_ROOT}/logging_install_probe_build")
 set(_logging_install_prefix "${TEST_BINARY_ROOT}/logging_install")
@@ -135,7 +132,7 @@ add_subdirectory(
 ")
 
 _run_step(
-    "Configure optional logging header install probe"
+    "Configure logging header install probe"
     ${CMAKE_COMMAND}
         -S "${_logging_probe_source}"
         -B "${_logging_probe_build}"
@@ -156,12 +153,10 @@ if(NOT _unsafe_logging_destination_index EQUAL -1)
 endif()
 
 _run_step(
-    "Install optional logging module headers"
+    "Install logging module headers"
     ${CMAKE_COMMAND} --install "${_logging_probe_build}")
 _assert_exists(
     "${_logging_install_prefix}/include/template_project/utils/logging/CLogger.h")
-_assert_not_exists(
-    "${_logging_install_prefix}/include/template_project/utils/logging/SpdlogUtils.h")
 _assert_not_exists("${_logging_install_prefix}/utils")
 
 set(_consumer_source "${TEST_BINARY_ROOT}/installed_consumer")

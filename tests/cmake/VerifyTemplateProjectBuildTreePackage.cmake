@@ -79,8 +79,6 @@ _run_step(
         -DCMAKE_INSTALL_PREFIX=${_install_dir}
         -DENABLE_TESTS=OFF
         -DENABLE_FETCH_CATCH2=OFF
-        -DENABLE_SPDLOG=OFF
-        -DENABLE_FETCH_SPDLOG=OFF
         -DENABLE_CUDA=OFF
         -Dtemplate_project_BUILD_PROGRAMS=OFF
         -Dtemplate_project_BUILD_EXAMPLES=OFF)

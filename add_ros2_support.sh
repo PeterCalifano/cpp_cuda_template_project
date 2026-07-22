@@ -425,7 +425,7 @@ Post-apply checklist:
   3. Adopt the root CMake metadata contract, including PROJECT_METADATA_ONLY, and upgrade
      generate_version.sh if it predates project metadata sync. Then run
      ./generate_version.sh --sync-ros2 to synchronize project metadata.
-  4. If the target removed optional CUDA, OptiX, or spdlog support, manually tailor the copied
+  4. If the target removed optional CUDA or OptiX support, manually tailor the copied
      build_ros2.sh facade, shim CMake options, docs, and CI so unsupported options are not advertised.
 EOF
 }

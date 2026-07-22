@@ -17,8 +17,6 @@ function(_configure_expect_success case_name)
           -DENABLE_OPTIX=OFF
           -DENABLE_OPENGL=OFF
           -DENABLE_TBB=OFF
-          -DENABLE_SPDLOG=OFF
-          -DENABLE_FETCH_SPDLOG=OFF
           -DENABLE_FETCH_CATCH2=OFF
           -Dtemplate_project_BUILD_PROGRAMS=OFF
           -Dtemplate_project_BUILD_EXAMPLES=OFF
@@ -46,8 +44,6 @@ function(_configure_expect_failure case_name)
           -DENABLE_OPTIX=OFF
           -DENABLE_OPENGL=OFF
           -DENABLE_TBB=OFF
-          -DENABLE_SPDLOG=OFF
-          -DENABLE_FETCH_SPDLOG=OFF
           -DENABLE_FETCH_CATCH2=OFF
           -Dtemplate_project_BUILD_PROGRAMS=OFF
           -Dtemplate_project_BUILD_EXAMPLES=OFF

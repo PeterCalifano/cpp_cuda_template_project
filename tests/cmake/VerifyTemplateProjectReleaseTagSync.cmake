@@ -249,9 +249,7 @@ _run_success(
     -DENABLE_TESTS=OFF
     -DENABLE_CUDA=OFF
     -DENABLE_OPTIX=OFF
-    -DENABLE_SPDLOG=OFF
     -DENABLE_FETCH_CATCH2=OFF
-    -DENABLE_FETCH_SPDLOG=OFF
     -Dtemplate_project_BUILD_PROGRAMS=OFF
     -Dtemplate_project_BUILD_EXAMPLES=OFF)
 _run_success(

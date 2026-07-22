@@ -74,8 +74,6 @@ so direct `--cmake-arg -DENABLE_CUDA=ON` or
 `--cmake-arg -DENABLE_OPTIX=ON` values are overwritten by the shim. Use
 `--cuda`, `--optix`, or set the corresponding facade variables instead.
 
-For a hermetic build that must not fetch spdlog, pass `--cmake-arg -DENABLE_FETCH_SPDLOG=OFF` and provide a discoverable system/package-manager spdlog installation when logging support is required. If spdlog is unavailable with fetching disabled, the core template disables its logging utilities.
-
 Use a ROS 2 Jazzy environment or the ROS devcontainer for local GPU checks:
 
 ```bash
@@ -207,7 +205,7 @@ Supported orders:
 
 The script does not edit README, AGENTS, CLAUDE, or other existing target docs. Link this file from target docs manually when needed.
 
-Derived repositories that intentionally removed optional template features need one manual tailoring pass after the copy. If CUDA, OptiX, or spdlog support is not present in the target, update the copied `build_ros2.sh` facade, shim CMake options, docs, and CI workflow so unsupported options are not advertised.
+Derived repositories that intentionally removed optional template features need one manual tailoring pass after the copy. If CUDA or OptiX support is not present in the target, update the copied `build_ros2.sh` facade, shim CMake options, docs, and CI workflow so unsupported options are not advertised.
 
 ## Removal
 

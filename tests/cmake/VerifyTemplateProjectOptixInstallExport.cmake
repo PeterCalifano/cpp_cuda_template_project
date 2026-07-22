@@ -52,8 +52,6 @@ _run_step(
         -DENABLE_TBB=OFF
         -DENABLE_TESTS=OFF
         -DENABLE_FETCH_CATCH2=OFF
-        -DENABLE_SPDLOG=OFF
-        -DENABLE_FETCH_SPDLOG=OFF
         -Dtemplate_project_BUILD_PROGRAMS=OFF
         -Dtemplate_project_BUILD_EXAMPLES=OFF
         -Dtemplate_project_BUILD_PYTHON_WRAPPER=OFF

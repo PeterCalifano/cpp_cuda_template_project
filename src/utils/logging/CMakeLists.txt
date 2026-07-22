@@ -1,5 +1,3 @@
-# The dependency-free logger is ordinary project infrastructure and is always
-# built. The legacy spdlog adapter remains conditional during the migration.
 set(installable_headers
     "${CMAKE_CURRENT_SOURCE_DIR}/CLogger.h")
 
@@ -13,13 +11,6 @@ string(REPLACE "src/" "" relative_path_without_src ${relative_path_from_root})
 set(srcLibFiles_local
     "${CMAKE_CURRENT_SOURCE_DIR}/CLogger.cpp")
 set(srcCudaFilesToPTX_local "")
-
-if(SPDLOG_ENABLED)
-    list(APPEND installable_headers
-        "${CMAKE_CURRENT_SOURCE_DIR}/SpdlogUtils.h")
-    list(APPEND srcLibFiles_local
-        "${CMAKE_CURRENT_SOURCE_DIR}/SpdlogUtils.cpp")
-endif()
 
 # Get current folder name
 get_filename_component(CURRENT_FOLDER_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)

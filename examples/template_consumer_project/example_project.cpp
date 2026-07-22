@@ -1,10 +1,16 @@
+/// @file example_project.cpp
+/// @brief Demonstrates consuming an installed template_project package.
+
 #include "example_project.h"
 
 int main()
 {
-    spdlog_utils::ConfigureDefaultLogging();
-    auto objLogger_ = spdlog_utils::GetLogger("example_consumer_project");
-    objLogger_->info("Hello, World! This is an example of project using the template_project as library, integrating it through cmake.");
+    using namespace template_project::logging;
+
+    CLogger objLogger_("example_consumer_project", ELogLevel::Info);
+    objLogger_.setLevelFromEnvironment();
+    objLogger_.info("Hello, World! This is an example of a project using template_project "
+                    "as a library through CMake.");
 
     // Call the placeholder function from the template_src library
     placeholder::placeholder_fcn();

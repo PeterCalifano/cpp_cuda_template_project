@@ -41,8 +41,6 @@ function(_configure_template build_dir install_dir)
           -DCMAKE_INSTALL_PREFIX=${install_dir}
           -DENABLE_TESTS=OFF
           -DENABLE_FETCH_CATCH2=OFF
-          -DENABLE_SPDLOG=OFF
-          -DENABLE_FETCH_SPDLOG=OFF
           -DENABLE_CUDA=OFF
           -Dtemplate_project_BUILD_PROGRAMS=OFF
           -Dtemplate_project_BUILD_EXAMPLES=OFF)
@@ -111,8 +109,6 @@ set(LIB_NAMESPACE_OVERRIDE nested_template CACHE STRING \"\" FORCE)
 set(LIB_TARGET_NAME_OVERRIDE nested_template_project CACHE STRING \"\" FORCE)
 set(ENABLE_TESTS OFF CACHE BOOL \"\" FORCE)
 set(ENABLE_FETCH_CATCH2 OFF CACHE BOOL \"\" FORCE)
-set(ENABLE_SPDLOG OFF CACHE BOOL \"\" FORCE)
-set(ENABLE_FETCH_SPDLOG OFF CACHE BOOL \"\" FORCE)
 set(ENABLE_CUDA OFF CACHE BOOL \"\" FORCE)
 set(nested_template_BUILD_PROGRAMS OFF CACHE BOOL \"\" FORCE)
 set(nested_template_BUILD_EXAMPLES OFF CACHE BOOL \"\" FORCE)
