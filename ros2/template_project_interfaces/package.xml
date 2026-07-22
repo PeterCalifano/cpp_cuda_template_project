@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>template_project_interfaces</name>
-  <version>1.11.2</version>
+  <version>1.11.3</version>
   <description>Reusable C++/CUDA library template with optional CUDA, OptiX, Python, MATLAB, and ROS 2 support: ROS 2 message and service interfaces.</description>
   <maintainer email="petercalifano.gs@gmail.com">Pietro Califano</maintainer>
   <license>MIT</license>

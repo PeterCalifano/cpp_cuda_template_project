@@ -19,23 +19,23 @@
 
 ### Task 1: Upgrade the template contract
 
-- [ ] Change the existing copied-overlay regression to invoke `generate_version.sh` without `--sync-ros2` and observe the expected failure.
-- [ ] Implement automatic helper-gated synchronization and verify the regression passes.
-- [ ] Add a failing `--no-sync-ros2` regression, implement the opt-out, and verify it passes.
-- [ ] Update the versioning and ROS overlay documentation to describe default, explicit, and disabled modes.
-- [ ] Run the targeted Python contract and the full template test gate.
+- [x] Change the existing copied-overlay regression to invoke `generate_version.sh` without `--sync-ros2` and observe the expected failure.
+- [x] Implement automatic helper-gated synchronization and verify the regression passes.
+- [x] Add a failing `--no-sync-ros2` regression, implement the opt-out, and verify it passes.
+- [x] Update the versioning and ROS overlay documentation to describe default, explicit, and disabled modes.
+- [x] Run the targeted Python contract and the full template test gate.
 
 ### Task 2: Update and commit testfield
 
-- [ ] Repeat the default-sync and opt-out RED/GREEN regressions in testfield.
-- [ ] Copy the verified focused script behavior and update testfield documentation.
-- [ ] Run testfield's complete test gate.
-- [ ] Review `git diff --cached` in full and commit the approved testfield changes using its imperative commit-message style.
+- [x] Repeat the default-sync and opt-out behavioral regressions in testfield.
+- [x] Copy the verified focused script behavior and update testfield documentation.
+- [x] Run testfield's complete test gate.
+- [x] Review `git diff --cached` in full and commit the approved testfield changes using its imperative commit-message style.
 
 ### Task 3: Propagate to derived repositories
 
-- [ ] Inventory every `generate_version.sh` under `devDir` and `$SCRATCH_PRO/devDir/event-based-repos`.
-- [ ] Exclude submodules, backup/development/temporary copies, and any repository with overlapping dirty work.
-- [ ] Apply only the automatic/default and opt-out behavior while preserving repository-specific script content.
-- [ ] Validate every updated script with syntax, help, default-sync, and opt-out checks in isolated fixtures.
+- [x] Inventory every `generate_version.sh` under `devDir` and `$SCRATCH_PRO/devDir/event-based-repos`.
+- [x] Exclude submodules and backup/development/temporary copies; inspect and preserve explicitly authorized overlapping version-rollout work.
+- [x] Apply only the automatic/default and opt-out behavior while preserving repository-specific script content.
+- [x] Validate every updated script with syntax, help, default-sync, and opt-out checks in isolated fixtures.
 - [ ] Report the exact updated, excluded, and blocked repository lists without committing downstream changes.
