@@ -22,10 +22,175 @@ For MATLAB: Use classes a lot also in MATLAB, with a python style, but do it onl
 %% OUTPUT
 % -------------------------------------------------------------------------------------------------------------
 %% CHANGELOG
-% Nov-Dec 2024  Pietro Califano     First prototype.
+% DD-MM-YYYY  Pietro Califano     First prototype.
 % -------------------------------------------------------------------------------------------------------------
 %% DEPENDENCIES
 %
 % -------------------------------------------------------------------------------------------------------------
 
 %% Function code
+
+## Staged-Code Review Quality Gate
+
+Before handing staged changes to the user for commit review, inspect the complete
+Git index with `git diff --cached`. Apply this gate to files staged by either the
+user or the agent. This review does not authorize staging, committing, or
+rewriting unrelated code.
+
+For every staged source file that is new or substantially modified:
+
+- Add or update both levels of applicable documentation: the file/module-level
+  header and the public class/function/method documentation. Follow the
+  established consolidated files for the relevant language and component.
+- Organize related statements into visually separated blocks. Each block must
+  implement one immediate objective or implementation step, not an entire broad
+  feature.
+- Introduce each non-obvious block with a concise comment explaining what it
+  accomplishes and, when relevant, why that approach is required.
+- Prefer purpose-, invariant-, and contract-oriented comments. Do not add
+  comments that merely translate individual statements into prose.
+- Preserve useful existing comments and documentation unless the staged change
+  makes them incorrect.
+- Review the staged result as a reader will receive it, rather than reviewing
+  only the individual lines edited during implementation.
+
+Limit cleanup to the intended scope of the staged work. Do not rewrite unrelated
+legacy code merely because the same file is staged. Do not report the changes as
+ready for review until this pass is complete; summarize any documentation or
+readability cleanup performed during the pass.
+
+### C++ and CUDA pattern
+
+Use Doxygen for both the file header and public API documentation:
+
+```cpp
+/// @file observation_loader.cpp
+/// @brief Loads validated observations from a delimited input file.
+/// @details Owns parsing and validation; filtering policy remains with the
+///          caller.
+
+/// @brief Load and validate observations from disk.
+/// @param inputPath Path to the delimited observation file.
+/// @return Valid observations in input order.
+/// @throws std::runtime_error When the file cannot be parsed.
+std::vector<CObservation> LoadValidObservations(
+    const std::filesystem::path& inputPath)
+{
+    // Parse the complete file first so malformed rows produce one consistent
+    // diagnostic path.
+    const std::vector<CObservation> parsedObservations =
+        ParseObservations(inputPath);
+
+    // Retain only observations satisfying the domain validity contract while
+    // preserving their original order.
+    std::vector<CObservation> validObservations;
+    validObservations.reserve(parsedObservations.size());
+    std::ranges::copy_if(parsedObservations,
+                         std::back_inserter(validObservations),
+                         IsObservationValid);
+
+    return validObservations;
+}
+```
+
+### Python pattern
+
+Use Google-style module, class, method, and function docstrings. Keep type hints
+on every callable and follow the repository naming conventions:
+
+```python
+"""Load and validate observation records.
+
+This module owns file parsing and domain validation. Selection policy remains
+with the caller.
+
+Example:
+    observations_ = Load_valid_observations(Path("observations.csv"))
+    print(len(observations_))
+
+Output:
+    3
+"""
+
+
+def Load_valid_observations(input_path_: Path) -> list[Observation]:
+    """Load valid observations while preserving their input order.
+
+    Args:
+        input_path_: Path to the delimited observation file.
+
+    Returns:
+        Valid observations in input order.
+
+    Raises:
+        ValueError: If an input row cannot be parsed.
+
+    Example:
+        observations_ = Load_valid_observations(Path("observations.csv"))
+        print(len(observations_))
+
+    Output:
+        3
+    """
+    # Parse all rows through one path so malformed input produces consistent
+    # diagnostics.
+    parsed_observations_ = Parse_observations(input_path_)
+
+    # Enforce the domain validity contract without changing source ordering.
+    valid_observations_ = [
+        observation_
+        for observation_ in parsed_observations_
+        if observation_.isValid()
+    ]
+
+    return valid_observations_
+```
+
+### MATLAB pattern
+
+For a primary MATLAB function file, the leading sectioned function
+documentation is also the file-level entry documentation. Scripts require an
+opening sectioned description, while class files require class help text plus
+the same sectioned documentation on public methods. Keep the existing
+`SIGNATURE`, `DESCRIPTION`, `INPUT`, `OUTPUT`, `CHANGELOG`, and `DEPENDENCIES`
+template:
+
+```matlab
+function tableValidObservations = LoadValidObservations(charInputPath)
+%% SIGNATURE
+% tableValidObservations = LoadValidObservations(charInputPath)
+% -------------------------------------------------------------------------------------------------------------
+%% DESCRIPTION
+% Load and validate observations while preserving their input order.
+% -------------------------------------------------------------------------------------------------------------
+%% INPUT
+% charInputPath             Path to the delimited observation file.
+% -------------------------------------------------------------------------------------------------------------
+%% OUTPUT
+% tableValidObservations    Valid observations in input order.
+% -------------------------------------------------------------------------------------------------------------
+%% CHANGELOG
+% DD-MM-YYYY  Pietro Califano     First prototype.
+% -------------------------------------------------------------------------------------------------------------
+%% DEPENDENCIES
+% ParseObservations
+% -------------------------------------------------------------------------------------------------------------
+
+arguments
+    charInputPath (1, :) char
+end
+
+arguments (Output)
+    tableValidObservations table
+end
+
+% Parse all rows through one path so malformed input produces consistent
+% diagnostics.
+tableParsedObservations = ParseObservations(charInputPath);
+
+% Enforce the domain validity contract without changing source ordering.
+bValidObservation = tableParsedObservations.bIsValid;
+tableValidObservations = tableParsedObservations(bValidObservation, :);
+
+end
+```
