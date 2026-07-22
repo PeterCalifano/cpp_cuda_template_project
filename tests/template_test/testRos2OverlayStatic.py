@@ -447,7 +447,7 @@ class TestRos2OverlayStatic:
             expectedNames_.append(packageName_)
 
         result_ = subprocess.run(
-            ["bash", str(scriptCopy_), "--sync-ros2"],
+            ["bash", str(scriptCopy_)],
             cwd=tmp_path,
             check=False,
             capture_output=True,
@@ -506,7 +506,7 @@ class TestRos2OverlayStatic:
 
         firstBytes_: dict[Path, bytes] = {path_: path_.read_bytes() for path_ in syncedPaths_}
         secondResult_ = subprocess.run(
-            ["bash", str(scriptCopy_), "--sync-ros2"],
+            ["bash", str(scriptCopy_)],
             cwd=tmp_path,
             check=False,
             capture_output=True,
@@ -514,6 +514,43 @@ class TestRos2OverlayStatic:
         )
         assert secondResult_.returncode == 0, secondResult_.stderr
         assert {path_: path_.read_bytes() for path_ in syncedPaths_} == firstBytes_
+
+    def test_generateVersionNoSyncOptOutPreservesRosMetadata(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        repoRoot_ = _RepoRoot()
+        _SkipIfNoRos2(repoRoot_)
+
+        scriptCopy_ = tmp_path / "generate_version.sh"
+        shutil.copy2(repoRoot_ / "generate_version.sh", scriptCopy_)
+        helperCopy_ = tmp_path / "ros2/tools/sync_package_metadata.py"
+        helperCopy_.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(repoRoot_ / "ros2/tools/sync_package_metadata.py", helperCopy_)
+
+        packageSource_ = _PackageXmlPaths(repoRoot_)[0]
+        packageTarget_ = tmp_path / "ros2" / packageSource_.parent.name / "package.xml"
+        packageTarget_.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(packageSource_, packageTarget_)
+        bytesBefore_ = packageTarget_.read_bytes()
+        (tmp_path / "VERSION").write_text(
+            "Project version core: 9.8.7\n"
+            "Project version prerelease: <none>\n"
+            "Project version metadata: <none>\n"
+            "Full version: 9.8.7\n",
+            encoding="utf-8",
+        )
+
+        result_ = subprocess.run(
+            ["bash", str(scriptCopy_), "--no-sync-ros2"],
+            cwd=tmp_path,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        assert result_.returncode == 0, (result_.stdout, result_.stderr)
+        assert packageTarget_.read_bytes() == bytesBefore_
 
 
 def _Main(arguments_: list[str]) -> int:

@@ -134,8 +134,12 @@ build, `build_ros2.sh` runs:
 ```
 
 unless `--no-version-sync` is passed. The flag keeps its legacy spelling for
-compatibility, but now disables the complete metadata synchronization. The
-command invokes `ros2/tools/sync_package_metadata.py`, which updates each
+compatibility, but now disables the complete metadata synchronization for that
+overlay build. A normal `./generate_version.sh` invocation performs the same
+synchronization automatically when the supported helper is present;
+`--no-sync-ros2` is the standalone opt-out and `--sync-ros2` remains the
+explicit compatibility form. The command invokes
+`ros2/tools/sync_package_metadata.py`, which updates each
 immediate `ros2/*/package.xml` version, role-specific description, maintainer,
 license, and website URL from the root CMake cache. It preserves the established
 ROS package names, XML processing instructions, non-website URLs, dependencies,
@@ -155,7 +159,7 @@ also require the `ROS2_PROJECT_METADATA_SYNC=1` capability marker, so the older
 version-only implementation of `--sync-ros2` is skipped instead of being
 misreported as a complete metadata refresh.
 
-Run the same command manually after changing root project metadata or tags, and
+Run `./generate_version.sh` manually after changing root project metadata or tags, and
 before packaging source archives. Releases need the tag-safe preparation order
 described in [Release tagging with the ROS 2 overlay](versioning.md#release-tagging-with-the-ros-2-overlay).
 
@@ -187,7 +191,7 @@ target_link_libraries(my_target PRIVATE space-nav-frontend::space-nav-frontend)
 The copied ROS packages use paths such as `ros2/space_nav_frontend_ros`. Pass `--ros-prefix <name>` when the derived repository needs an explicit ROS package prefix.
 
 `add_ros2_support.sh` owns this one-time package identity mapping. After the
-target adopts the root metadata contract, `./generate_version.sh --sync-ros2`
+target adopts the root metadata contract, `./generate_version.sh`
 handles recurring project metadata without renaming that package identity.
 
 After the script runs, complete the EDIT-ME core-call step in the primary adaptation seam:
@@ -215,7 +219,7 @@ The overlay is kept by default during template cleanup. Remove it explicitly:
 ./tailor_template_cleanup.sh --apply --yes --project-namespace my_project --remove-ros2
 ```
 
-`--remove-ros2` deletes `ros2/`, `build_ros2.sh`, `add_ros2_support.sh`, the colcon markers, the ROS overlay CI workflow, this file, and the ROS static pytest. It also strips `<!-- ros2-overlay-begin -->` / `<!-- ros2-overlay-end -->` fenced blocks from the template docs. `generate_version.sh` is left in place because `--sync-ros2` already no-ops without `ros2/`.
+`--remove-ros2` deletes `ros2/`, `build_ros2.sh`, `add_ros2_support.sh`, the colcon markers, the ROS overlay CI workflow, this file, and the ROS static pytest. It also strips `<!-- ros2-overlay-begin -->` / `<!-- ros2-overlay-end -->` fenced blocks from the template docs. `generate_version.sh` is left in place because its automatic ROS synchronization already no-ops without the supported overlay helper.
 
 For an already-tailored repository that removed
 `tailor_template_cleanup.sh`, perform manual removal: delete `ros2/`,
@@ -227,8 +231,8 @@ project does not otherwise need them. Finally, remove the complete
 `README.md`, agent guidance, `doc/bootstrap_prompts.md`,
 `doc/template_usage.md`, and `doc/versioning.md`. Reject orphaned, nested, or
 unclosed markers rather than deleting an ambiguous span. Keep
-`generate_version.sh`; its ROS sync path is already a no-op when `ros2/` is
-absent.
+`generate_version.sh`; its automatic ROS synchronization is already a no-op
+when the supported overlay helper is absent.
 
 ## CI
 

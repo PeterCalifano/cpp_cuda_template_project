@@ -25,18 +25,28 @@ Usage:
   ./generate_version.sh [options]
 
 Options:
-  --sync-ros2  After writing VERSION, synchronize ros2/*/package.xml project metadata.
-  -h, --help   Show this help.
+  --sync-ros2     Explicitly synchronize ros2/*/package.xml project metadata.
+  --no-sync-ros2  Write VERSION without synchronizing ROS 2 package metadata.
+  -h, --help      Show this help.
+
+By default, ROS 2 package metadata is synchronized when the supported overlay
+helper is present.
 EOF
 }
 
-sync_ros2=false
+# Automatic mode keeps the standalone generator safe in non-ROS repositories,
+# while enabling metadata synchronization when the complete helper is present.
+sync_ros2=auto
 
 parse_args() {
     while (($# > 0)); do
         case "$1" in
             --sync-ros2)
                 sync_ros2=true
+                shift
+                ;;
+            --no-sync-ros2)
+                sync_ros2=false
                 shift
                 ;;
             -h|--help)
@@ -201,13 +211,15 @@ fi
 info "Version ${full_version} (from ${source}) written to ${VERSION_FILE}"
 
 sync_ros2_package_metadata() {
-    if [[ "${sync_ros2}" != true ]]; then
+    if [[ "${sync_ros2}" == false ]]; then
         return
     fi
 
     local ros2_dir_="${SCRIPT_DIR}/ros2"
     if [[ ! -d "${ros2_dir_}" ]]; then
-        info "ROS 2 overlay not present; skipping package metadata sync"
+        if [[ "${sync_ros2}" == true ]]; then
+            info "ROS 2 overlay not present; skipping package metadata sync"
+        fi
         return
     fi
 
@@ -223,7 +235,9 @@ sync_ros2_package_metadata() {
 
     local metadata_helper_="${ros2_dir_}/tools/sync_package_metadata.py"
     if [[ ! -f "${metadata_helper_}" ]]; then
-        warn "ROS 2 package metadata helper is missing; skipping metadata sync"
+        if [[ "${sync_ros2}" == true ]]; then
+            warn "ROS 2 package metadata helper is missing; skipping metadata sync"
+        fi
         return
     fi
     if ! command -v python3 >/dev/null 2>&1; then

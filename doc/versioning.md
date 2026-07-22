@@ -33,6 +33,11 @@ Use `generate_version.sh` when you explicitly want to refresh the ignored source
 ./generate_version.sh
 ```
 
+When the supported ROS 2 overlay helper is present, the same default invocation
+also synchronizes `ros2/*/package.xml` metadata. Pass `--no-sync-ros2` to update
+only `VERSION`; `--sync-ros2` remains available when automation needs to request
+the synchronization explicitly.
+
 Keeping source writes opt-in prevents CI and testfield configure runs from dirtying the checkout.
 
 ## C++ Access
@@ -71,7 +76,7 @@ test -n "${release_branch}"
 
 # Resolve X.Y.Z without publishing a release tag.
 git tag --no-sign "${release_tag}"
-./generate_version.sh --sync-ros2
+./generate_version.sh
 git tag -d "${release_tag}"
 
 # Review and commit the synchronized manifests and other release metadata.
@@ -91,7 +96,7 @@ state. Create the final annotated tag locally, run all release gates with that
 tag present, and then publish the branch and tag together:
 
 ```bash
-./generate_version.sh --sync-ros2
+./generate_version.sh
 ./build_lib.sh -B build_release --clean
 ./build_ros2.sh --clean
 

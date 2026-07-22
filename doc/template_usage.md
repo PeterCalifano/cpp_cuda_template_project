@@ -67,7 +67,9 @@ When the CMake package name is not a valid ROS package name, keep the original C
 
 Treat the ROS prefix as one-time package identity chosen during rename or
 `add_ros2_support.sh --ros-prefix`. After that mapping is established, run
-`./generate_version.sh --sync-ros2` for recurring project metadata updates.
+`./generate_version.sh` for recurring project metadata updates. The generator
+synchronizes automatically when the supported ROS overlay helper is present;
+use `--no-sync-ros2` when only the ignored `VERSION` file should change.
 The command updates version, description, maintainer, license, and website but
 does not rename ROS packages or their dependencies.
 
