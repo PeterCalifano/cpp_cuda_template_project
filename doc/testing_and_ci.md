@@ -16,6 +16,24 @@ Compiled tests are discovered from `test*.cpp` and `test*.cu` files and run with
 Catch2. Python tests are discovered from `test*.py` files and registered as
 normal CTest entries that execute `python -m pytest -q <test-file>`.
 
+### Template conformance versus derived-project acceptance
+
+The template's default CTest suite includes conformance checks for generic
+tailoring, generated files, workflows, and package behavior. Those checks are
+template-maintainer infrastructure and are removed by normal tailoring.
+
+Do not reproduce them as recursive CMake tests in a derived project. In
+particular, ordinary derived-project CTest must not configure and rebuild the
+same project again merely to cover an option combination, headless build,
+installation, package archive, or consumer build. Put those gates in explicit
+fresh out-of-tree acceptance commands or CI jobs, where build ownership,
+prerequisites, logs, and artifacts are visible.
+
+Permanent CMake-script tests in a derived project are limited to lightweight,
+project-owned checks that cannot be expressed through Catch2, pytest, an
+existing build target, or the acceptance matrix. They must not import
+`VerifyTemplateProject*` scripts or create nested full-project builds.
+
 Catch2 remains the unit-test framework for the core C++ and CUDA project. Tests
 inside ROS packages are the deliberate exception: they use
 `ament_cmake_gtest` so test targets and results participate in the ament/colcon

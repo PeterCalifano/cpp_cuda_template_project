@@ -118,7 +118,9 @@ Before any edit:
 - record generated artifacts or package-consumer checks that define success;
 - identify user-facing APIs, options, names, and workflows that must remain
   stable;
-- add a focused red guard first when the donor delta fixes a reproducible bug.
+- add a focused red guard first when the donor delta fixes a reproducible bug,
+  but do not turn a one-time feature-matrix or consumer acceptance build into a
+  recursive test in the target's ordinary CTest suite.
 
 After the update:
 
@@ -130,6 +132,18 @@ After the update:
 - review warnings and generated output for newly introduced degradation;
 - test installed or packaged consumption when the update touches exports,
   metadata, headers, or dependency flow.
+
+Keep template conformance and target acceptance separate:
+
+- do not copy donor `tests/cmake/VerifyTemplateProject*` files into a derived
+  repository;
+- do not register recursive configure/build/install tests in ordinary target
+  CTest when explicit fresh acceptance commands or CI already own the contract;
+- use disposable nested/build-tree/install-tree consumers outside the normal
+  test build;
+- add a permanent CMake-script test only when it is lightweight, target-owned,
+  non-recursive, and covers behavior unavailable through Catch2, pytest, an
+  existing target, or the acceptance matrix.
 
 If the baseline is already red, record the exact failure set before proceeding.
 The update may continue only when the failure is unrelated and the user agrees.
@@ -252,6 +266,8 @@ considered.
 - Confirm which donor tests are template-only and which contracts must survive
   in a derived project.
 - Do not treat template-validation workflows as project workflows.
+- Translate applicable donor CMake conformance into target acceptance commands;
+  do not copy recursive verifier scripts into target CTest.
 
 ### Stage 1 - Baseline the target and capture tailoring
 
@@ -272,7 +288,9 @@ considered.
 - List each applicable donor delta and its classification.
 - Name exact target files and line/semantic anchors.
 - Define allowed and frozen surfaces.
-- Add red-green tests before implementation where practical.
+- Add red-green tests before implementation where practical. For build-system
+  feature matrices and consumer behavior, use a recorded failing acceptance
+  command rather than a permanent recursive CTest.
 - Order changes so every commit candidate is internally coherent and testable.
 - Obtain user approval when the plan changes architecture, dependencies, public
   API, release behavior, or established tailoring.

@@ -134,7 +134,21 @@ Only the main project configures documentation, tests, examples, wrappers, and g
 
 ## Tests
 
-Use Catch2 for compiled tests, pytest for Python tests, and CTest as the common runner. Put compiled tests in `test*.cpp` or `test*.cu` files and Python tests in `test*.py` files. Add narrow CMake-script tests under `tests/cmake/` when the behavior is about configuration, installation, generated files, CI YAML, or documentation output rather than runtime C++ behavior.
+Use Catch2 for compiled tests, pytest for Python tests, and CTest as the common
+runner. Put compiled tests in `test*.cpp` or `test*.cu` files and Python tests in
+`test*.py` files.
+
+The template repository uses `tests/cmake/` for template-owned conformance,
+tailoring, and generation checks. Do not copy those verifiers into a tailored
+project. A derived project should prove configuration, feature matrices,
+installation, packaging, and external consumption with explicit fresh
+out-of-tree commands in its acceptance/CI matrix. Do not make ordinary CTest
+recursively configure and rebuild the same project when CI already owns that
+behavioral gate.
+
+A permanent derived-project CMake-script test is justified only when it is
+lightweight, project-specific, cannot be covered by an existing runtime target
+or acceptance command, and does not recursively rebuild the project.
 
 Run focused checks during development. Prefer `ctest --test-dir <build>` so the
 same command works from the repository root, local scripts, and CI jobs:
@@ -201,6 +215,9 @@ By default this also removes `profiling/`. Keep those scripts only when the new 
 The script replaces `template_project::logging` with the required project namespace, then removes agent/context notes, internal development notes, workflow snapshot files, template-specific validation CTest scripts, optional profiling scripts, and the workspace file tied to this template checkout. It keeps reusable project infrastructure such as `cmake/`, `build_lib.sh`, docs workflow files, issue forms, examples, toolchains, starter unit tests, `.devcontainer/`, and `.vscode/`.
 
 It also removes the root CMake hook for the template MATLAB regression helper and rewrites `tests/CMakeLists.txt` so only starter project unit tests remain registered.
+
+This cleanup boundary is intentional: template CMake conformance tests remain
+owned by the donor/testfield validation harness, not by the tailored product.
 
 ### Workflow materialization
 
