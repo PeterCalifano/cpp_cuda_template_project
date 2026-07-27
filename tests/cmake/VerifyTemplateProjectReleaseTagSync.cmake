@@ -230,12 +230,16 @@ set(_archive_output "${TEST_BINARY_ROOT}/archive_output")
 set(_archive_extract "${TEST_BINARY_ROOT}/archive_extract")
 file(MAKE_DIRECTORY
     "${_scratch_root}/build_release_sentinel"
+    "${_scratch_root}/examples/build_release_sentinel"
     "${_scratch_root}/ros2/build/generated"
     "${_scratch_root}/ros2/install/generated"
     "${_scratch_root}/ros2/log/generated"
     "${_archive_output}"
     "${_archive_extract}")
 file(WRITE "${_scratch_root}/build_release_sentinel/must_not_ship.txt" "generated build output\n")
+file(WRITE
+    "${_scratch_root}/examples/build_release_sentinel/must_not_ship.txt"
+    "generated nested build output\n")
 file(WRITE "${_scratch_root}/ros2/build/generated/must_not_ship.txt" "generated ROS build output\n")
 file(WRITE "${_scratch_root}/ros2/install/generated/must_not_ship.txt" "generated ROS install output\n")
 file(WRITE "${_scratch_root}/ros2/log/generated/must_not_ship.txt" "generated ROS log output\n")
@@ -308,6 +312,7 @@ _run_failure(
 
 file(REMOVE_RECURSE
     "${_scratch_root}/build_release_sentinel"
+    "${_scratch_root}/examples/build_release_sentinel"
     "${_scratch_root}/ros2/build"
     "${_scratch_root}/ros2/install"
     "${_scratch_root}/ros2/log")

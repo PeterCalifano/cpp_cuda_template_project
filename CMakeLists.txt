@@ -536,14 +536,17 @@ if(DEFINED FULL_VERSION AND NOT "${FULL_VERSION}" STREQUAL "")
 endif()
 set(CPACK_GENERATOR "TGZ")
 set(CPACK_SOURCE_GENERATOR "TGZ")
+# Preserve source-ignore regexes verbatim and anchor recursive generated-tree
+# exclusions beneath this checkout rather than matching adjacent directories.
+set(CPACK_VERBATIM_VARIABLES YES)
 set(_cpack_source_root_regex "${CMAKE_CURRENT_SOURCE_DIR}")
 string(
   REGEX REPLACE "([][+.*^$()|?\\\\])" "\\\\\\1"
   _cpack_source_root_regex "${_cpack_source_root_regex}")
 set(CPACK_SOURCE_IGNORE_FILES
-    "^${_cpack_source_root_regex}/\\.git/"
-    "^${_cpack_source_root_regex}/build[^/]*/"
-    "^${_cpack_source_root_regex}/install/"
+    "^${_cpack_source_root_regex}/(.*/)?\\.git(/|$)"
+    "^${_cpack_source_root_regex}/(.*/)?build[^/]*/"
+    "^${_cpack_source_root_regex}/(.*/)?install/"
     "^${_cpack_source_root_regex}/ros2/(build|install|log)/"
     "^${_cpack_source_root_regex}/(.*/)?\\.pytest_cache/"
     "^${_cpack_source_root_regex}/(.*/)?__pycache__/"
