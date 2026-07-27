@@ -185,6 +185,8 @@ set(GTWRAP_MATLAB_OPTION_NAME "${LIB_NAMESPACE}_BUILD_MATLAB_WRAPPER")
 set(GTWRAP_INTERFACE_OPTION_NAME "${LIB_NAMESPACE}_WRAPPER_INTERFACE_FILES")
 set(GTWRAP_TOP_NAMESPACE_OPTION_NAME "${LIB_NAMESPACE}_GTWRAP_TOP_NAMESPACE")
 set(GTWRAP_DEPENDENCIES_OPTION_NAME "${LIB_NAMESPACE}_GTWRAP_DEPENDENCY_TARGETS")
+set(GTWRAP_RUNTIME_DEPENDENCIES_OPTION_NAME
+    "${LIB_NAMESPACE}_GTWRAP_RUNTIME_DEPENDENCY_TARGETS")
 set(GTWRAP_ROOT_OPTION_NAME "${LIB_NAMESPACE}_GTWRAP_ROOT_DIR")
 
 option(${GTWRAP_PYTHON_OPTION_NAME} "Build Python wrapper" ${GTWRAP_BUILD_PYTHON_DEFAULT})
@@ -211,6 +213,14 @@ if (NOT DEFINED ${GTWRAP_DEPENDENCIES_OPTION_NAME})
       ""
       CACHE STRING
       "Additional dependency targets required before wrapping."
+      FORCE)
+endif()
+
+if (NOT DEFINED ${GTWRAP_RUNTIME_DEPENDENCIES_OPTION_NAME})
+  set(${GTWRAP_RUNTIME_DEPENDENCIES_OPTION_NAME}
+      ""
+      CACHE STRING
+      "Direct project-owned shared runtime build targets packaged beside the Python wrapper."
       FORCE)
 endif()
 
@@ -505,6 +515,7 @@ if (ANY_WRAPPER_ENABLED)
   message(STATUS "gtwrap interface option name                : ${GTWRAP_INTERFACE_OPTION_NAME}")
   message(STATUS "gtwrap interface files                      : ${${GTWRAP_INTERFACE_OPTION_NAME}}")
   message(STATUS "gtwrap top namespace                        : ${${GTWRAP_TOP_NAMESPACE_OPTION_NAME}}")
+  message(STATUS "gtwrap runtime dependency targets          : ${${GTWRAP_RUNTIME_DEPENDENCIES_OPTION_NAME}}")
   message(STATUS "gtwrap root override                        : ${${GTWRAP_ROOT_OPTION_NAME}}")
 endif()
 message(STATUS "===============================================================")

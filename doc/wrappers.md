@@ -12,6 +12,8 @@ Wrapper options are namespaced by `LIB_NAMESPACE`, which prevents nested templat
 | `<namespace>_BUILD_MATLAB_WRAPPER` | Build the MATLAB MEX wrapper |
 | `<namespace>_WRAPPER_INTERFACE_FILES` | Ordered list of `.i` files; first is the top module |
 | `<namespace>_GTWRAP_TOP_NAMESPACE` | C++ namespace exposed at the Python/MATLAB module root |
+| `<namespace>_GTWRAP_DEPENDENCY_TARGETS` | Additional build-order dependencies required before wrapper generation |
+| `<namespace>_GTWRAP_RUNTIME_DEPENDENCY_TARGETS` | Direct project-owned shared runtime build targets packaged beside the Python wrapper |
 | `<namespace>_GTWRAP_ROOT_DIR` | Local `wrap` checkout override |
 
 `build_lib.sh -p` and `build_lib.sh -m` set the Python and MATLAB wrapper options for the main project.
@@ -49,6 +51,13 @@ python -c "import template_project; assert template_project.HAS_WRAPPER"
 ```
 
 The package requires Python 3.12 or newer by default. Adjust `PROJECT_PYTHON_VERSION` in the root `CMakeLists.txt` and `requires-python` in `python/pyproject.toml.in` together.
+
+The main project shared library is packaged automatically. List additional
+direct project-owned `SHARED_LIBRARY` or `MODULE_LIBRARY` build targets in
+`<namespace>_GTWRAP_RUNTIME_DEPENDENCY_TARGETS`; CMake rejects imported,
+static, interface, or missing targets rather than scanning arbitrary build
+directories. CMake alias target names are not accepted. System libraries
+remain the responsibility of the target platform.
 
 ## MATLAB Wrapper
 

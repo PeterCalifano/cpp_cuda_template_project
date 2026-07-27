@@ -375,6 +375,12 @@ into `python/pyproject.toml` when Python wrapping is requested.
 The optional `setup.py.in` augments installation behavior without duplicating
 package name/version metadata.
 
+The wrapper wheel automatically co-locates the main project shared library.
+Additional direct project-owned shared runtime build targets can be declared
+through
+`<namespace>_GTWRAP_RUNTIME_DEPENDENCY_TARGETS`; the separate
+`<namespace>_GTWRAP_DEPENDENCY_TARGETS` option remains build-order-only.
+
 The checked-in `python/<project>/__init__.py` is the public package entrypoint:
 
 - `import <project>` is the supported import path.
