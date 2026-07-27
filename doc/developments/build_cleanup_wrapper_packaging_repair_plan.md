@@ -343,3 +343,68 @@ verifier) should be split by hunk when forming these commits.
   imports, and loader-relative paths passed.
 - Exact-index ShellCheck, `bash -n`, `git diff --cached --check`, index-tree
   equality, and four-file scope assertions: passed.
+
+## PR review remediation
+
+PR #28 received two current, unresolved packaging findings after the initial
+`v1.12.0` tag was pushed. The release has not been published, so the tag may be
+replaced after the accepted fixes are committed and final validation passes.
+Each functional fix remains an independently staged, user-committed batch.
+
+### Stage 8: Install for the resolved Python ABI
+
+- [x] Derive the prefix-relative Python install root from the resolved
+  interpreter major and minor versions, never the requested version string.
+- [x] Fail configuration clearly when the resolved ABI version is unavailable.
+- [x] Add deterministic coverage where the requested version contains a patch
+  component but the install directory remains `python<major>.<minor>`.
+- [x] Validate, stage, and review only the implementation and regression test.
+- [ ] Wait for the user to commit before starting Stage 9.
+
+### Stage 9: Reject flat runtime destination collisions
+
+- [ ] Detect different runtime targets that would stage to the same target-file
+  or SONAME destination.
+- [ ] Report both conflicting targets and the destination name during
+  configuration.
+- [ ] Add a negative fixture with two declared shared targets using the same
+  output name.
+- [ ] Re-run the positive packaging fixture to preserve exact runtime packaging.
+- [ ] Validate, stage, and review only the implementation and regression test.
+- [ ] Wait for the user to commit before starting final acceptance.
+
+### Stage 10: Final acceptance and unpublished tag replacement
+
+- [ ] Run the focused packaging tests and complete repository validation
+  appropriate to the two fixes.
+- [ ] Review the complete branch diff and record final evidence here.
+- [ ] Confirm both fix commits and the development log are present at `HEAD`.
+- [ ] Replace the unpublished remote `v1.12.0` tag with the validated `HEAD`.
+
+### Stage 8 output
+
+- Added `_resolve_python_install_root()` in `cmake/HandleWrapper.cmake`. It
+  accepts the modern `Python_VERSION_*` result variables and gtwrap's cached
+  `PYTHON_VERSION_*` compatibility variables, uses only major and minor, and
+  fails when neither resolved pair is available.
+- Removed the requested-version and generic `python` install fallbacks from the
+  real gtwrap installation path.
+- Extended the existing self-contained packaging verifier with a full
+  major.minor.patch request and an exact major.minor install-root assertion.
+- Worktree packaging verification: passed.
+- A real local-gtwrap configure with `WRAP_PYTHON_VERSION=3.12.3` generated
+  `lib/python3.12/site-packages` install rules: passed.
+- A configure without resolved major/minor values failed with the intended
+  diagnostic: passed.
+- Staged exactly `cmake/HandleWrapper.cmake` and
+  `tests/cmake/VerifyTemplateProjectPythonPackaging.cmake`; this development
+  log remains unstaged.
+- Reviewed the complete staged diff. The existing module headers remain
+  accurate, and the new internal helper and regression block document the ABI
+  and requested-versus-resolved version invariant.
+- Materialized exact index tree
+  `4ded0e4fac7a3ea9644533dd3f33d164d831dffb` at
+  `/tmp/cpp_cuda_template_index_stage8.gWmG7y`.
+- Exact-index self-contained packaging verification and real local-gtwrap
+  configure with a full patch request: passed.
+- `git diff --cached --check`: passed.

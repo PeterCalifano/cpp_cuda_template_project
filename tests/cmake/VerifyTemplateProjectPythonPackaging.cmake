@@ -163,8 +163,20 @@ set_python_target_properties(
   "fixture_package"
   "${_package_build_dir}")
 
-set(_python_install_root
+# A full requested version must not leak its patch component into the
+# major.minor site-packages directory selected for the resolved interpreter.
+set(WRAP_PYTHON_VERSION "${Python3_VERSION}")
+set(Python_VERSION_MAJOR "${Python3_VERSION_MAJOR}")
+set(Python_VERSION_MINOR "${Python3_VERSION_MINOR}")
+_resolve_python_install_root(_python_install_root)
+set(_expected_python_install_root
   "${CMAKE_INSTALL_LIBDIR}/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/site-packages")
+if(NOT "${_python_install_root}" STREQUAL "${_expected_python_install_root}")
+  message(FATAL_ERROR
+    "Resolved Python install root '${_python_install_root}' does not match "
+    "'${_expected_python_install_root}' for requested version "
+    "'${WRAP_PYTHON_VERSION}'.")
+endif()
 set(_package_install_destination
   "${_python_install_root}/fixture_package")
 configure_python_runtime_artifacts(
