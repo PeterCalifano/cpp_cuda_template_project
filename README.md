@@ -162,7 +162,7 @@ All options are passed via `build_lib.sh` flags or directly as `-D<VAR>=<VAL>` t
 -N, --ninja-build         Use Ninja generator
 -f, --flagsCXX "<flags>"  Extra compiler flags (e.g. "-march=native")
 -D, --define <VAR=VAL>    Extra CMake cache definitions (repeatable)
-    --clean               Delete build dir before configure
+    --clean               Safely delete an owned in-repository build before configure
     --profile             Enable profiling build (see Profiling section)
     --skip-tests          Do not run tests after build
 -i, --install             Run install target after tests
@@ -185,6 +185,10 @@ All options are passed via `build_lib.sh` flags or directly as `-D<VAR>=<VAL>` t
 ```
 
 See [`doc/build_script_doc.md`](doc/build_script_doc.md) for a detailed option reference.
+
+`--clean` accepts only conventional in-repository `build`, `build*`, or
+`out/*` paths. An existing directory must contain a CMake cache owned by this
+checkout. The option is ignored with `--rebuild-only`.
 
 ### CMake feature flags
 

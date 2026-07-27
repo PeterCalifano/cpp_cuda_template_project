@@ -65,6 +65,7 @@ template_development_paths=(
     "tests/cmake/AddMatlabWrapperRegressionTests.cmake"
     "tests/cmake/CheckTcmallocDependency.cmake"
     "tests/cmake/VerifyTemplateProjectAddTestsProperties.cmake"
+    "tests/cmake/VerifyTemplateProjectBuildLibCleanSafety.cmake"
     "tests/cmake/VerifyTemplateProjectBuildTreePackage.cmake"
     "tests/cmake/VerifyTemplateProjectCrossCompile.cmake"
     "tests/cmake/VerifyTemplateProjectCudaSources.cmake"

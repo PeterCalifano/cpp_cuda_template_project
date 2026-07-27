@@ -25,12 +25,19 @@ The script uses out-of-source builds, strict shell error handling, generator-ind
 | Option | Purpose |
 |---|---|
 | `-B, --buildpath <dir>` | Build directory. Default: `./build`. |
-| `--clean` | Remove the build directory before configure. Ignored with `--rebuild-only`. |
+| `--clean` | Remove an owned conventional in-repository build directory before configure. Ignored with `--rebuild-only`. |
 | `-N, --ninja-build` | Configure with the Ninja generator. |
 | `-j, --jobs <N>` | Build/test parallelism. Default: `$JOBS`, then `nproc`, then `4`. |
 | `-r, --rebuild-only` | Skip configure and build the existing cache. |
 
 The generated CMake build exports `compile_commands.json` by default for tools such as clangd and static analyzers.
+
+Clean removal is intentionally narrower than ordinary configuration. The
+target must resolve below the current checkout as `build`, `build*`, or
+`out/*`. If it already exists, its `CMakeCache.txt` must identify this exact
+checkout through `CMAKE_HOME_DIRECTORY`. Configure unusual or external build
+layouts without `--clean` and remove them explicitly only after independent
+review.
 
 ## Configure Options
 
