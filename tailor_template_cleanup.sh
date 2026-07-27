@@ -74,6 +74,7 @@ template_development_paths=(
     "tests/cmake/VerifyTemplateProjectNoOptimization.cmake"
     "tests/cmake/VerifyTemplateProjectOptixInstallExport.cmake"
     "tests/cmake/VerifyTemplateProjectOptimizedFlags.cmake"
+    "tests/cmake/VerifyTemplateProjectPythonPackaging.cmake"
     "tests/cmake/VerifyTemplateProjectReleaseTagSync.cmake"
     "tests/cmake/VerifyTemplateProjectRos2Overlay.cmake"
     "tests/cmake/VerifyTemplateProjectTailoringScript.cmake"
