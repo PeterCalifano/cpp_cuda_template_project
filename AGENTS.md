@@ -38,6 +38,21 @@ The template repository may retain broader conformance tests because it owns
 generic generation and tailoring behavior. That exception does not make those
 tests part of the derived-project contract.
 
+### Build cleanup and wrapper packaging safety
+
+- `build_lib.sh --clean` may remove only a conventional in-repository build
+  path. An existing target must contain a `CMakeCache.txt` whose
+  `CMAKE_HOME_DIRECTORY` resolves to this exact checkout.
+- Never weaken clean-path or cache-ownership validation to accommodate an
+  unusual build layout; use a non-clean configure or remove that directory
+  explicitly after independent review.
+- Generated Python wheels and CMake Python installs must co-locate declared
+  non-system shared runtime targets and use loader-relative runtime paths.
+- `_wrapper_build.py` is checkout-only metadata and must not be installed or
+  included in a wheel.
+- Keep CMake Python install destinations relative to
+  `CMAKE_INSTALL_PREFIX`; pip owns installation into an active environment.
+
 For MATLAB: Use classes a lot also in MATLAB, with a python style, but do it only when it makes sense. Functions in MATLAB are often more efficient. Evaluate whether it makes sense to have stateful implementation. Use "self" instead of "obj". All variables names must specify the datatype of the variable since MATLAB does not (hungarian notation). The following list applies: d for double, f for float, b for bool, str for struct and not for strings, char for strings and chars, ui8 for uint8, i8 for int8.  All the other integers are similar to the latter. Specify "obj" as prefix if an object, cell if a cell, table if a table; "bus_" if a Simulink bus. The names are always in Pascal case including the prefix, for instance ui8MyVariable. Never nest functions definitions within other functions, always do them separate or at most in the same file (after the main function implementation). Add them as local in the same function file only when not re-used elsewhere, otherwise prefer a single implementation. Function names and static methods of classes starts with Capital letter. Local functions names ends with underscore meaning "private". Names of variables must be explicative and tell what the variable does. Short names are not allowed unless "very local in scope". Use underscore for those variables and preferably Tmp within the name. For codes that are intended to be algorithms of some kind (e.g. not plots or things to run on the host PC), make them always MATLAB codegen safe (especially if codegen directive is used). In that case names should be limited to 31 chars. Add the same template of doc to functions as below and always specify arguments-end block for input and output:
 %% SIGNATURE
 %
@@ -89,6 +104,32 @@ readability cleanup performed during the pass.
 ### C++ and CUDA pattern
 
 Use Doxygen for both the file header and public API documentation:
+
+- Preserve compact grouped formatting when related call arguments or arithmetic
+  terms remain readable on one continuation line. Wrap at semantic expression
+  boundaries; do not mechanically place every argument on a separate line.
+- In a multiline function declaration, definition, or call, keep the first
+  argument on the same line as the function name and align later arguments with
+  it. Put the opening parenthesis at the end of a line only for a genuinely
+  multiline first argument whose own structure requires separation.
+- Follow the surrounding hand-formatted style and preserve intentional
+  whitespace used to separate functional blocks. Do not apply broad automatic
+  reformatting to staged or user-owned code.
+- Prefer this compact grouped layout:
+
+```cpp
+const float gx =
+    0.5F * (PixelOrZero(image, width, height, x + 1, y) -
+            PixelOrZero(image, width, height, x - 1, y));
+
+SPhotometricPatch(int id,
+                  const cv::Point2d &center,
+                  int64_t t_us,
+                  int patch_size);
+```
+
+  Do not expand the same calls into one line per argument unless an individual
+  argument is itself a multiline expression whose structure requires it.
 
 ```cpp
 /// @file observation_loader.cpp
