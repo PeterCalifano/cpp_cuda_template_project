@@ -41,7 +41,12 @@ Disable submodule initialization fallback with:
 
 ## Python Package
 
-The source package under `python/<project>/` is the supported import and install entrypoint. CMake configures `python/pyproject.toml`, `python/setup.py`, and `_wrapper_build.py` when Python wrapping is enabled.
+The source package under `python/<project>/` is the supported import and
+install entrypoint. CMake configures `python/pyproject.toml` and
+`python/setup.py` when Python wrapping is enabled. Building the wrapper target
+validates and stages its native runtime set, then writes
+`python/<project>/_wrapper_build.py` for direct checkout imports and wheel
+construction.
 
 ```bash
 ./build_lib.sh -p
@@ -56,8 +61,27 @@ The main project shared library is packaged automatically. List additional
 direct project-owned `SHARED_LIBRARY` or `MODULE_LIBRARY` build targets in
 `<namespace>_GTWRAP_RUNTIME_DEPENDENCY_TARGETS`; CMake rejects imported,
 static, interface, or missing targets rather than scanning arbitrary build
-directories. CMake alias target names are not accepted. System libraries
-remain the responsibility of the target platform.
+directories. CMake resolves configuration- and platform-specific target and
+SONAME filenames, including generator-expression output names, before one
+serialized staging operation validates the complete flat package namespace.
+The wrapper build fails before copying anything when different owners resolve
+to the same destination. CMake alias target names are not accepted. System
+libraries remain the responsibility of the target platform.
+
+The checkout package directory is shared by all build configurations. Build
+one configuration at a time when producing a wheel or importing directly from
+the source checkout; the most recently staged configuration owns
+`_wrapper_build.py`.
+
+Wrapper install destinations remain relative to `CMAKE_INSTALL_PREFIX`.
+In particular, keep `CMAKE_INSTALL_LIBDIR` relative when Python wrapping is
+enabled; an absolute value is rejected rather than allowing CMake installation
+to escape a user-selected prefix.
+
+Production responsibilities are separated across `HandleWrapper.cmake`
+(gtwrap discovery and orchestration), `HandlePythonWrapper.cmake`,
+`HandleMatlabWrapper.cmake`, and `StagePythonRuntimeArtifacts.cmake`. All four
+modules are retained by project tailoring.
 
 ## MATLAB Wrapper
 

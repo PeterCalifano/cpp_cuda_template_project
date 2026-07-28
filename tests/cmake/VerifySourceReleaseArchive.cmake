@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 
+# Validate one extracted canonical source archive independently of Git metadata.
 foreach(required_var TEST_SOURCE_ROOT TEST_BINARY_ROOT EXPECTED_VERSION EXPECTED_FULL_VERSION)
   if(NOT DEFINED ${required_var})
     message(FATAL_ERROR "Missing required variable: ${required_var}")
@@ -33,16 +34,6 @@ file(GLOB _root_build_entries LIST_DIRECTORIES TRUE "${TEST_SOURCE_ROOT}/build*"
 foreach(_root_build_entry IN LISTS _root_build_entries)
   if(IS_DIRECTORY "${_root_build_entry}")
     message(FATAL_ERROR "Canonical source archive contains build tree: ${_root_build_entry}")
-  endif()
-endforeach()
-file(GLOB_RECURSE _archive_entries LIST_DIRECTORIES TRUE "${TEST_SOURCE_ROOT}/*")
-foreach(_archive_entry IN LISTS _archive_entries)
-  if(IS_DIRECTORY "${_archive_entry}")
-    get_filename_component(_archive_entry_name "${_archive_entry}" NAME)
-    if(_archive_entry_name MATCHES "^build[^/]*$")
-      message(FATAL_ERROR
-          "Canonical source archive contains nested build tree: ${_archive_entry}")
-    endif()
   endif()
 endforeach()
 foreach(generated_path "ros2/build" "ros2/install" "ros2/log")

@@ -393,7 +393,8 @@ entrypoint. CMake updates it with:
 
 - generated `python/pyproject.toml`
 - generated `python/setup.py`
-- generated `python/<project>/_wrapper_build.py` linking the latest wrapper build
+- build-time `python/<project>/_wrapper_build.py` linking the latest
+  successfully staged wrapper configuration
 
 Install from the source Python package directory:
 

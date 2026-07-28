@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.15)
 
+# Exercise tag-safe metadata synchronization and canonical source packaging in
+# a disposable clone without mutating the repository under test.
 foreach(required_var TEST_TEMPLATE_SOURCE_DIR TEST_BINARY_ROOT)
   if(NOT DEFINED ${required_var})
     message(FATAL_ERROR "Missing required variable: ${required_var}")
@@ -225,21 +227,50 @@ _run_success(
     -DEXPECTED_VERSION=${_synthetic_version}
     -P "${_scratch_verifier}")
 
-set(_release_build "${TEST_BINARY_ROOT}/release_build")
+set(_release_build "${_scratch_root}/generated/current_output")
 set(_archive_output "${TEST_BINARY_ROOT}/archive_output")
 set(_archive_extract "${TEST_BINARY_ROOT}/archive_extract")
 file(MAKE_DIRECTORY
     "${_scratch_root}/build_release_sentinel"
+    "${_scratch_root}/build_transient"
     "${_scratch_root}/examples/build_release_sentinel"
+    "${_scratch_root}/examples/foreign_build"
+    "${_scratch_root}/examples/install"
+    "${_scratch_root}/tools/build_helpers"
     "${_scratch_root}/ros2/build/generated"
     "${_scratch_root}/ros2/install/generated"
     "${_scratch_root}/ros2/log/generated"
     "${_archive_output}"
     "${_archive_extract}")
 file(WRITE "${_scratch_root}/build_release_sentinel/must_not_ship.txt" "generated build output\n")
+file(CREATE_LINK
+    "${_scratch_root}/missing-transient-cache"
+    "${_scratch_root}/build_transient/CMakeCache.txt"
+    SYMBOLIC
+    RESULT _transient_cache_link_result)
+if(NOT _transient_cache_link_result STREQUAL "0")
+  message(FATAL_ERROR
+      "Could not create transient-cache regression fixture: "
+      "${_transient_cache_link_result}")
+endif()
 file(WRITE
     "${_scratch_root}/examples/build_release_sentinel/must_not_ship.txt"
     "generated nested build output\n")
+file(WRITE
+    "${_scratch_root}/examples/build_release_sentinel/CMakeCache.txt"
+    "CMAKE_HOME_DIRECTORY:INTERNAL=${_scratch_root}\n")
+file(WRITE
+    "${_scratch_root}/examples/foreign_build/CMakeCache.txt"
+    "CMAKE_HOME_DIRECTORY:INTERNAL=${TEST_BINARY_ROOT}/foreign_source\n")
+file(WRITE
+    "${_scratch_root}/examples/foreign_build/must_ship.txt"
+    "foreign child-project cache\n")
+file(WRITE
+    "${_scratch_root}/examples/install/must_ship.txt"
+    "legitimate nested install source\n")
+file(WRITE
+    "${_scratch_root}/tools/build_helpers/must_ship.txt"
+    "legitimate nested source\n")
 file(WRITE "${_scratch_root}/ros2/build/generated/must_not_ship.txt" "generated ROS build output\n")
 file(WRITE "${_scratch_root}/ros2/install/generated/must_not_ship.txt" "generated ROS install output\n")
 file(WRITE "${_scratch_root}/ros2/log/generated/must_not_ship.txt" "generated ROS log output\n")
@@ -287,6 +318,29 @@ if(NOT _extracted_root_count EQUAL 1)
 endif()
 list(GET _extracted_roots 0 _extracted_root)
 
+# Generated trees are identified by ownership evidence, not by broad directory
+# names that can also describe legitimate project sources.
+if(EXISTS "${_extracted_root}/examples/build_release_sentinel")
+  message(FATAL_ERROR
+      "Canonical source archive contains a nested generated build tree")
+endif()
+if(EXISTS "${_extracted_root}/generated/current_output")
+  message(FATAL_ERROR
+      "Canonical source archive contains the active nested binary tree")
+endif()
+if(NOT EXISTS "${_extracted_root}/examples/foreign_build/must_ship.txt")
+  message(FATAL_ERROR
+      "Canonical source archive omitted a foreign child-project cache")
+endif()
+if(NOT EXISTS "${_extracted_root}/examples/install/must_ship.txt")
+  message(FATAL_ERROR
+      "Canonical source archive omitted legitimate nested install content")
+endif()
+if(NOT EXISTS "${_extracted_root}/tools/build_helpers/must_ship.txt")
+  message(FATAL_ERROR
+      "Canonical source archive omitted legitimate nested source content")
+endif()
+
 _run_success(
     "Validate extracted no-Git canonical source"
     "${CMAKE_COMMAND}"
@@ -312,7 +366,12 @@ _run_failure(
 
 file(REMOVE_RECURSE
     "${_scratch_root}/build_release_sentinel"
+    "${_scratch_root}/build_transient"
     "${_scratch_root}/examples/build_release_sentinel"
+    "${_scratch_root}/examples/foreign_build"
+    "${_scratch_root}/examples/install"
+    "${_scratch_root}/generated"
+    "${_scratch_root}/tools"
     "${_scratch_root}/ros2/build"
     "${_scratch_root}/ros2/install"
     "${_scratch_root}/ros2/log")

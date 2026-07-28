@@ -1,5 +1,9 @@
 # Build Cleanup and Wrapper Packaging Repair
 
+> Historical record. Active v1.12.1 hardening and v2 test-ownership work is
+> tracked only in
+> `doc/developments/template_v2_test_ownership_plan.md`.
+
 ## Objective
 
 Retain the safe portions of the working-tree changes relative to current

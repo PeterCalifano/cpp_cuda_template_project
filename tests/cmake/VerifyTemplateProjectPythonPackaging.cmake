@@ -26,9 +26,40 @@ function(_run_step step_name)
   endif()
 endfunction()
 
+# Require a fixture command to fail for the intended contract violation rather
+# than accepting an unrelated configure error as proof of rejection.
+function(_run_failure step_name expected_message)
+  execute_process(
+      COMMAND ${ARGN}
+      RESULT_VARIABLE _result
+      OUTPUT_VARIABLE _stdout
+      ERROR_VARIABLE _stderr)
+  if(_result EQUAL 0)
+    message(FATAL_ERROR
+        "${step_name} unexpectedly succeeded.\n"
+        "stdout:\n${_stdout}\n"
+        "stderr:\n${_stderr}")
+  endif()
+
+  set(_combined_output "${_stdout}\n${_stderr}")
+  string(FIND "${_combined_output}" "${expected_message}" _message_index)
+  if(_message_index LESS 0)
+    message(FATAL_ERROR
+        "${step_name} failed without the expected diagnostic "
+        "'${expected_message}'.\n"
+        "stdout:\n${_stdout}\n"
+        "stderr:\n${_stderr}")
+  endif()
+endfunction()
+
 file(REMOVE_RECURSE "${TEST_BINARY_ROOT}")
 set(_fixture_source "${TEST_BINARY_ROOT}/fixture_source")
 set(_fixture_build "${TEST_BINARY_ROOT}/fixture_build")
+set(_absolute_libdir_build "${TEST_BINARY_ROOT}/absolute_libdir_build")
+set(_runtime_collision_build "${TEST_BINARY_ROOT}/runtime_collision_build")
+set(_wrapper_collision_build "${TEST_BINARY_ROOT}/wrapper_collision_build")
+set(_soname_collision_build "${TEST_BINARY_ROOT}/soname_collision_build")
+set(_generator_output_build "${TEST_BINARY_ROOT}/generator_output_build")
 set(_wheel_output "${TEST_BINARY_ROOT}/wheel_output")
 set(_wheel_install "${TEST_BINARY_ROOT}/wheel_install")
 set(_cmake_install "${TEST_BINARY_ROOT}/cmake_install")
@@ -144,6 +175,33 @@ set_target_properties(
     VERSION 3.4.5
     SOVERSION 3)
 
+# Exercise the flat package-directory collision contract without requiring a
+# build that would already have overwritten one of the native artifacts.
+option(FIXTURE_RUNTIME_COLLISION "Give two runtime targets identical filenames" OFF)
+if(FIXTURE_RUNTIME_COLLISION)
+  set_target_properties(
+    fixture_dependency
+    fixture_packaged
+    PROPERTIES
+      OUTPUT_NAME colliding_runtime
+      VERSION 1.2.3
+      SOVERSION 1)
+  set_target_properties(
+    fixture_dependency
+    PROPERTIES
+      LIBRARY_OUTPUT_DIRECTORY
+        "${CMAKE_CURRENT_BINARY_DIR}/collision_outputs/dependency"
+      RUNTIME_OUTPUT_DIRECTORY
+        "${CMAKE_CURRENT_BINARY_DIR}/collision_outputs/dependency")
+  set_target_properties(
+    fixture_packaged
+    PROPERTIES
+      LIBRARY_OUTPUT_DIRECTORY
+        "${CMAKE_CURRENT_BINARY_DIR}/collision_outputs/packaged"
+      RUNTIME_OUTPUT_DIRECTORY
+        "${CMAKE_CURRENT_BINARY_DIR}/collision_outputs/packaged")
+endif()
+
 add_library(fixture_package MODULE module.c)
 target_link_libraries(
   fixture_package
@@ -153,6 +211,67 @@ target_link_libraries(
 set_target_properties(fixture_package PROPERTIES PREFIX "")
 if(WIN32)
   set_target_properties(fixture_package PROPERTIES SUFFIX ".pyd")
+endif()
+
+# Additional collision fixtures build into separate directories so only the
+# wrapper's flat staging contract can reject their resolved filenames.
+set(_additional_runtime_targets)
+option(FIXTURE_WRAPPER_COLLISION
+  "Give a runtime target the wrapper extension filename" OFF)
+if(FIXTURE_WRAPPER_COLLISION)
+  add_library(fixture_wrapper_collision MODULE packaged.c)
+  set_target_properties(
+    fixture_wrapper_collision
+    PROPERTIES
+      PREFIX ""
+      OUTPUT_NAME fixture_package
+      LIBRARY_OUTPUT_DIRECTORY
+        "${CMAKE_CURRENT_BINARY_DIR}/collision_outputs/wrapper"
+      RUNTIME_OUTPUT_DIRECTORY
+        "${CMAKE_CURRENT_BINARY_DIR}/collision_outputs/wrapper")
+  if(WIN32)
+    set_target_properties(fixture_wrapper_collision PROPERTIES SUFFIX ".pyd")
+  endif()
+  list(APPEND _additional_runtime_targets fixture_wrapper_collision)
+endif()
+
+option(FIXTURE_SONAME_COLLISION
+  "Give one runtime the resolved SONAME filename of another" OFF)
+if(FIXTURE_SONAME_COLLISION AND UNIX AND NOT APPLE)
+  add_library(fixture_soname_owner SHARED packaged.c)
+  set_target_properties(
+    fixture_soname_owner
+    PROPERTIES
+      OUTPUT_NAME soname_collision
+      VERSION 2.0.0
+      SOVERSION 2
+      LIBRARY_OUTPUT_DIRECTORY
+        "${CMAKE_CURRENT_BINARY_DIR}/collision_outputs/soname_owner")
+
+  add_library(fixture_target_owner SHARED packaged.c)
+  set_target_properties(
+    fixture_target_owner
+    PROPERTIES
+      PREFIX ""
+      OUTPUT_NAME "libsoname_collision.so.2"
+      SUFFIX ""
+      NO_SONAME TRUE
+      LIBRARY_OUTPUT_DIRECTORY
+        "${CMAKE_CURRENT_BINARY_DIR}/collision_outputs/target_owner")
+  list(APPEND
+    _additional_runtime_targets
+    fixture_soname_owner
+    fixture_target_owner)
+endif()
+
+option(FIXTURE_GENERATOR_OUTPUT_NAME
+  "Use a configuration-dependent runtime output name" OFF)
+if(FIXTURE_GENERATOR_OUTPUT_NAME)
+  set_target_properties(
+    fixture_packaged
+    PROPERTIES
+      OUTPUT_NAME
+        "$<IF:$<CONFIG:Debug>,fixture_packaged_debug,fixture_packaged_release>")
 endif()
 
 set(_package_source "${CMAKE_CURRENT_SOURCE_DIR}/python")
@@ -183,21 +302,11 @@ configure_python_runtime_artifacts(
   fixture_package
   "${_package_build_dir}"
   "${_package_install_destination}"
-  _runtime_metadata_entries
+  "${_package_dir}/_wrapper_build.py"
   fixture_runtime
   fixture_dependency
-  fixture_packaged)
-
-set(_wrapper_metadata
-"\"\"\"Generated wrapper packaging fixture metadata.\"\"\"
-
-WRAPPER_MODULE_PATH = r\"$<TARGET_FILE:fixture_package>\"
-WRAPPER_RUNTIME_LIBRARY_PATHS = [
-${_runtime_metadata_entries}]
-")
-file(GENERATE
-  OUTPUT "${_package_dir}/_wrapper_build.py"
-  CONTENT "${_wrapper_metadata}")
+  fixture_packaged
+  ${_additional_runtime_targets})
 
 set(PROJECT_NAME fixture_package)
 set(PROJECT_VERSION 1.0.0)
@@ -252,6 +361,90 @@ string(CONFIGURE
     _fixture_cmake
     @ONLY)
 file(WRITE "${_fixture_source}/CMakeLists.txt" "${_fixture_cmake}")
+
+# A CMake install destination must remain below the user-selected prefix.
+_run_failure(
+    "Reject an absolute CMake Python library destination"
+    "CMAKE_INSTALL_LIBDIR must be relative"
+    "${CMAKE_COMMAND}"
+        -S "${_fixture_source}"
+        -B "${_absolute_libdir_build}"
+        -DCMAKE_BUILD_TYPE=RelWithDebInfo
+        -DCMAKE_INSTALL_LIBDIR=${TEST_BINARY_ROOT}/absolute_lib)
+
+# Runtime collision validation uses the filenames resolved for the active
+# configuration and must complete before the flat staging directory is changed.
+_run_step(
+    "Configure colliding Python runtime destinations"
+    "${CMAKE_COMMAND}"
+        -S "${_fixture_source}"
+        -B "${_runtime_collision_build}"
+        -DCMAKE_BUILD_TYPE=RelWithDebInfo
+        -DFIXTURE_RUNTIME_COLLISION=ON)
+_run_failure(
+    "Reject colliding Python runtime destinations before staging"
+    "Python runtime destination collision"
+    "${CMAKE_COMMAND}"
+        --build "${_runtime_collision_build}"
+        --target fixture_package
+        --parallel 4)
+file(GLOB
+    _collision_staged_files
+    "${_runtime_collision_build}/python/fixture_package/*colliding_runtime*")
+if(_collision_staged_files)
+  message(FATAL_ERROR
+      "Runtime collision staging left partial artifacts: "
+      "${_collision_staged_files}")
+endif()
+
+# The wrapper module and declared runtimes also share the same flat namespace.
+_run_step(
+    "Configure a runtime that collides with the wrapper extension"
+    "${CMAKE_COMMAND}"
+        -S "${_fixture_source}"
+        -B "${_wrapper_collision_build}"
+        -DCMAKE_BUILD_TYPE=RelWithDebInfo
+        -DFIXTURE_WRAPPER_COLLISION=ON)
+_run_failure(
+    "Reject a runtime that collides with the wrapper extension"
+    "Python runtime destination collision"
+    "${CMAKE_COMMAND}"
+        --build "${_wrapper_collision_build}"
+        --target fixture_package
+        --parallel 4)
+
+if(UNIX AND NOT APPLE)
+  _run_step(
+      "Configure a target-file versus SONAME collision"
+      "${CMAKE_COMMAND}"
+          -S "${_fixture_source}"
+          -B "${_soname_collision_build}"
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DFIXTURE_SONAME_COLLISION=ON)
+  _run_failure(
+      "Reject a target-file versus SONAME collision"
+      "Python runtime destination collision"
+      "${CMAKE_COMMAND}"
+          --build "${_soname_collision_build}"
+          --target fixture_package
+          --parallel 4)
+endif()
+
+# Actual active-configuration filenames make generator-expression output names
+# safe to validate without approximating CMake's naming rules.
+_run_step(
+    "Configure generator-expression runtime output names"
+    "${CMAKE_COMMAND}"
+        -S "${_fixture_source}"
+        -B "${_generator_output_build}"
+        -DCMAKE_BUILD_TYPE=RelWithDebInfo
+        -DFIXTURE_GENERATOR_OUTPUT_NAME=ON)
+_run_step(
+    "Build generator-expression runtime output names"
+    "${CMAKE_COMMAND}"
+        --build "${_generator_output_build}"
+        --target fixture_package
+        --parallel 4)
 
 # Verify exact wheel contents using target-derived names emitted by the fixture
 # configure, not platform-specific names duplicated in this verifier.

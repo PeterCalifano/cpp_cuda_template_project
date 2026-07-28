@@ -212,7 +212,14 @@ By default this also removes `profiling/`. Keep those scripts only when the new 
 ./tailor_template_cleanup.sh --apply --yes --project-namespace my_project --keep-profiling
 ```
 
-The script replaces `template_project::logging` with the required project namespace, then removes agent/context notes, internal development notes, workflow snapshot files, template-specific validation CTest scripts, optional profiling scripts, and the workspace file tied to this template checkout. It keeps reusable project infrastructure such as `cmake/`, `build_lib.sh`, docs workflow files, issue forms, examples, toolchains, starter unit tests, `.devcontainer/`, and `.vscode/`.
+The script replaces `template_project::logging` with the required project
+namespace, then removes agent/context notes, internal development notes,
+workflow snapshot files, template-specific validation CTest scripts, optional
+profiling scripts, and the workspace file tied to this template checkout. It
+keeps reusable project infrastructure such as `cmake/` (including the
+Python/MATLAB wrapper and runtime-staging modules), `build_lib.sh`, docs
+workflow files, issue forms, examples, toolchains, starter unit tests,
+`.devcontainer/`, and `.vscode/`.
 
 It also removes the root CMake hook for the template MATLAB regression helper and rewrites `tests/CMakeLists.txt` so only starter project unit tests remain registered.
 
