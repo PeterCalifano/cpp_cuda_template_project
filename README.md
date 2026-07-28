@@ -162,7 +162,7 @@ All options are passed via `build_lib.sh` flags or directly as `-D<VAR>=<VAL>` t
 -N, --ninja-build         Use Ninja generator
 -f, --flagsCXX "<flags>"  Extra compiler flags (e.g. "-march=native")
 -D, --define <VAR=VAL>    Extra CMake cache definitions (repeatable)
-    --clean               Delete build dir before configure
+    --clean               Safely delete an owned in-repository build before configure
     --profile             Enable profiling build (see Profiling section)
     --skip-tests          Do not run tests after build
 -i, --install             Run install target after tests
@@ -185,6 +185,10 @@ All options are passed via `build_lib.sh` flags or directly as `-D<VAR>=<VAL>` t
 ```
 
 See [`doc/build_script_doc.md`](doc/build_script_doc.md) for a detailed option reference.
+
+`--clean` accepts only conventional in-repository `build`, `build*`, or
+`out/*` paths. An existing directory must contain a CMake cache owned by this
+checkout. The option is ignored with `--rebuild-only`.
 
 ### CMake feature flags
 
@@ -371,6 +375,12 @@ into `python/pyproject.toml` when Python wrapping is requested.
 The optional `setup.py.in` augments installation behavior without duplicating
 package name/version metadata.
 
+The wrapper wheel automatically co-locates the main project shared library.
+Additional direct project-owned shared runtime build targets can be declared
+through
+`<namespace>_GTWRAP_RUNTIME_DEPENDENCY_TARGETS`; the separate
+`<namespace>_GTWRAP_DEPENDENCY_TARGETS` option remains build-order-only.
+
 The checked-in `python/<project>/__init__.py` is the public package entrypoint:
 
 - `import <project>` is the supported import path.
@@ -383,7 +393,8 @@ entrypoint. CMake updates it with:
 
 - generated `python/pyproject.toml`
 - generated `python/setup.py`
-- generated `python/<project>/_wrapper_build.py` linking the latest wrapper build
+- build-time `python/<project>/_wrapper_build.py` linking the latest
+  successfully staged wrapper configuration
 
 Install from the source Python package directory:
 

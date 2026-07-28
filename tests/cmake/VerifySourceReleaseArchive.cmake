@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 
+# Validate one extracted canonical source archive independently of Git metadata.
 foreach(required_var TEST_SOURCE_ROOT TEST_BINARY_ROOT EXPECTED_VERSION EXPECTED_FULL_VERSION)
   if(NOT DEFINED ${required_var})
     message(FATAL_ERROR "Missing required variable: ${required_var}")

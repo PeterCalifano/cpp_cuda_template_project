@@ -21,6 +21,9 @@ normal CTest entries that execute `python -m pytest -q <test-file>`.
 The template's default CTest suite includes conformance checks for generic
 tailoring, generated files, workflows, and package behavior. Those checks are
 template-maintainer infrastructure and are removed by normal tailoring.
+Production modules exercised by those checks remain in the tailored project;
+for example, wrapper packaging verification is removed while the
+`Handle*Wrapper.cmake` and runtime-staging modules it validates are retained.
 
 Do not reproduce them as recursive CMake tests in a derived project. In
 particular, ordinary derived-project CTest must not configure and rebuild the

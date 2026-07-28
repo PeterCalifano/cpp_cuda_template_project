@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Build helper for CMake-based C++ projects (Linux)
-# - Created Jan 2024; updated Aug 2025
+# - Created Jan 2024; updated Jul 2026
 # - Uses GNU getopt for long options
 # - Generator-agnostic build via `cmake --build`
 
@@ -221,6 +221,8 @@ Notes:
     For CMake defines, use "-DVAR=ON" or "-D VAR=ON".
   * Wrapper rebuilds with "-r -p" or "-r -m" only work if the existing build
     directory was already configured with those wrappers enabled.
+  * "--clean" is ignored with "--rebuild-only". Otherwise it accepts only
+    conventional in-repository paths owned by this checkout's CMake cache.
   * The default wrapper interface file is "src/wrap_interface.i". If it is
     missing, wrapper generation is auto-disabled unless you pass a valid
     *_WRAPPER_INTERFACE_FILES or *_WRAPPER_AUTODISCOVER_INTERFACE_FILES option.
@@ -235,6 +237,44 @@ die()  { echo -e "\e[31mError:\e[0m $*" >&2; echo; usage; exit 2; } # Stop execu
 info() { echo -e "\e[34m[INFO]\e[0m $*"; } # Print info
 warn() { echo -e "\e[33m[WARN]\e[0m $*"; } # Print warning
 trap 'echo -e "\e[31mBuild failed (line $LINENO).\e[0m"' ERR # Exit condition
+
+# Normalize the requested clean path and prove that an existing directory is a
+# conventional CMake build owned by the checkout in the current directory.
+validate_clean_build_path() {
+  local project_root_
+  local relative_buildpath_
+  local build_cache_
+  local cached_source_dir_
+
+  # Constrain recursive removal to one CMake build owned by this checkout.
+  project_root_="$(pwd -P)"
+  buildpath="$(realpath -m "$buildpath")"
+  relative_buildpath_="${buildpath#"${project_root_}/"}"
+  if [[ "$relative_buildpath_" == "$buildpath" ]]; then
+    die "--clean requires a build directory inside '${project_root_}'"
+  fi
+  case "$relative_buildpath_" in
+    build|build/*|build[^/]*|out/*) ;;
+    *)
+      die "--clean requires a conventional build path (build, build*, or out/*)"
+      ;;
+  esac
+
+  if [[ -e "$buildpath" ]]; then
+    build_cache_="${buildpath}/CMakeCache.txt"
+    [[ -f "$build_cache_" ]] ||
+      die "Refusing to clean a directory without a CMake cache: $buildpath"
+    cached_source_dir_="$(
+      sed -n 's/^CMAKE_HOME_DIRECTORY:INTERNAL=//p' "$build_cache_" |
+        tail -n 1
+    )"
+    [[ -n "$cached_source_dir_" ]] ||
+      die "CMake source marker is missing from '$build_cache_'"
+    cached_source_dir_="$(realpath -m "$cached_source_dir_")"
+    [[ "$cached_source_dir_" == "$project_root_" ]] ||
+      die "Refusing to clean a build owned by '$cached_source_dir_'"
+  fi
+}
 
 # --- argument parsing (GNU getopt) ---
 if ! command -v getopt > /dev/null 2>&1; then
@@ -314,6 +354,10 @@ if [[ -n "$python_test_executable" && ! -x "$python_test_executable" ]]; then
   die "Python test executable is not executable: $python_test_executable"
 fi
 
+if [[ "$clean_first" == true && "$rebuild_only" == false ]]; then
+  validate_clean_build_path
+fi
+
 project_name="$(detect_project_name || true)"
 prepare_wrap_checkout=false
 
@@ -378,9 +422,14 @@ sleep 0.2
 
 # --- Configure ---
 if [[ "$rebuild_only" == false ]]; then
-  if [[ "$clean_first" == true && -d "$buildpath" ]]; then
-    info "Removing existing build dir '$buildpath'"
-    rm -rf -- "$buildpath"
+  if [[ "$clean_first" == true ]]; then
+    # Revalidate at the destructive boundary in case the path or cache changed
+    # while wrapper prerequisites were being prepared.
+    validate_clean_build_path
+    if [[ -d "$buildpath" ]]; then
+      info "Removing existing build dir '$buildpath'"
+      rm -rf -- "$buildpath"
+    fi
   fi
 
   cmake_args=(

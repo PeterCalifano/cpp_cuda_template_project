@@ -185,6 +185,8 @@ set(GTWRAP_MATLAB_OPTION_NAME "${LIB_NAMESPACE}_BUILD_MATLAB_WRAPPER")
 set(GTWRAP_INTERFACE_OPTION_NAME "${LIB_NAMESPACE}_WRAPPER_INTERFACE_FILES")
 set(GTWRAP_TOP_NAMESPACE_OPTION_NAME "${LIB_NAMESPACE}_GTWRAP_TOP_NAMESPACE")
 set(GTWRAP_DEPENDENCIES_OPTION_NAME "${LIB_NAMESPACE}_GTWRAP_DEPENDENCY_TARGETS")
+set(GTWRAP_RUNTIME_DEPENDENCIES_OPTION_NAME
+    "${LIB_NAMESPACE}_GTWRAP_RUNTIME_DEPENDENCY_TARGETS")
 set(GTWRAP_ROOT_OPTION_NAME "${LIB_NAMESPACE}_GTWRAP_ROOT_DIR")
 
 option(${GTWRAP_PYTHON_OPTION_NAME} "Build Python wrapper" ${GTWRAP_BUILD_PYTHON_DEFAULT})
@@ -211,6 +213,14 @@ if (NOT DEFINED ${GTWRAP_DEPENDENCIES_OPTION_NAME})
       ""
       CACHE STRING
       "Additional dependency targets required before wrapping."
+      FORCE)
+endif()
+
+if (NOT DEFINED ${GTWRAP_RUNTIME_DEPENDENCIES_OPTION_NAME})
+  set(${GTWRAP_RUNTIME_DEPENDENCIES_OPTION_NAME}
+      ""
+      CACHE STRING
+      "Direct project-owned shared runtime build targets packaged beside the Python wrapper."
       FORCE)
 endif()
 
@@ -419,10 +429,9 @@ set(ANY_WRAPPER_ENABLED OFF)
 if(BUILD_AS_MAIN_PROJECT)
   set(LIBNAME_WRAP_TARGET ${project_name})
   handle_gtwrappers() # You may also pass WRAP_INTERFACE_FILES variable to specify interface files, else autofetching is used
-  handle_pybind11_wrapper()
 
   # Determine if any wrapper is enabled
-  if (${GTWRAP_PYTHON_OPTION_NAME} OR PYBIND11_WRAPPER_ENABLED OR ${GTWRAP_MATLAB_OPTION_NAME})
+  if(${GTWRAP_PYTHON_OPTION_NAME} OR ${GTWRAP_MATLAB_OPTION_NAME})
     set(ANY_WRAPPER_ENABLED ON)
   endif()
 
@@ -496,7 +505,6 @@ print_compiler_flags_summary()
 # Print info about wrappers if any
 if (ANY_WRAPPER_ENABLED)
   message(STATUS "================  Wrappers Configuration  ======================")
-  message(STATUS "Python pybind11 direct wrapper              : ${PYBIND11_WRAPPER_ENABLED}")
   message(STATUS "Python gtwrapper                            : ${${GTWRAP_PYTHON_OPTION_NAME}}")
   message(STATUS "MATLAB gtwrapper                            : ${${GTWRAP_MATLAB_OPTION_NAME}}")
   message(STATUS "MATLAB default release                      : ${MATLAB_DEFAULT_RELEASE}")
@@ -505,6 +513,7 @@ if (ANY_WRAPPER_ENABLED)
   message(STATUS "gtwrap interface option name                : ${GTWRAP_INTERFACE_OPTION_NAME}")
   message(STATUS "gtwrap interface files                      : ${${GTWRAP_INTERFACE_OPTION_NAME}}")
   message(STATUS "gtwrap top namespace                        : ${${GTWRAP_TOP_NAMESPACE_OPTION_NAME}}")
+  message(STATUS "gtwrap runtime dependency targets          : ${${GTWRAP_RUNTIME_DEPENDENCIES_OPTION_NAME}}")
   message(STATUS "gtwrap root override                        : ${${GTWRAP_ROOT_OPTION_NAME}}")
 endif()
 message(STATUS "===============================================================")
@@ -536,16 +545,124 @@ if(DEFINED FULL_VERSION AND NOT "${FULL_VERSION}" STREQUAL "")
 endif()
 set(CPACK_GENERATOR "TGZ")
 set(CPACK_SOURCE_GENERATOR "TGZ")
+# Preserve source-ignore regexes verbatim and anchor known generated outputs
+# beneath this checkout rather than matching adjacent directories.
+set(CPACK_VERBATIM_VARIABLES YES)
 set(_cpack_source_root_regex "${CMAKE_CURRENT_SOURCE_DIR}")
 string(
   REGEX REPLACE "([][+.*^$()|?\\\\])" "\\\\\\1"
   _cpack_source_root_regex "${_cpack_source_root_regex}")
 set(CPACK_SOURCE_IGNORE_FILES
-    "^${_cpack_source_root_regex}/\\.git/"
+    "^${_cpack_source_root_regex}/(.*/)?\\.git(/|$)"
     "^${_cpack_source_root_regex}/build[^/]*/"
     "^${_cpack_source_root_regex}/install/"
     "^${_cpack_source_root_regex}/ros2/(build|install|log)/"
     "^${_cpack_source_root_regex}/(.*/)?\\.pytest_cache/"
     "^${_cpack_source_root_regex}/(.*/)?__pycache__/"
     "^${_cpack_source_root_regex}/.*\\.py[cod]$")
+
+# Exclude the active nested binary tree and other nested CMake builds whose
+# caches prove that this exact checkout owns them. Directory names alone are
+# insufficient because paths such as tools/build_helpers may be real sources.
+get_filename_component(
+  _cpack_source_root_real
+  "${CMAKE_CURRENT_SOURCE_DIR}"
+  REALPATH)
+get_filename_component(
+  _cpack_binary_root_real
+  "${CMAKE_BINARY_DIR}"
+  REALPATH)
+file(
+  RELATIVE_PATH
+  _cpack_binary_relative_to_source
+  "${_cpack_source_root_real}"
+  "${_cpack_binary_root_real}")
+set(_cpack_owned_build_directories)
+if(NOT IS_ABSOLUTE "${_cpack_binary_relative_to_source}"
+    AND NOT "${_cpack_binary_relative_to_source}" MATCHES "^\\.\\.(/|$)"
+    AND NOT "${_cpack_binary_relative_to_source}" STREQUAL "")
+  list(APPEND
+    _cpack_owned_build_directories
+    "${CMAKE_BINARY_DIR}")
+endif()
+
+file(
+  GLOB_RECURSE
+  _cpack_cache_candidates
+  LIST_DIRECTORIES FALSE
+  "${CMAKE_CURRENT_SOURCE_DIR}/*/CMakeCache.txt")
+foreach(_cpack_cache_candidate IN LISTS _cpack_cache_candidates)
+  file(
+    RELATIVE_PATH
+    _cpack_cache_relative_to_source
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${_cpack_cache_candidate}")
+  if("${_cpack_cache_relative_to_source}" MATCHES "^build[^/]*/"
+      OR "${_cpack_cache_relative_to_source}" MATCHES "^install/"
+      OR "${_cpack_cache_relative_to_source}"
+         MATCHES "^ros2/(build|install|log)/")
+    continue()
+  endif()
+
+  set(_cpack_cache_is_within_owned_build FALSE)
+  foreach(_cpack_known_build IN LISTS _cpack_owned_build_directories)
+    file(
+      RELATIVE_PATH
+      _cpack_cache_relative_to_build
+      "${_cpack_known_build}"
+      "${_cpack_cache_candidate}")
+    if(NOT IS_ABSOLUTE "${_cpack_cache_relative_to_build}"
+        AND NOT "${_cpack_cache_relative_to_build}" MATCHES "^\\.\\.(/|$)")
+      set(_cpack_cache_is_within_owned_build TRUE)
+      break()
+    endif()
+  endforeach()
+  if(_cpack_cache_is_within_owned_build
+      OR NOT EXISTS "${_cpack_cache_candidate}")
+    continue()
+  endif()
+
+  file(
+    STRINGS
+    "${_cpack_cache_candidate}"
+    _cpack_cache_home_entries
+    REGEX "^CMAKE_HOME_DIRECTORY:INTERNAL="
+    LIMIT_COUNT 1)
+  if(NOT _cpack_cache_home_entries)
+    continue()
+  endif()
+
+  list(GET _cpack_cache_home_entries 0 _cpack_cache_home_entry)
+  string(REGEX MATCH
+    "^CMAKE_HOME_DIRECTORY:INTERNAL=(.*)$"
+    _cpack_cache_home_match
+    "${_cpack_cache_home_entry}")
+  set(_cpack_cache_home "${CMAKE_MATCH_1}")
+  get_filename_component(
+    _cpack_cache_home_real
+    "${_cpack_cache_home}"
+    REALPATH)
+  if(NOT "${_cpack_cache_home_real}" STREQUAL "${_cpack_source_root_real}")
+    continue()
+  endif()
+
+  get_filename_component(
+    _cpack_owned_build_directory
+    "${_cpack_cache_candidate}"
+    DIRECTORY)
+  list(APPEND
+    _cpack_owned_build_directories
+    "${_cpack_owned_build_directory}")
+endforeach()
+
+list(REMOVE_DUPLICATES _cpack_owned_build_directories)
+foreach(_cpack_owned_build_directory IN LISTS _cpack_owned_build_directories)
+  string(
+    REGEX REPLACE "([][+.*^$()|?\\\\])" "\\\\\\1"
+    _cpack_owned_build_regex "${_cpack_owned_build_directory}")
+  list(
+    APPEND
+    CPACK_SOURCE_IGNORE_FILES
+    "^${_cpack_owned_build_regex}(/|$)")
+endforeach()
 include(CPack)

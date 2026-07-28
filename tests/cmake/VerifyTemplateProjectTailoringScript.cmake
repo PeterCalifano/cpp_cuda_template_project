@@ -108,6 +108,7 @@ endif()
 
 function(_create_fake_project fake_root)
   file(MAKE_DIRECTORY "${fake_root}/.github/workflows")
+  file(MAKE_DIRECTORY "${fake_root}/cmake")
   file(MAKE_DIRECTORY "${fake_root}/doc/developments")
   file(MAKE_DIRECTORY "${fake_root}/doc/reports")
   file(MAKE_DIRECTORY "${fake_root}/tests/cmake")
@@ -126,6 +127,16 @@ function(_create_fake_project fake_root)
   file(WRITE "${fake_root}/build_ros2.sh" "#!/usr/bin/env bash\n")
   file(WRITE "${fake_root}/add_ros2_support.sh" "#!/usr/bin/env bash\n")
   file(WRITE "${fake_root}/generate_version.sh" "#!/usr/bin/env bash\n")
+  foreach(_production_wrapper_module
+      "HandleWrapper.cmake"
+      "HandlePythonWrapper.cmake"
+      "HandleMatlabWrapper.cmake"
+      "StagePythonRuntimeArtifacts.cmake")
+    configure_file(
+      "${TEST_TEMPLATE_SOURCE_DIR}/cmake/${_production_wrapper_module}"
+      "${fake_root}/cmake/${_production_wrapper_module}"
+      COPYONLY)
+  endforeach()
   file(WRITE "${fake_root}/src/utils/logging/CLogger.h"
       "namespace template_project::logging { class CLogger; }\n")
   file(WRITE "${fake_root}/src/utils/logging/CLogger.cpp"
@@ -183,10 +194,12 @@ endif()
       "doc/reports/implementation_review.md"
       "tests/cmake/AddMatlabWrapperRegressionTests.cmake"
       "tests/cmake/CheckTcmallocDependency.cmake"
+      "tests/cmake/VerifyTemplateProjectBuildLibCleanSafety.cmake"
       "tests/cmake/VerifyTemplateProjectBuildTreePackage.cmake"
       "tests/cmake/VerifyTemplateProjectCudaSources.cmake"
       "tests/cmake/VerifyTemplateProjectDocsWorkflow.cmake"
       "tests/cmake/VerifyTemplateProjectOptixInstallExport.cmake"
+      "tests/cmake/VerifyTemplateProjectPythonPackaging.cmake"
       "tests/cmake/VerifyTemplateProjectReleaseTagSync.cmake"
       "tests/cmake/VerifyTemplateProjectRos2Overlay.cmake"
       "tests/cmake/VerifyTemplateProjectTailoringScript.cmake"
@@ -261,9 +274,11 @@ function(_assert_fake_project_cleaned fake_root expect_profiling)
       "AGENTS.md"
       "doc/developments"
       "doc/reports"
+      "tests/cmake/VerifyTemplateProjectBuildLibCleanSafety.cmake"
       "tests/cmake/VerifyTemplateProjectCudaSources.cmake"
       "tests/cmake/VerifyTemplateProjectDocsWorkflow.cmake"
       "tests/cmake/VerifyTemplateProjectOptixInstallExport.cmake"
+      "tests/cmake/VerifyTemplateProjectPythonPackaging.cmake"
       "tests/cmake/VerifyTemplateProjectReleaseTagSync.cmake"
       "tests/cmake/VerifyTemplateProjectRos2Overlay.cmake"
       "tests/template_test/testRos2OverlayStatic.py"
@@ -330,6 +345,25 @@ function(_assert_fake_project_cleaned fake_root expect_profiling)
   endforeach()
   _assert_mode("${fake_root}/src/utils/logging/CLogger.h" "640")
   _assert_mode("${fake_root}/doc/logging.md" "444")
+
+  foreach(_production_wrapper_module
+      "HandleWrapper.cmake"
+      "HandlePythonWrapper.cmake"
+      "HandleMatlabWrapper.cmake"
+      "StagePythonRuntimeArtifacts.cmake")
+    set(_retained_wrapper_module
+      "${fake_root}/cmake/${_production_wrapper_module}")
+    if(NOT EXISTS "${_retained_wrapper_module}")
+      message(FATAL_ERROR
+          "Cleanup removed production wrapper module "
+          "'cmake/${_production_wrapper_module}'")
+    endif()
+    _run_step(
+      "Compare retained production wrapper module ${_production_wrapper_module}"
+      "${CMAKE_COMMAND}" -E compare_files
+      "${TEST_TEMPLATE_SOURCE_DIR}/cmake/${_production_wrapper_module}"
+      "${_retained_wrapper_module}")
+  endforeach()
 
   foreach(_workflow_name build_linux.yml build_linux_cuda.yml docs_pages.yml)
     set(_materialized_workflow "${fake_root}/.github/workflows/${_workflow_name}")
