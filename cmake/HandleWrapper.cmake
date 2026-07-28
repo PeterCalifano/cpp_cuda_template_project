@@ -40,9 +40,16 @@ function(resolve_local_wrap_root OUT_VAR)
     set(_preferred_root "${ARGV1}")
   endif()
 
-  if(NOT "${_preferred_root}" STREQUAL "" AND EXISTS "${_preferred_root}/cmake/PybindWrap.cmake")
-    set(${OUT_VAR} "${_preferred_root}" PARENT_SCOPE)
-    return()
+  if(NOT "${_preferred_root}" STREQUAL "")
+    get_filename_component(
+      _preferred_root
+      "${_preferred_root}"
+      REALPATH
+      BASE_DIR "${PROJECT_SOURCE_DIR}")
+    if(EXISTS "${_preferred_root}/cmake/PybindWrap.cmake")
+      set(${OUT_VAR} "${_preferred_root}" PARENT_SCOPE)
+      return()
+    endif()
   endif()
 
   set(_candidates

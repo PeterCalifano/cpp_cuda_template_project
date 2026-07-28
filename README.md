@@ -20,7 +20,7 @@ Tailoring helper:
 ./tailor_template_cleanup.sh --apply --yes --project-namespace my_project
 ```
 
-The required namespace option replaces `template_project::logging` in the reusable logger sources and examples. Run the cleanup before a broad `template_project` replacement, because the script contains template-specific cleanup paths. After cleanup succeeds, delete `tailor_template_cleanup.sh` or exclude it from the rename pass. `profiling/` is removed by default. Add `--keep-profiling` when the new project should keep the Valgrind/perf helper scripts.
+The required namespace option replaces `template_project::logging` in the reusable logger sources and examples. Run the cleanup before a broad `template_project` replacement, because the script contains template-specific cleanup paths. Root/test CMake files, starter tests, and project workflows remain unchanged. After cleanup succeeds, delete `tailor_template_cleanup.sh` or exclude it from the rename pass. `profiling/` is removed by default. Add `--keep-profiling` when the new project should keep the Valgrind/perf helper scripts.
 
 <!-- ros2-overlay-begin -->
 ## Optional ROS 2 Overlay
@@ -594,7 +594,7 @@ The docs target is created only for the top-level project. Nested template-deriv
 │   └── global_includes.h        Shared utilities (ANSI colors, precision constants)
 ├── cmake/                       CMake module system (Handle*.cmake)
 ├── profiling/                   Optional Valgrind/perf wrapper scripts
-├── tests/                       Catch2 unit tests and fixtures
+├── tests/                       Inherited runtime tests and reusable fixtures
 ├── examples/
 │   ├── template_consumer_project/   Using the library via find_package()
 │   └── template_examples/           Standalone usage examples

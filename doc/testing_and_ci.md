@@ -2,7 +2,7 @@
 
 ## Local Gates
 
-Use CTest for compiled tests, Python tests, and workflow-level regressions.
+Use CTest for compiled and Python runtime tests.
 `ctest --test-dir <build>` is the preferred form because it works from the
 repository root, from scripts, and from CI jobs without changing directories:
 
@@ -18,12 +18,18 @@ normal CTest entries that execute `python -m pytest -q <test-file>`.
 
 ### Template conformance versus derived-project acceptance
 
-The template's default CTest suite includes conformance checks for generic
-tailoring, generated files, workflows, and package behavior. Those checks are
-template-maintainer infrastructure and are removed by normal tailoring.
-Production modules exercised by those checks remain in the tailored project;
-for example, wrapper packaging verification is removed while the
-`Handle*Wrapper.cmake` and runtime-staging modules it validates are retained.
+The template's default CTest suite is already the derived-project suite. It
+contains inherited C++ logger/starter behavior, Python import smoke coverage,
+optional CUDA initialization/placeholder behavior, reusable fixtures, and
+target-owned MATLAB wrapper checks. Tailoring does not rewrite its
+registrations.
+
+Generic template-system conformance is implemented by the standalone harness in
+`cpp_cuda_template_testfield`. That harness receives an explicit candidate
+source path and owns tailoring, workflows, release metadata, packaging,
+installation, consumer, nested-build, cross-compilation, CUDA/OptiX, wrapper,
+and static ROS contracts. Its verifier implementations are not copied into this
+repository or a derived project.
 
 Do not reproduce them as recursive CMake tests in a derived project. In
 particular, ordinary derived-project CTest must not configure and rebuild the
@@ -109,44 +115,30 @@ To disable Python tests while keeping Catch2 tests:
 cmake -S . -B build -DENABLE_TESTS=ON -DENABLE_PYTHON_TESTS=OFF
 ```
 
-Focused documentation checks:
+Focused documentation build:
 
 ```bash
-ctest --test-dir build --output-on-failure -R "docs|pages|issue_templates|version"
+cmake --preset docs
+cmake --build --preset docs
 ```
 
 ## CI Workflows
 
-Template-validation workflows are the active `.github/workflows/*.yml` files in
-this repository. They verify template-owned contracts such as cleanup,
-rollout, static CMake checks, and fixture builds; they are not the workflows
-delivered unchanged to a derived project.
+The active `.github/workflows/*.yml` files are reusable project workflows and
+survive normal tailoring unchanged. There are no dormant `.tpl` copies. Native
+CPU, CUDA, ROS, and Pages workflows therefore exercise the same definitions
+that a derived project receives.
 
-Derived-project workflow templates are stored as dormant matching
-`.github/workflows/*.yml.tpl` files. `tailor_template_cleanup.sh` materializes
-them as the runnable `.yml` files and removes the `.tpl` sources. The
-`testWorkflowTemplates.py` contract parses every active/dormant pair,
-validates trigger, job, checkout, and action structure, and executes the ROS
-metadata synchronization blocks in temporary Git repositories. This proves
-clean synchronization and dirty-manifest rejection without duplicating shell
-command spelling in a text scanner.
-Executable workflow roles use stable `id` fields, so display names may be
-reworded without breaking the contract.
-
-Dormant workflow templates must not rely on parse-only coverage. The active
-Linux `tailored-project-validation` job applies cleanup in a full-history scratch
-clone of the exact CI revision,
-parses the materialized workflows, builds/tests the tailored C++ fixture, and
-builds its docs. The active ROS workflow separately removes and re-adds the
-overlay in scratch, materializes the generic ROS workflow, and exercises the
-resulting ROS and standalone builds. The active CUDA workflow runs the common
-workflow-template contract, materializes the project in both jobs, and then
-builds/tests that tailored source tree on the GPU runner.
+Template-system workflow structure and behavior is checked from TestField
+against an explicitly selected candidate. The parser-backed contract validates
+triggers, job topology, checkout depth, shell syntax, current Pages actions,
+ROS step ordering, and metadata drift behavior without adding those checks to
+ordinary project CTest.
 
 The Linux workflows keep CPU tuning portable because build artifacts are tested in a separate job. Do not re-enable `CPU_ENABLE_NATIVE_TUNING=ON` in GitHub Actions unless build and test run on the same pinned CPU family.
 
-The active and generic native CPU, CUDA, and ROS workflows also run for
-`v*.*.*` tag pushes. Their existing `paths` filters continue to scope branch
+The native CPU, CUDA, and ROS workflows also run for `v*.*.*` tag pushes.
+Their existing `paths` filters continue to scope branch
 pushes and pull requests; GitHub does not evaluate path filters for tag pushes,
 so a release tag still executes the release-relevant build gates. See
 [GitHub workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#onpushpull_requestpull_request_targetpathspaths-ignore).
@@ -157,46 +149,37 @@ while such a runner is available. When the variable is unset or has any other
 value, both CUDA jobs are skipped before runner allocation, so release-tag and
 manual workflow runs do not remain queued indefinitely.
 
-The active template ROS workflow executes
-`./generate_version.sh --sync-ros2` and rejects any tracked manifest change
-with:
+The ROS workflow executes `./generate_version.sh --sync-ros2` when the helper
+advertises full metadata synchronization, then rejects any tracked manifest
+change with:
 
 ```bash
 git diff --exit-code -- ros2/*/package.xml
 ```
 
-The generic derived-project ROS workflow applies the same drift guard whenever
-the helper supports full metadata synchronization. It emits a compatibility
-warning instead of failing when an older derived project has not adopted that
-capability yet. After the workflow-owned synchronization, CI passes
+It emits a compatibility warning instead of failing when an older derived
+project has not adopted that capability yet. After workflow-owned
+synchronization, CI passes
 `--no-version-sync` to the build helper to avoid a second unguarded rewrite.
 
-Template-validation Linux and ROS jobs install `python3-pytest` and
-`python3-yaml`; PyYAML parses the active/dormant workflow pairs. Jobs that run
-documentation CTests also install Doxygen and Graphviz. Self-hosted and CUDA
-template workflows validate the same requirements with
-`python3 -m pytest --version`, `python3 -c 'import yaml'`,
-`command -v doxygen`, and `command -v dot` before configuring or running tests.
-Cleanup removes the workflow-template
-pytest, so generic tailored-project CI does not inherit the PyYAML dependency
-unless the project adds its own YAML-backed tests.
+Project workflows install only their runtime/build prerequisites. PyYAML and
+the parser-backed contract belong to TestField rather than the delivered
+project. Documentation jobs install Doxygen and Graphviz; CUDA jobs validate
+their host tools before configuring.
 
 The Pages workflow is separate from the C++ build workflow. It has these stages:
 
-1. Run the repository-owned parser-backed workflow contract.
-2. Configure docs with CUDA, OptiX, and tests disabled.
-3. Build Doxygen HTML and XML.
-4. Verify `index.html` exists before upload.
-5. Upload the Pages artifact.
-6. Deploy only for default-branch pushes, or manual dispatch when `deploy_pages=true`.
-7. Fetch the deployed Pages URL and check that the published index contains the expected documentation links.
+1. Configure docs with CUDA, OptiX, and tests disabled.
+2. Build Doxygen HTML and XML.
+3. Verify `index.html` exists before upload.
+4. Upload the Pages artifact.
+5. Deploy only for default-branch pushes, or manual dispatch when `deploy_pages=true`.
+6. Fetch the deployed Pages URL and verify that it returns non-empty content.
 
-Repository tests prefer executable behavior or the native parser for YAML,
-JSON, XML, and generated CMake metadata. They do not use regular-expression
-matches against tracked implementation or documentation text. Exact text is
-reserved for generated output whose representation is itself contractual, such
-as tailoring markers, materialized workflow files, and preserved XML processing
-instructions.
+Tests prefer executable behavior or native parsers for YAML, JSON, XML, and
+generated CMake metadata. Exact text is reserved for generated output whose
+representation is itself contractual, such as synchronized metadata and
+preserved XML processing instructions.
 
 ## Issue Templates
 

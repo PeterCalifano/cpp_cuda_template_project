@@ -65,17 +65,10 @@ The generated Doxyfile excludes `lib/`, `doc/developments/`, build directories, 
 
 ## GitHub Pages
 
-`.github/workflows/docs_pages.yml` builds the Doxygen HTML site and uploads `build_docs/doc/html` as a Pages artifact.
-
-Before configuring Doxygen, the active template workflow runs the owned
-parser-backed workflow contract directly:
-
-```bash
-python3 -m pytest -q tests/template_test/testWorkflowTemplates.py
-```
-
-Changes to that test are included in the workflow path filters. The dormant
-generic docs workflow intentionally does not inherit this template-only check.
+`.github/workflows/docs_pages.yml` builds the Doxygen HTML site and uploads
+`build_docs/doc/html` as a Pages artifact. The same workflow is inherited by a
+tailored project; generic workflow structure and template documentation
+conformance are tested externally by `cpp_cuda_template_testfield`.
 
 Pull requests build and upload the artifact for inspection but do not deploy. Manual `workflow_dispatch` runs are build-only by default; set `deploy_pages=true` to publish intentionally. Default-branch pushes deploy to the `github-pages` environment.
 
@@ -91,10 +84,13 @@ Settings > Pages > Build and deployment > Source: GitHub Actions
 
 ## Verification
 
-Run the docs CTest gates before publishing:
+Build the documentation from a fresh preset before publishing:
 
 ```bash
-ctest --test-dir build --output-on-failure -R "docs|pages|issue_templates|version"
+cmake --preset docs
+cmake --build --preset docs
+test -f build_docs/doc/html/index.html
+test -d build_docs/doc/xml
 ```
 
 After a Pages deployment, check:

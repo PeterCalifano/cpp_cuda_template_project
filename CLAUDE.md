@@ -63,7 +63,11 @@ All optional features default to OFF: `ENABLE_CUDA`, `ENABLE_OPTIX`, `ENABLE_OPE
 
 ### Testing
 
-Uses Catch2 (auto-fetched if not found). Tests live in `tests/template_test/`, fixtures in `tests/template_fixtures/`. Test targets are created via the `add_tests()` macro from `cmake_utils.cmake`.
+Uses Catch2 (auto-fetched if not found). Inherited runtime tests live in
+`tests/template_test/`, CUDA runtime tests in `tests/template_cuda/`, and
+fixtures in `tests/template_fixtures/`. Test targets are created via the
+`add_tests()` macro from `cmake_utils.cmake`; generic template conformance is
+owned externally by `cpp_cuda_template_testfield`.
 
 ### Consumer Pattern
 

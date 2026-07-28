@@ -38,11 +38,11 @@ Usage:
 
 Purpose:
   Remove files that are only useful while developing cpp_cuda_template_project
-  itself, then patch CMake references to removed template-validation tests.
+  itself while preserving reusable project files.
 
 Options:
   --list          Print the cleanup list and exit.
-  --apply         Remove files and patch CMake files.
+  --apply         Remove template-owned files and tailor retained content.
   --yes           Do not prompt before applying.
   --project-namespace <identifier>
                   Replace the template_project logger namespace.
@@ -62,39 +62,11 @@ template_development_paths=(
     "cpp_cuda_template_project.code-workspace"
     "doc/developments"
     "doc/reports"
-    "tests/cmake/AddMatlabWrapperRegressionTests.cmake"
-    "tests/cmake/CheckTcmallocDependency.cmake"
-    "tests/cmake/VerifyTemplateProjectAddTestsProperties.cmake"
-    "tests/cmake/VerifyTemplateProjectBuildLibCleanSafety.cmake"
-    "tests/cmake/VerifyTemplateProjectBuildTreePackage.cmake"
-    "tests/cmake/VerifyTemplateProjectCrossCompile.cmake"
-    "tests/cmake/VerifyTemplateProjectCudaSources.cmake"
-    "tests/cmake/VerifyTemplateProjectDocsWorkflow.cmake"
-    "tests/cmake/VerifyTemplateProjectNestedDocsIsolation.cmake"
-    "tests/cmake/VerifyTemplateProjectNoOptimization.cmake"
-    "tests/cmake/VerifyTemplateProjectOptixInstallExport.cmake"
-    "tests/cmake/VerifyTemplateProjectOptimizedFlags.cmake"
-    "tests/cmake/VerifyTemplateProjectPythonPackaging.cmake"
-    "tests/cmake/VerifyTemplateProjectReleaseTagSync.cmake"
-    "tests/cmake/VerifyTemplateProjectRos2Overlay.cmake"
-    "tests/cmake/VerifyTemplateProjectTailoringScript.cmake"
-    "tests/cmake/VerifyTemplateProjectVersionSideEffects.cmake"
-    "tests/template_test/testRos2OverlayStatic.py"
-    "tests/template_test/testWorkflowTemplates.py"
-    "tests/matlab/RunTemplateWrapperRegression.m"
 )
 
 optional_paths=(
     "profiling"
 )
-
-project_workflow_names=(
-    "build_linux.yml"
-    "build_linux_cuda.yml"
-    "docs_pages.yml"
-    "build_ros2_overlay.yml"
-)
-project_workflow_marker="# project-ci-template: generic"
 
 ros2_overlay_paths=(
     "ros2"
@@ -105,9 +77,7 @@ ros2_overlay_paths=(
     "examples/COLCON_IGNORE"
     "tests/COLCON_IGNORE"
     ".github/workflows/build_ros2_overlay.yml"
-    ".github/workflows/build_ros2_overlay.yml.tpl"
     "doc/ros2_overlay.md"
-    "tests/template_test/testRos2OverlayStatic.py"
 )
 
 ros2_overlay_doc_paths=(
@@ -153,24 +123,20 @@ EOF
     fi
     cat <<'EOF'
 
-CMake edits made by --apply:
-  - Remove the root CMake include/call for AddMatlabWrapperRegressionTests.cmake.
-  - Replace tests/CMakeLists.txt template-validation registrations with the project unit-test section.
+Content edits made by --apply:
   - With --remove-ros2, strip <!-- ros2-overlay-begin/end --> fenced doc blocks.
 
 Logger namespace edit made by --apply:
   - --project-namespace replaces template_project::logging in the reusable logger files.
 
-Workflow edits made by --apply:
-  - Materialize generic project CI workflows from the dormant *.yml.tpl files.
-  - Remove active template-validation workflow content and all *.yml.tpl files.
-  - With --remove-ros2, omit the runnable and dormant ROS 2 workflow.
-
 Not removed:
   - cmake/ production modules, including Python/MATLAB wrapper staging support.
   - build_lib.sh, generate_version.sh, docs workflow files, issue forms, and docs guides.
   - src/utils/logging/ and doc/logging.md, because the logger is reusable project infrastructure.
-  - tests/template_test and tests/template_fixtures, because they are starter project tests.
+  - Root and test CMake files; tailoring never reconstructs build-system files.
+  - Starter C++/Python/CUDA tests, fixtures, and MATLAB wrapper runtime checks.
+  - Downstream custom tests, including CMake-script tests.
+  - Generic project workflows; --remove-ros2 removes only the ROS workflow.
   - .devcontainer, .vscode, examples/, and toolchains, because they are reusable project infrastructure.
   - profiling/ only when --keep-profiling is set.
   - ROS 2 overlay files unless --remove-ros2 is set.
@@ -237,37 +203,6 @@ validate_root() {
     [[ -f "${ROOT_DIR}/build_lib.sh" ]] || die "Missing build_lib.sh in root: ${ROOT_DIR}"
 }
 
-validate_workflow_templates() {
-    local workflow_name_
-    local active_workflow_
-    local workflow_template_
-
-    for workflow_name_ in "${project_workflow_names[@]}"; do
-        active_workflow_="${ROOT_DIR}/.github/workflows/${workflow_name_}"
-        workflow_template_="${active_workflow_}.tpl"
-
-        if [[ -f "${workflow_template_}" ]]; then
-            [[ -f "${active_workflow_}" ]] \
-                || die "Generic workflow template has no active pair: .github/workflows/${workflow_name_}.tpl"
-            grep -Fqx -- "${project_workflow_marker}" "${workflow_template_}" \
-                || die "Generic workflow template is missing its ownership marker: .github/workflows/${workflow_name_}.tpl"
-            continue
-        fi
-
-        if [[ -f "${active_workflow_}" ]]; then
-            grep -Fqx -- "${project_workflow_marker}" "${active_workflow_}" \
-                || die "Active template-validation workflow has no generic template: .github/workflows/${workflow_name_}"
-            continue
-        fi
-
-        if ((REMOVE_ROS2)) && [[ "${workflow_name_}" == "build_ros2_overlay.yml" ]]; then
-            continue
-        fi
-
-        die "Missing runnable workflow and generic template: .github/workflows/${workflow_name_}"
-    done
-}
-
 tailor_logger_namespace() {
     local relative_path_
     local source_file_
@@ -292,40 +227,6 @@ tailor_logger_namespace() {
     done
 }
 
-materialize_project_workflows() {
-    local workflow_name_
-    local active_workflow_
-    local workflow_template_
-    local tmp_
-
-    for workflow_name_ in "${project_workflow_names[@]}"; do
-        if ((REMOVE_ROS2)) && [[ "${workflow_name_}" == "build_ros2_overlay.yml" ]]; then
-            continue
-        fi
-
-        active_workflow_="${ROOT_DIR}/.github/workflows/${workflow_name_}"
-        workflow_template_="${active_workflow_}.tpl"
-        if [[ ! -f "${workflow_template_}" ]]; then
-            [[ -f "${active_workflow_}" ]] \
-                || die "Cannot materialize missing workflow: .github/workflows/${workflow_name_}"
-            info "project workflow already materialized .github/workflows/${workflow_name_}"
-            continue
-        fi
-
-        if ((APPLY)); then
-            tmp_="$(mktemp "${active_workflow_}.tmp.XXXXXX")"
-            TEMPORARY_PATHS+=("${tmp_}")
-            cp -p -- "${workflow_template_}" "${tmp_}"
-            chmod --reference="${workflow_template_}" "${tmp_}"
-            mv -f -- "${tmp_}" "${active_workflow_}"
-            rm -f -- "${workflow_template_}"
-            info "materialized project workflow .github/workflows/${workflow_name_}"
-        else
-            info "would materialize project workflow .github/workflows/${workflow_name_}"
-        fi
-    done
-}
-
 remove_path() {
     local relative_path_="$1"
     local absolute_path_="${ROOT_DIR}/${relative_path_}"
@@ -335,91 +236,8 @@ remove_path() {
         return
     fi
 
-    if ((APPLY)); then
-        rm -rf -- "${absolute_path_}"
-        info "removed ${relative_path_}"
-    else
-        info "would remove ${relative_path_}"
-    fi
-}
-
-patch_root_cmakelists() {
-    local cmakelists_="${ROOT_DIR}/CMakeLists.txt"
-    local tmp_
-
-    if ! grep -q "AddMatlabWrapperRegressionTests.cmake\\|add_template_matlab_wrapper_regression_tests" "${cmakelists_}"; then
-        info "root CMakeLists.txt has no template MATLAB regression hook"
-        return
-    fi
-
-    if ((APPLY)); then
-        tmp_="$(mktemp "${cmakelists_}.tmp.XXXXXX")"
-        TEMPORARY_PATHS+=("${tmp_}")
-        awk '
-            /^[[:space:]]*include\("\$\{CMAKE_CURRENT_SOURCE_DIR\}\/tests\/cmake\/AddMatlabWrapperRegressionTests.cmake"\)/ {next}
-            /^[[:space:]]*add_template_matlab_wrapper_regression_tests\(\)/ {next}
-            {print}
-        ' "${cmakelists_}" > "${tmp_}"
-        chmod --reference="${cmakelists_}" "${tmp_}"
-        mv -f -- "${tmp_}" "${cmakelists_}"
-        info "patched CMakeLists.txt"
-    else
-        info "would patch CMakeLists.txt"
-    fi
-}
-
-patch_tests_cmakelists() {
-    local tests_cmake_="${ROOT_DIR}/tests/CMakeLists.txt"
-    local tmp_
-
-    [[ -f "${tests_cmake_}" ]] || {
-        warn "tests/CMakeLists.txt not found; skipping test CMake patch"
-        return
-    }
-
-    if ! grep -q "VerifyTemplateProject\\|template_project_.*flags\\|template_project_docs" "${tests_cmake_}"; then
-        info "tests/CMakeLists.txt has no template validation registrations"
-        return
-    fi
-
-    if ! grep -q "^# Exclude EXCLUDED_LIST" "${tests_cmake_}"; then
-        warn "tests/CMakeLists.txt marker not found; skipping automatic patch"
-        return
-    fi
-
-    if ((APPLY)); then
-        tmp_="$(mktemp "${tests_cmake_}.tmp.XXXXXX")"
-        TEMPORARY_PATHS+=("${tmp_}")
-        {
-            cat <<'EOF'
-# Project unit tests. Template-development validation tests were removed by tailor_template_cleanup.sh.
-include(CTest)
-
-# Exclude EXCLUDED_LIST from the list of tests
-set(EXCLUDED_LIST "test_to_exclude")
-set(TESTS_LIST "")
-
-# Include the content of the fixtures directory
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
-
-# Add subdirectories that may contain compiled and/or Python tests.
-add_subdirectory(template_test)
-add_subdirectory(template_fixtures)
-add_subdirectory(template_cuda)  # CUDA-init fixture gate + placeholder (built only when ENABLE_CUDA)
-
-# Add tests to build and register.
-add_tests(${project_name} EXCLUDED_LIST TESTS_LIST ${CUDA_COMPILE_TARGET} CATCH2_TEST_PROPERTIES Catch2::Catch2WithMain)
-
-# Make catch2 to search for tests
-message(STATUS "List of test targets: ${TESTS_LIST}")
-EOF
-        } > "${tmp_}"
-        chmod --reference="${tests_cmake_}" "${tmp_}"
-        mv -f -- "${tmp_}" "${tests_cmake_}"
-        info "patched tests/CMakeLists.txt"
-    else
-        info "would patch tests/CMakeLists.txt"
-    fi
+    rm -rf -- "${absolute_path_}"
+    info "removed ${relative_path_}"
 }
 
 filter_ros2_overlay_doc() {
@@ -485,18 +303,14 @@ strip_ros2_overlay_doc_fences() {
             continue
         fi
 
-        if ((APPLY)); then
-            tmp_="$(mktemp "${doc_file_}.tmp.XXXXXX")"
-            TEMPORARY_PATHS+=("${tmp_}")
-            if filter_ros2_overlay_doc "${doc_file_}" > "${tmp_}"; then
-                chmod --reference="${doc_file_}" "${tmp_}"
-                mv -f -- "${tmp_}" "${doc_file_}"
-                info "stripped ROS 2 overlay fence from ${relative_path_}"
-            else
-                die "Malformed ROS 2 overlay fence in ${relative_path_}"
-            fi
+        tmp_="$(mktemp "${doc_file_}.tmp.XXXXXX")"
+        TEMPORARY_PATHS+=("${tmp_}")
+        if filter_ros2_overlay_doc "${doc_file_}" > "${tmp_}"; then
+            chmod --reference="${doc_file_}" "${tmp_}"
+            mv -f -- "${tmp_}" "${doc_file_}"
+            info "stripped ROS 2 overlay fence from ${relative_path_}"
         else
-            info "would strip ROS 2 overlay fence from ${relative_path_}"
+            die "Malformed ROS 2 overlay fence in ${relative_path_}"
         fi
     done
 }
@@ -525,7 +339,6 @@ main() {
 
     validate_project_namespace
     validate_root
-    validate_workflow_templates
     validate_ros2_overlay_doc_fences
     print_cleanup_list
     confirm_apply
@@ -551,11 +364,6 @@ main() {
     else
         info "keeping ROS 2 overlay; pass --remove-ros2 to strip it"
     fi
-
-    materialize_project_workflows
-
-    patch_root_cmakelists
-    patch_tests_cmakelists
 
     info "template cleanup complete"
 }

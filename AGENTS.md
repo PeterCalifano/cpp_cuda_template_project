@@ -34,9 +34,9 @@ For a derived project:
 - never import `VerifyTemplateProject*` or other donor self-validation tests as
   product tests.
 
-The template repository may retain broader conformance tests because it owns
-generic generation and tailoring behavior. That exception does not make those
-tests part of the derived-project contract.
+Generic template conformance is owned by the standalone harness in
+`cpp_cuda_template_testfield`. The template repository itself keeps the same
+runtime-oriented test layout inherited by derived projects.
 
 ### Build cleanup and wrapper packaging safety
 

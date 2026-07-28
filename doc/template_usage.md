@@ -138,10 +138,12 @@ Use Catch2 for compiled tests, pytest for Python tests, and CTest as the common
 runner. Put compiled tests in `test*.cpp` or `test*.cu` files and Python tests in
 `test*.py` files.
 
-The template repository uses `tests/cmake/` for template-owned conformance,
-tailoring, and generation checks. Do not copy those verifiers into a tailored
-project. A derived project should prove configuration, feature matrices,
-installation, packaging, and external consumption with explicit fresh
+The template checkout contains only runtime tests and fixtures that a derived
+project should inherit. Generic tailoring, workflow, packaging, installation,
+and platform conformance is owned by the standalone harness in
+`cpp_cuda_template_testfield`; those verifier implementations are not part of
+this source tree. A derived project should prove its own configuration, feature
+matrices, installation, packaging, and external consumption with explicit fresh
 out-of-tree commands in its acceptance/CI matrix. Do not make ordinary CTest
 recursively configure and rebuild the same project when CI already owns that
 behavioral gate.
@@ -213,44 +215,26 @@ By default this also removes `profiling/`. Keep those scripts only when the new 
 ```
 
 The script replaces `template_project::logging` with the required project
-namespace, then removes agent/context notes, internal development notes,
-workflow snapshot files, template-specific validation CTest scripts, optional
-profiling scripts, and the workspace file tied to this template checkout. It
-keeps reusable project infrastructure such as `cmake/` (including the
-Python/MATLAB wrapper and runtime-staging modules), `build_lib.sh`, docs
-workflow files, issue forms, examples, toolchains, starter unit tests,
-`.devcontainer/`, and `.vscode/`.
+namespace, then removes agent/context notes, internal development and review
+records, optional profiling scripts, and the workspace file tied to this
+template checkout. It keeps reusable project infrastructure such as `cmake/`
+(including the Python/MATLAB wrapper and runtime-staging modules),
+`build_lib.sh`, issue forms, examples, toolchains, starter runtime tests,
+MATLAB wrapper checks, `.devcontainer/`, and `.vscode/`.
 
-It also removes the root CMake hook for the template MATLAB regression helper and rewrites `tests/CMakeLists.txt` so only starter project unit tests remain registered.
+Root `CMakeLists.txt`, `tests/CMakeLists.txt`, custom downstream tests, and the
+non-ROS workflows are stable inputs: cleanup does not parse or rewrite them.
+This boundary is intentional. Template-system conformance remains external in
+TestField, while project-owned runtime checks remain with the project.
 
-This cleanup boundary is intentional: template CMake conformance tests remain
-owned by the donor/testfield validation harness, not by the tailored product.
+### Project workflows
 
-### Workflow materialization
+The four runnable `.github/workflows/*.yml` files are directly reusable by a
+derived project. There are no dormant workflow copies and no materialization
+step. Normal cleanup preserves all four files byte-for-byte.
 
-The runnable `.github/workflows/*.yml` files in this repository validate the
-template itself. Generic workflows for a tailored project are stored beside
-them as dormant `.tpl` files so GitHub does not execute both definitions:
-
-| Dormant project workflow | Materialized tailored workflow |
-|---|---|
-| `build_linux.yml.tpl` | `build_linux.yml` |
-| `build_linux_cuda.yml.tpl` | `build_linux_cuda.yml` |
-| `docs_pages.yml.tpl` | `docs_pages.yml` |
-| `build_ros2_overlay.yml.tpl` | `build_ros2_overlay.yml` |
-
-Normal cleanup validates that each active/dormant pair exists, atomically
-replaces each active template-validation workflow with its generic project
-workflow, and removes every `.tpl` file. The resulting checkout therefore has
-only runnable project CI and no dormant workflow templates.
-
-Each generic workflow carries the `# project-ci-template: generic` ownership
-marker. Cleanup preserves that marker and the source file mode, allowing the
-same cleanup mode to be reapplied safely while still rejecting an active
-template-validation workflow whose matching `.tpl` was lost before
-materialization.
-
-With `--remove-ros2`, cleanup materializes the three non-ROS workflows and
-removes both forms of the ROS workflow. Without that flag, all four project
-workflows are materialized. Make project-specific runner, dependency, and
-deployment changes in the resulting `.yml` files after cleanup.
+With `--remove-ros2`, cleanup removes only
+`.github/workflows/build_ros2_overlay.yml` along with the optional overlay.
+Without that flag, the workflow remains available. Make project-specific
+runner, dependency, and deployment changes directly in the `.yml` files after
+cleanup.

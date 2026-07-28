@@ -374,7 +374,7 @@ build-backend = "setuptools.build_meta"
 name = "@PROJECT_NAME@"
 version = "@PROJECT_VERSION@"
 description = "Python bindings for @PROJECT_NAME@"
-requires-python = ">=3.8"
+requires-python = ">=3.12"
 
 [tool.setuptools]
 packages = ["@PROJECT_NAME@"]
