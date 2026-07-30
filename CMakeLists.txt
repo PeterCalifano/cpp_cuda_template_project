@@ -554,7 +554,6 @@ string(
   _cpack_source_root_regex "${_cpack_source_root_regex}")
 set(CPACK_SOURCE_IGNORE_FILES
     "^${_cpack_source_root_regex}/(.*/)?\\.git(/|$)"
-    "^${_cpack_source_root_regex}/build[^/]*/"
     "^${_cpack_source_root_regex}/install/"
     "^${_cpack_source_root_regex}/ros2/(build|install|log)/"
     "^${_cpack_source_root_regex}/(.*/)?\\.pytest_cache/"
@@ -597,8 +596,7 @@ foreach(_cpack_cache_candidate IN LISTS _cpack_cache_candidates)
     _cpack_cache_relative_to_source
     "${CMAKE_CURRENT_SOURCE_DIR}"
     "${_cpack_cache_candidate}")
-  if("${_cpack_cache_relative_to_source}" MATCHES "^build[^/]*/"
-      OR "${_cpack_cache_relative_to_source}" MATCHES "^install/"
+  if("${_cpack_cache_relative_to_source}" MATCHES "^install/"
       OR "${_cpack_cache_relative_to_source}"
          MATCHES "^ros2/(build|install|log)/")
     continue()
