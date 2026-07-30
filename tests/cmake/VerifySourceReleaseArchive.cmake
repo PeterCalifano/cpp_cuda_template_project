@@ -30,12 +30,8 @@ foreach(required_path
   endif()
 endforeach()
 
-file(GLOB _root_build_entries LIST_DIRECTORIES TRUE "${TEST_SOURCE_ROOT}/build*")
-foreach(_root_build_entry IN LISTS _root_build_entries)
-  if(IS_DIRECTORY "${_root_build_entry}")
-    message(FATAL_ERROR "Canonical source archive contains build tree: ${_root_build_entry}")
-  endif()
-endforeach()
+# Reject fixed generated overlay locations here; the candidate release test
+# verifies CMake build-tree ownership with controlled cache fixtures.
 foreach(generated_path "ros2/build" "ros2/install" "ros2/log")
   if(EXISTS "${TEST_SOURCE_ROOT}/${generated_path}")
     message(FATAL_ERROR "Canonical source archive contains generated ROS output: ${generated_path}")

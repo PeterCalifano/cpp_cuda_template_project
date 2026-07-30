@@ -230,7 +230,11 @@ _run_success(
 set(_release_build "${_scratch_root}/generated/current_output")
 set(_archive_output "${TEST_BINARY_ROOT}/archive_output")
 set(_archive_extract "${TEST_BINARY_ROOT}/archive_extract")
+
+# Contrast legitimate build-prefixed sources with cache-owned generated trees
+# so source packaging depends on ownership evidence rather than path names.
 file(MAKE_DIRECTORY
+    "${_scratch_root}/build_assets"
     "${_scratch_root}/build_release_sentinel"
     "${_scratch_root}/build_transient"
     "${_scratch_root}/examples/build_release_sentinel"
@@ -242,7 +246,13 @@ file(MAKE_DIRECTORY
     "${_scratch_root}/ros2/log/generated"
     "${_archive_output}"
     "${_archive_extract}")
+file(WRITE
+    "${_scratch_root}/build_assets/must_ship.txt"
+    "legitimate build-prefixed source\n")
 file(WRITE "${_scratch_root}/build_release_sentinel/must_not_ship.txt" "generated build output\n")
+file(WRITE
+    "${_scratch_root}/build_release_sentinel/CMakeCache.txt"
+    "CMAKE_HOME_DIRECTORY:INTERNAL=${_scratch_root}\n")
 file(CREATE_LINK
     "${_scratch_root}/missing-transient-cache"
     "${_scratch_root}/build_transient/CMakeCache.txt"
@@ -328,6 +338,10 @@ if(EXISTS "${_extracted_root}/generated/current_output")
   message(FATAL_ERROR
       "Canonical source archive contains the active nested binary tree")
 endif()
+if(NOT EXISTS "${_extracted_root}/build_assets/must_ship.txt")
+  message(FATAL_ERROR
+      "Canonical source archive omitted legitimate build-prefixed source content")
+endif()
 if(NOT EXISTS "${_extracted_root}/examples/foreign_build/must_ship.txt")
   message(FATAL_ERROR
       "Canonical source archive omitted a foreign child-project cache")
@@ -365,6 +379,7 @@ _run_failure(
     -P "${_source_release_verifier}")
 
 file(REMOVE_RECURSE
+    "${_scratch_root}/build_assets"
     "${_scratch_root}/build_release_sentinel"
     "${_scratch_root}/build_transient"
     "${_scratch_root}/examples/build_release_sentinel"
