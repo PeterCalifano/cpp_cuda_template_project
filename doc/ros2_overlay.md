@@ -63,15 +63,16 @@ CUDA and OptiX flow through a workspace option facade:
 
 | User flag | Colcon CMake argument | Shim mapping | Core CMake option |
 |---|---|---|---|
-| `--cuda` | `-DTEMPLATE_PROJECT_ENABLE_CUDA=ON` | cache-forces `ENABLE_CUDA` | `ENABLE_CUDA=ON` |
-| `--optix` | `-DTEMPLATE_PROJECT_ENABLE_OPTIX=ON` and CUDA ON | cache-forces `ENABLE_OPTIX` | `ENABLE_OPTIX=ON` |
+| `--cuda` | `-DTEMPLATE_PROJECT_ENABLE_CUDA=ON` | cache-forces `template_project_ENABLE_CUDA` | `template_project_ENABLE_CUDA=ON` |
+| `--optix` | `-DTEMPLATE_PROJECT_ENABLE_OPTIX=ON` and CUDA ON | cache-forces `template_project_ENABLE_OPTIX` | `template_project_ENABLE_OPTIX=ON` |
 
 `TEMPLATE_PROJECT_ENABLE_CUDA` and `TEMPLATE_PROJECT_ENABLE_OPTIX` are stable
 overlay facade names. They intentionally survive CMake project and ROS package
 renaming so build automation has one consistent interface across derived
 repositories. The shim cache-forces the core options from these facade values,
-so direct `--cmake-arg -DENABLE_CUDA=ON` or
-`--cmake-arg -DENABLE_OPTIX=ON` values are overwritten by the shim. Use
+so direct `--cmake-arg -Dtemplate_project_ENABLE_CUDA=ON` or
+`--cmake-arg -Dtemplate_project_ENABLE_OPTIX=ON` values are overwritten by the
+shim. Use
 `--cuda`, `--optix`, or set the corresponding facade variables instead.
 
 Use a ROS 2 Jazzy environment or the ROS devcontainer for local GPU checks:

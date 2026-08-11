@@ -155,7 +155,7 @@ All options are passed via `build_lib.sh` flags or directly as `-D<VAR>=<VAL>` t
 ### `build_lib.sh` reference
 
 ```
--B, --buildpath <dir>     Build directory (default: ./build)
+-B, --buildpath <dir>     Build directory (default: <checkout>/build)
 -t, --type <type>         debug | release | relwithdebinfo | minsizerel
 -j, --jobs <N>            Parallel jobs (default: nproc or 4)
 -r, --rebuild-only        Skip CMake configure; rebuild sources only
@@ -177,9 +177,11 @@ All options are passed via `build_lib.sh` flags or directly as `-D<VAR>=<VAL>` t
     --ctest-extra-args <args>
                           Simple whitespace-split arguments appended to CTest
     --gtwrap-root <dir>   Path to local wrap checkout root
-    --no-wrap-update      Disable auto-update of local wrap checkout to latest master
+    --wrap-update         Explicitly update a local wrap checkout to latest master
+    --no-wrap-update      Keep the local wrap checkout unchanged (default)
+    --wrap-submodule-init Explicitly initialize a declared wrap submodule fallback
     --no-wrap-submodule-init
-                          Disable wrap submodule initialization fallback
+                          Do not initialize a wrap submodule (default)
     --toolchain <file>    CMake toolchain file
 -h, --help                Show full help
 ```
@@ -188,14 +190,17 @@ See [`doc/build_script_doc.md`](doc/build_script_doc.md) for a detailed option r
 
 `--clean` accepts only conventional in-repository `build`, `build*`, or
 `out/*` paths. An existing directory must contain a CMake cache owned by this
-checkout. The option is ignored with `--rebuild-only`.
+checkout. Relative paths remain anchored to the checkout containing the script,
+including when it is invoked from another working directory. The option is
+ignored with `--rebuild-only`.
 
 ### CMake feature flags
 
 | Option | Default | Description |
 |---|---|---|
-| `ENABLE_CUDA` | OFF | CUDA GPU acceleration |
-| `ENABLE_OPTIX` | OFF | NVIDIA OptiX (enables CUDA automatically) |
+| `template_project_ENABLE_CUDA` | OFF | CUDA GPU acceleration |
+| `template_project_ENABLE_OPTIX` | OFF | NVIDIA OptiX (enables CUDA automatically) |
+| `template_project_METADATA_ONLY` | OFF | Configure project identity/version without compiler languages |
 | `ENABLE_TBB` | OFF | Intel oneTBB support (`find_package(TBB)`) |
 | `ENABLE_OPENGL` | OFF | OpenGL support |
 | `ENABLE_TESTS` | ON | Register and run CTest tests |
@@ -225,6 +230,14 @@ checkout. The option is ignored with `--rebuild-only`.
 | `CUDA_NVCC_EXTRA_FLAGS` | `""` | Extra NVCC flags for CUDA and PTX compilation |
 | `NO_OPTIMIZATION` | OFF | Force profiler-friendly `-O0 -g3`, frame pointers, and assertions regardless of build type |
 | `WARNINGS_ARE_ERRORS` | OFF | Treat all warnings as errors (`-Werror`) |
+
+Replace the `template_project` prefix during tailoring. The historical
+`ENABLE_CUDA`, `ENABLE_OPTIX`, and `PROJECT_METADATA_ONLY` options remain
+top-level compatibility aliases; nested consumers must use the project-qualified
+forms so parent cache options cannot change the library configuration. A legacy
+alias supplied to a top-level configure wins for that invocation, is copied to
+the canonical option, and is then removed from the cache so later reconfigures
+cannot retain two conflicting sources of truth.
 
 ### Build type compiler flags
 
@@ -322,10 +335,14 @@ When `-p` and/or `-m` is used, wrapper resolution now follows this order:
 3. If still unresolved and `GTWRAP_INIT_SUBMODULE_IF_MISSING=ON`, initialize a
    declared `wrap` or `lib/wrap` git submodule and use that checkout.
 
-Existing local wrap roots are updated to latest `origin/master` by default. This
-includes detached/tag states by switching/creating local `master` from
-`origin/master`. Pass `--no-wrap-update` to disable that update step, or
-`--no-wrap-submodule-init` to disable the submodule fallback entirely.
+Wrapper checkout maintenance is disabled by default. Pass `--wrap-update` to
+explicitly advance a resolved local checkout to `origin/master`, or
+`--wrap-submodule-init` to initialize a declared submodule after local and
+installed discovery fail. Direct CMake callers must grant checkout maintenance
+with `GTWRAP_MAINTENANCE_UPDATE=ON` as well as requesting
+`GTWRAP_SYNC_TO_MASTER=ON`. Submodule initialization applies only to a `wrap`
+or `lib/wrap` entry already declared in `.gitmodules`; adding a new submodule is
+a separate Git maintenance operation.
 
 ### Prerequisites
 
@@ -371,7 +388,7 @@ Wrapper generators produce different C++ files by design:
 ### Python package install workflow
 
 Python package metadata is owned by `python/pyproject.toml.in` and configured
-into `python/pyproject.toml` when Python wrapping is requested.
+into `<build>/python/pyproject.toml` when Python wrapping is requested.
 The optional `setup.py.in` augments installation behavior without duplicating
 package name/version metadata.
 
@@ -388,18 +405,18 @@ The checked-in `python/<project>/__init__.py` is the public package entrypoint:
 - `HAS_WRAPPER` is `False` when the pure-Python package imports without the wrapper.
 - `WRAPPER_IMPORT_ERROR` stores the wrapper import exception when fallback is active.
 
-When Python wrapping is requested, the source package becomes the public install
-entrypoint. CMake updates it with:
+When Python wrapping is requested, CMake assembles a disposable package root
+without updating the source checkout:
 
-- generated `python/pyproject.toml`
-- generated `python/setup.py`
-- build-time `python/<project>/_wrapper_build.py` linking the latest
+- generated `<build>/python/pyproject.toml`
+- generated `<build>/python/setup.py`
+- build-time `<build>/python/<project>/_wrapper_build.py` linking the latest
   successfully staged wrapper configuration
 
-Install from the source Python package directory:
+Install from the configured build package directory:
 
 ```bash
-cd python
+cd build/python
 python -m pip install .
 ```
 
@@ -558,6 +575,41 @@ The image in `.devcontainer/Dockerfile` can be built and used outside the DevCon
 # Manual build
 docker build --build-arg INSTALL_CUDA=on --build-arg CUDA_VERSION=12.9 -t my-dev .devcontainer
 ```
+
+Command mode runs with the host numeric UID and GID and uses `/tmp` as its
+writable home. Files created through the `/workspace` bind mount therefore
+remain owned by the host user instead of root. Rootless Podman additionally
+uses its `keep-id` user namespace.
+
+### Attach VS Code to a launcher-managed container
+
+Use `--vscode` to start a stable container before selecting
+`Dev Containers: Attach to Running Container...`:
+
+```bash
+./run_in_container.sh --vscode --engine podman
+```
+
+Attachment mode mounts the repository under `/workspaces/<repository>`,
+preserves bind-mount ownership, and forwards a live SSH-agent socket when one
+is available. The launcher prints the `workspaceFolder` and `remoteUser`
+values for the first attachment. This mode builds the Dockerfile directly, so
+features declared only in `devcontainer.json` are not applied; use the normal
+Dev Containers create/reopen workflow when those features are required.
+Docker attachment mode also requires the image's `vscode` UID and GID to match
+the host user; the launcher rejects a mismatch rather than creating files with
+ambiguous ownership.
+
+Expose a host MATLAB installation to wrapper configuration with:
+
+```bash
+./run_in_container.sh --vscode --engine podman \
+    --matlab-root /usr/local/MATLAB/R2024b
+```
+
+The installation is mounted read-only at the same absolute path and exported
+as `MATLAB_ROOT_DIR`. Because mounts are fixed at container creation, stop and
+recreate an existing attachment container before changing the MATLAB root.
 
 ---
 

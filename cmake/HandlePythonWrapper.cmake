@@ -23,8 +23,8 @@ function(set_python_target_properties
     set(_python_runtime_rpath "")
   endif()
 
-  # Suppress automatic configuration subdirectories because the source package
-  # is one shared checkout workspace populated by one configuration at a time.
+  # Suppress automatic configuration subdirectories so every native artifact
+  # remains co-located in the build-owned Python package.
   set_target_properties(
     "${PYTHON_TARGET}"
     PROPERTIES
@@ -71,6 +71,115 @@ function(_resolve_python_install_root OUT_VAR)
     "${OUT_VAR}"
     "${CMAKE_INSTALL_LIBDIR}/python${_python_resolved_version}/site-packages"
     PARENT_SCOPE)
+endfunction()
+
+# Normalize one SemVer identifier sequence for a PEP 440 local-version label.
+function(_normalize_python_local_version_label OUT_VAR INPUT_VALUE)
+  string(TOLOWER "${INPUT_VALUE}" _python_local_label)
+  string(REGEX REPLACE "[^0-9a-z]+" "."
+    _python_local_label "${_python_local_label}")
+  string(REGEX REPLACE "^\\.+" ""
+    _python_local_label "${_python_local_label}")
+  string(REGEX REPLACE "\\.+$" ""
+    _python_local_label "${_python_local_label}")
+  if("${_python_local_label}" STREQUAL "")
+    message(FATAL_ERROR
+      "Cannot convert '${INPUT_VALUE}' to a PEP 440 local-version label.")
+  endif()
+  set("${OUT_VAR}" "${_python_local_label}" PARENT_SCOPE)
+endfunction()
+
+# Project structured SemVer fields into PEP 440 without changing FULL_VERSION.
+function(_compose_python_package_version
+         OUT_VAR VERSION_CORE VERSION_PRERELEASE VERSION_METADATA)
+  if(NOT "${VERSION_CORE}" MATCHES "^[0-9]+\\.[0-9]+\\.[0-9]+$")
+    message(FATAL_ERROR
+      "Python package version requires a numeric SemVer core, got "
+      "'${VERSION_CORE}'.")
+  endif()
+
+  set(_python_public_version "${VERSION_CORE}")
+  set(_python_local_parts)
+  if(NOT "${VERSION_PRERELEASE}" STREQUAL "")
+    string(TOLOWER "${VERSION_PRERELEASE}" _python_prerelease)
+    if(_python_prerelease MATCHES
+       "^(alpha|a|beta|b|preview|pre|rc|c|dev)([.-]?([0-9]+))?$")
+      set(_python_prerelease_label "${CMAKE_MATCH_1}")
+      set(_python_prerelease_number "${CMAKE_MATCH_3}")
+      if("${_python_prerelease_number}" STREQUAL "")
+        set(_python_prerelease_number "0")
+      endif()
+
+      if(_python_prerelease_label MATCHES "^(alpha|a)$")
+        set(_python_prerelease_label "a")
+      elseif(_python_prerelease_label MATCHES "^(beta|b)$")
+        set(_python_prerelease_label "b")
+      elseif(NOT _python_prerelease_label STREQUAL "dev")
+        set(_python_prerelease_label "rc")
+      endif()
+
+      if(_python_prerelease_label STREQUAL "dev")
+        string(APPEND _python_public_version
+          ".dev${_python_prerelease_number}")
+      else()
+        string(APPEND _python_public_version
+          "${_python_prerelease_label}${_python_prerelease_number}")
+      endif()
+    else()
+      # PEP 440 has no arbitrary prerelease label. Preserve its pre-release
+      # ordering as dev0 and retain the SemVer identifier as local metadata.
+      string(APPEND _python_public_version ".dev0")
+      _normalize_python_local_version_label(
+        _python_prerelease_local "${_python_prerelease}")
+      list(APPEND _python_local_parts "${_python_prerelease_local}")
+    endif()
+  endif()
+
+  if(NOT "${VERSION_METADATA}" STREQUAL "")
+    _normalize_python_local_version_label(
+      _python_metadata_local "${VERSION_METADATA}")
+    list(APPEND _python_local_parts "${_python_metadata_local}")
+  endif()
+  if(_python_local_parts)
+    string(JOIN "." _python_local_version ${_python_local_parts})
+    string(APPEND _python_public_version "+${_python_local_version}")
+  endif()
+
+  set("${OUT_VAR}" "${_python_public_version}" PARENT_SCOPE)
+endfunction()
+
+# Reconstruct a build-owned Python package from stable checkout inputs.
+function(_stage_python_package_sources SOURCE_DIRECTORY STAGING_DIRECTORY)
+  file(REMOVE_RECURSE "${STAGING_DIRECTORY}")
+  file(MAKE_DIRECTORY "${STAGING_DIRECTORY}")
+
+  if(NOT EXISTS "${SOURCE_DIRECTORY}")
+    return()
+  endif()
+
+  file(GLOB_RECURSE
+    _python_source_package_files
+    CONFIGURE_DEPENDS
+    LIST_DIRECTORIES FALSE
+    RELATIVE "${SOURCE_DIRECTORY}"
+    "${SOURCE_DIRECTORY}/*")
+  list(FILTER
+    _python_source_package_files
+    EXCLUDE REGEX
+      "(^|/)(_wrapper_build\\.py|__pycache__/.*|.*\\.py[co]|.*\\.so(\\..*)?|.*\\.(dylib|dll|pyd))$")
+
+  foreach(_python_source_package_file IN LISTS _python_source_package_files)
+    get_filename_component(
+      _python_source_package_subdir
+      "${_python_source_package_file}"
+      DIRECTORY)
+    file(MAKE_DIRECTORY
+      "${STAGING_DIRECTORY}/${_python_source_package_subdir}")
+    configure_file(
+      "${SOURCE_DIRECTORY}/${_python_source_package_file}"
+      "${STAGING_DIRECTORY}/${_python_source_package_file}"
+      COPYONLY)
+  endforeach()
 endfunction()
 
 # Configure one collision-safe staging operation for a Python extension.
@@ -306,18 +415,19 @@ function(configure_python_gtwrapper)
       "gtwrap root or installed with CMake config files.")
   endif()
 
-  # Establish the source-package and generated-extension layout used by direct
-  # checkout imports, wheels, and CMake installs.
+  # Establish separate source-input and build-owned package layouts. Ordinary
+  # wrapper configuration must not materialize generated files in the checkout.
   set(PROJECT_PYTHON_SOURCE_DIR "${PROJECT_SOURCE_DIR}/python")
   set(PROJECT_PYTHON_PACKAGE_DIR "${PROJECT_PYTHON_SOURCE_DIR}/${PROJECT_NAME}")
   set(PROJECT_PYTHON_BUILD_DIRECTORY "${PROJECT_BINARY_DIR}/python")
   set(PROJECT_PYTHON_BUILD_PACKAGE_DIR
     "${PROJECT_PYTHON_BUILD_DIRECTORY}/${PROJECT_NAME}")
-  set(PROJECT_PYTHON_SOURCE_METADATA_FILE
-    "${PROJECT_PYTHON_SOURCE_DIR}/pyproject.toml")
-  set(PROJECT_PYTHON_SOURCE_SETUP_FILE "${PROJECT_PYTHON_SOURCE_DIR}/setup.py")
+  set(PROJECT_PYTHON_BUILD_METADATA_FILE
+    "${PROJECT_PYTHON_BUILD_DIRECTORY}/pyproject.toml")
+  set(PROJECT_PYTHON_BUILD_SETUP_FILE
+    "${PROJECT_PYTHON_BUILD_DIRECTORY}/setup.py")
   set(PROJECT_PYTHON_WRAPPER_LINK_FILE
-    "${PROJECT_PYTHON_PACKAGE_DIR}/_wrapper_build.py")
+    "${PROJECT_PYTHON_BUILD_PACKAGE_DIR}/_wrapper_build.py")
   set(PROJECT_PYTHON_TARGET_NAME "${LIB_NAMESPACE}_py")
   set(
     ${PROJECT_NAME}_PYTHON_WRAPPER_TARGET
@@ -325,14 +435,18 @@ function(configure_python_gtwrapper)
     CACHE INTERNAL
       "Resolved Python wrapper target name for the project." FORCE)
 
+  # Stage stable package sources into the build tree while excluding stale
+  # generated/import-cache artifacts that may exist in an older checkout.
+  _stage_python_package_sources(
+    "${PROJECT_PYTHON_PACKAGE_DIR}"
+    "${PROJECT_PYTHON_BUILD_PACKAGE_DIR}")
   if(NOT EXISTS "${PROJECT_PYTHON_PACKAGE_DIR}")
     message(WARNING
       "Missing python package directory '${PROJECT_PYTHON_PACKAGE_DIR}'. "
-      "Creating it.")
-    file(MAKE_DIRECTORY "${PROJECT_PYTHON_PACKAGE_DIR}")
+      "Generating a minimal package in the build tree.")
   endif()
 
-  if(NOT EXISTS "${PROJECT_PYTHON_PACKAGE_DIR}/__init__.py")
+  if(NOT EXISTS "${PROJECT_PYTHON_BUILD_PACKAGE_DIR}/__init__.py")
     string(CONFIGURE [=[
 """Python package entrypoint for @PROJECT_NAME@ bindings."""
 
@@ -349,14 +463,17 @@ else:
     HAS_WRAPPER = True
 ]=] _default_python_package_init @ONLY)
     file(WRITE
-      "${PROJECT_PYTHON_PACKAGE_DIR}/__init__.py"
+      "${PROJECT_PYTHON_BUILD_PACKAGE_DIR}/__init__.py"
       "${_default_python_package_init}")
   endif()
 
-  file(MAKE_DIRECTORY "${PROJECT_PYTHON_BUILD_DIRECTORY}")
-
-  # Materialize package metadata so `pip install python/` remains the public
-  # installation entrypoint.
+  # Materialize build metadata beside the staged package so pip and CMake use
+  # one complete, disposable packaging root.
+  _compose_python_package_version(
+    PYTHON_PACKAGE_VERSION
+    "${PROJECT_VERSION_CORE}"
+    "${PROJECT_VERSION_PRERELEASE}"
+    "${PROJECT_VERSION_METADATA}")
   set(_pyproject_template "${PROJECT_PYTHON_SOURCE_DIR}/pyproject.toml.in")
 
   if(NOT EXISTS "${_pyproject_template}")
@@ -372,9 +489,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "@PROJECT_NAME@"
-version = "@PROJECT_VERSION@"
+version = "@PYTHON_PACKAGE_VERSION@"
 description = "Python bindings for @PROJECT_NAME@"
-requires-python = ">=3.8"
+requires-python = ">=@PROJECT_PYTHON_VERSION@"
 
 [tool.setuptools]
 packages = ["@PROJECT_NAME@"]
@@ -387,7 +504,7 @@ include-package-data = true
 
   configure_file(
     "${_pyproject_template}"
-    "${PROJECT_PYTHON_SOURCE_METADATA_FILE}"
+    "${PROJECT_PYTHON_BUILD_METADATA_FILE}"
     @ONLY)
 
   # Keep setup.py as a compatibility entrypoint for tooling that has not moved
@@ -396,7 +513,7 @@ include-package-data = true
   if(EXISTS "${_setup_py_template}")
     configure_file(
       "${_setup_py_template}"
-      "${PROJECT_PYTHON_SOURCE_SETUP_FILE}"
+      "${PROJECT_PYTHON_BUILD_SETUP_FILE}"
       @ONLY)
   else()
     set(_generated_setup_py_template
@@ -408,7 +525,7 @@ setup(zip_safe=False)
 ]=])
     configure_file(
       "${_generated_setup_py_template}"
-      "${PROJECT_PYTHON_SOURCE_SETUP_FILE}"
+      "${PROJECT_PYTHON_BUILD_SETUP_FILE}"
       @ONLY)
   endif()
 
@@ -588,7 +705,7 @@ namespace py = pybind11;
     "${PROJECT_PYTHON_WRAPPER_LINK_FILE}"
     ${_python_runtime_targets})
 
-  # Exercise direct checkout import against the generated link metadata.
+  # Exercise the staged build package against the generated link metadata.
   if(ENABLE_TESTS AND BUILD_TESTING)
     set(_python_import_test_name "${LIB_NAMESPACE}_python_import")
     set(_python_import_test_code
@@ -597,12 +714,12 @@ namespace py = pybind11;
       NAME ${_python_import_test_name}
       COMMAND
         ${CMAKE_COMMAND} -E env
-        "PYTHONPATH=${PROJECT_PYTHON_SOURCE_DIR}:$ENV{PYTHONPATH}"
+        "PYTHONPATH=${PROJECT_PYTHON_BUILD_DIRECTORY}:$ENV{PYTHONPATH}"
         ${PYTHON_EXECUTABLE} -c "${_python_import_test_code}")
     set_tests_properties(
       ${_python_import_test_name}
       PROPERTIES
-        WORKING_DIRECTORY "${PROJECT_PYTHON_SOURCE_DIR}")
+        WORKING_DIRECTORY "${PROJECT_PYTHON_BUILD_DIRECTORY}")
   endif()
 
   install(
@@ -611,17 +728,21 @@ namespace py = pybind11;
     RUNTIME DESTINATION "${_python_package_install_destination}")
 
   install(
-    DIRECTORY "${PROJECT_PYTHON_PACKAGE_DIR}/"
+    DIRECTORY "${PROJECT_PYTHON_BUILD_PACKAGE_DIR}/"
     DESTINATION "${_python_package_install_destination}"
     PATTERN "_wrapper_build.py" EXCLUDE
     PATTERN "__pycache__" EXCLUDE
-    PATTERN "*.pyc" EXCLUDE)
+    PATTERN "*.pyc" EXCLUDE
+    PATTERN "*.so*" EXCLUDE
+    PATTERN "*.dylib" EXCLUDE
+    PATTERN "*.dll" EXCLUDE
+    PATTERN "*.pyd" EXCLUDE)
 
   install(
-    FILES "${PROJECT_PYTHON_SOURCE_METADATA_FILE}"
+    FILES "${PROJECT_PYTHON_BUILD_METADATA_FILE}"
     DESTINATION "${_python_install_root}")
 
-  # Install the source package only after its native wrapper is current.
+  # Install the staged package only after its native wrapper is current.
   set(_python_pip_install_target "${LIB_NAMESPACE}_python-install")
   if(NOT TARGET "${_python_pip_install_target}")
     add_custom_target(
@@ -630,7 +751,7 @@ namespace py = pybind11;
         ${PYTHON_EXECUTABLE} -c
         "import subprocess, sys; cmd=[sys.executable, '-m', 'pip', 'install', '--no-build-isolation', '--no-deps', '.']; subprocess.check_call(cmd)"
       DEPENDS "${PROJECT_PYTHON_TARGET_NAME}"
-      WORKING_DIRECTORY "${PROJECT_PYTHON_SOURCE_DIR}"
+      WORKING_DIRECTORY "${PROJECT_PYTHON_BUILD_DIRECTORY}"
       VERBATIM)
   endif()
 
@@ -638,17 +759,17 @@ namespace py = pybind11;
     add_custom_target(python-install DEPENDS ${_python_pip_install_target})
   endif()
 
-  # Generate stubs from the same checkout package used by the import test.
+  # Generate stubs from the same staged package used by the import test.
   set(_python_stubs_target "${LIB_NAMESPACE}_python-stubs")
   if(NOT TARGET "${_python_stubs_target}")
     add_custom_target(
       "${_python_stubs_target}"
       COMMAND
         ${CMAKE_COMMAND} -E env
-        "PYTHONPATH=${PROJECT_PYTHON_SOURCE_DIR}:$ENV{PYTHONPATH}"
+        "PYTHONPATH=${PROJECT_PYTHON_BUILD_DIRECTORY}:$ENV{PYTHONPATH}"
         ${PYTHON_EXECUTABLE} -m pybind11_stubgen ${PROJECT_NAME} -o .
       DEPENDS "${PROJECT_PYTHON_TARGET_NAME}"
-      WORKING_DIRECTORY "${PROJECT_PYTHON_SOURCE_DIR}"
+      WORKING_DIRECTORY "${PROJECT_PYTHON_BUILD_DIRECTORY}"
       VERBATIM)
   endif()
 

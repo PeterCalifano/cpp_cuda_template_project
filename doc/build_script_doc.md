@@ -24,7 +24,7 @@ The script uses out-of-source builds, strict shell error handling, generator-ind
 
 | Option | Purpose |
 |---|---|
-| `-B, --buildpath <dir>` | Build directory. Default: `./build`. |
+| `-B, --buildpath <dir>` | Build directory relative to the script's checkout. Default: `<checkout>/build`. |
 | `--clean` | Remove an owned conventional in-repository build directory before configure. Ignored with `--rebuild-only`. |
 | `-N, --ninja-build` | Configure with the Ninja generator. |
 | `-j, --jobs <N>` | Build/test parallelism. Default: `$JOBS`, then `nproc`, then `4`. |
@@ -33,11 +33,13 @@ The script uses out-of-source builds, strict shell error handling, generator-ind
 The generated CMake build exports `compile_commands.json` by default for tools such as clangd and static analyzers.
 
 Clean removal is intentionally narrower than ordinary configuration. The
-target must resolve below the current checkout as `build`, `build*`, or
-`out/*`. If it already exists, its `CMakeCache.txt` must identify this exact
-checkout through `CMAKE_HOME_DIRECTORY`. Configure unusual or external build
-layouts without `--clean` and remove them explicitly only after independent
-review.
+target must resolve below the checkout containing `build_lib.sh` as `build`,
+`build*`, or `out/*`. If it already exists, its `CMakeCache.txt` must identify
+this exact checkout through `CMAKE_HOME_DIRECTORY`. Relative build paths and
+the CMake source path remain anchored to that checkout even when the helper is
+invoked by absolute path from another working directory. Configure unusual or
+external build layouts without `--clean` and remove them explicitly only after
+independent review.
 
 ## Configure Options
 
@@ -168,8 +170,10 @@ OptiX builds require at least one compiled library source and at least one `*.pt
 | `-p, --python-wrap` | Enable Python wrapper generation. |
 | `-m, --matlab-wrap` | Enable MATLAB wrapper generation. |
 | `--gtwrap-root <dir>` | Use a specific local gtwrap checkout. |
-| `--no-wrap-update` | Do not update a resolved local gtwrap checkout. |
-| `--no-wrap-submodule-init` | Do not initialize a declared `wrap` submodule fallback. |
+| `--wrap-update` | Explicitly update a resolved local gtwrap checkout. |
+| `--no-wrap-update` | Keep the resolved local checkout unchanged (default). |
+| `--wrap-submodule-init` | Explicitly initialize a declared `wrap` submodule fallback. |
+| `--no-wrap-submodule-init` | Do not initialize a submodule fallback (default). |
 
 Wrapper resolution order:
 
@@ -183,10 +187,14 @@ Examples:
 ```bash
 ./build_lib.sh -p
 ./build_lib.sh -p -m --gtwrap-root /path/to/wrap
+./build_lib.sh -p --wrap-update
 ./build_lib.sh -r -p
 ```
 
 `--rebuild-only` with wrapper flags only works when the existing CMake cache was already configured with those wrappers enabled.
+Ordinary wrapper configuration does not update, initialize, or add a wrapper
+checkout. `--wrap-submodule-init` applies only to an existing declaration in
+`.gitmodules`; add a new submodule with an explicit Git maintenance command.
 
 ## Project Binaries And Examples
 
@@ -203,7 +211,7 @@ After tailoring, replace `template_project` with the project namespace used by t
 ## Troubleshooting
 
 - Use `--clean` after changing CMake options or wrapper settings.
-- Use `--no-wrap-update` when a wrapper build must stay pinned to an existing gtwrap checkout.
+- Use `--wrap-update` only when intentionally advancing a local gtwrap checkout.
 - Set `CPU_ENABLE_NATIVE_TUNING=OFF` for portable binaries.
 - Set `CUDA_ARCHITECTURES` explicitly on CI runners without reliable GPU discovery.
 - For Python tests in conda, prefer `--python-test-conda-env` or `--python-test-conda-prefix` instead of activating conda around the whole CTest run.

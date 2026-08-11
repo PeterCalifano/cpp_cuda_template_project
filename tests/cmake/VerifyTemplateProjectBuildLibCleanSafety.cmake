@@ -116,6 +116,45 @@ _expect_clean_rejection(
     "${_foreign_build}"
     "Refusing to clean a build owned by")
 
+# Invoke the copied helper through an absolute path from a different checkout.
+# A relative build path must still resolve against the helper's owning checkout,
+# leaving the caller's equally named CMake build untouched.
+set(_foreign_cwd_build "${_foreign_source}/build_absolute_invocation")
+_run_process(
+    "Configure foreign-CWD build"
+    "${CMAKE_COMMAND}"
+        -S "${_foreign_source}"
+        -B "${_foreign_cwd_build}")
+file(WRITE
+    "${_foreign_cwd_build}/must_be_preserved.txt"
+    "foreign checkout build output\n")
+execute_process(
+    COMMAND
+      bash "${_fixture_build_script}"
+      -B build_absolute_invocation
+      --clean
+      --skip-tests
+    WORKING_DIRECTORY "${_foreign_source}"
+    RESULT_VARIABLE _foreign_cwd_result
+    OUTPUT_VARIABLE _foreign_cwd_stdout
+    ERROR_VARIABLE _foreign_cwd_stderr)
+if(NOT _foreign_cwd_result EQUAL 0)
+  message(FATAL_ERROR
+      "Absolute helper invocation from a foreign CWD failed with exit code "
+      "${_foreign_cwd_result}.\n"
+      "stdout:\n${_foreign_cwd_stdout}\n"
+      "stderr:\n${_foreign_cwd_stderr}")
+endif()
+if(NOT EXISTS "${_foreign_cwd_build}/must_be_preserved.txt")
+  message(FATAL_ERROR
+      "Absolute helper invocation removed the foreign checkout's build tree.")
+endif()
+if(NOT EXISTS
+   "${_fixture_source}/build_absolute_invocation/CMakeCache.txt")
+  message(FATAL_ERROR
+      "Relative build path did not resolve against the helper's checkout.")
+endif()
+
 # Accept an owned cache, remove its sentinel, and recreate a usable build tree.
 set(_valid_build "${_fixture_source}/build_valid")
 _run_process(

@@ -63,6 +63,7 @@ set(_generator_output_build "${TEST_BINARY_ROOT}/generator_output_build")
 set(_wheel_output "${TEST_BINARY_ROOT}/wheel_output")
 set(_wheel_install "${TEST_BINARY_ROOT}/wheel_install")
 set(_cmake_install "${TEST_BINARY_ROOT}/cmake_install")
+set(_expected_wheel_version "1.0.0.dev0+feature.x.5.gabc1234")
 file(MAKE_DIRECTORY
     "${_fixture_source}/python/fixture_package"
     "${_wheel_output}")
@@ -134,6 +135,9 @@ from .fixture_package import Runtime_value
 
 __all__ = [\"Runtime_value\"]
 ")
+file(WRITE
+    "${_fixture_source}/python/fixture_package/stale_checkout_runtime.so.99"
+    "stale checkout-native artifact\n")
 
 set(_fixture_cmake_template [=[
 cmake_minimum_required(VERSION 3.15)
@@ -274,9 +278,15 @@ if(FIXTURE_GENERATOR_OUTPUT_NAME)
         "$<IF:$<CONFIG:Debug>,fixture_packaged_debug,fixture_packaged_release>")
 endif()
 
+# Treat the generated package root as a build product and preserve the fixture
+# source directory as immutable input.
 set(_package_source "${CMAKE_CURRENT_SOURCE_DIR}/python")
-set(_package_dir "${_package_source}/fixture_package")
-set(_package_build_dir "${CMAKE_CURRENT_BINARY_DIR}/python/fixture_package")
+set(_package_source_dir "${_package_source}/fixture_package")
+set(_package_build_root "${CMAKE_CURRENT_BINARY_DIR}/python")
+set(_package_build_dir "${_package_build_root}/fixture_package")
+_stage_python_package_sources(
+  "${_package_source_dir}"
+  "${_package_build_dir}")
 set_python_target_properties(
   fixture_package
   "fixture_package"
@@ -302,7 +312,7 @@ configure_python_runtime_artifacts(
   fixture_package
   "${_package_build_dir}"
   "${_package_install_destination}"
-  "${_package_dir}/_wrapper_build.py"
+  "${_package_build_dir}/_wrapper_build.py"
   fixture_runtime
   fixture_dependency
   fixture_packaged
@@ -310,13 +320,48 @@ configure_python_runtime_artifacts(
 
 set(PROJECT_NAME fixture_package)
 set(PROJECT_VERSION 1.0.0)
+set(PROJECT_VERSION_CORE "1.0.0")
+set(PROJECT_VERSION_PRERELEASE "feature.x")
+set(PROJECT_VERSION_METADATA "5.gabc1234")
+set(FULL_VERSION "1.0.0-feature.x+5.gabc1234")
+
+# Keep recognized SemVer labels canonical while mapping arbitrary labels to a
+# PEP 440 development release that retains the source label as local metadata.
+function(_assert_python_package_version PRERELEASE EXPECTED_VERSION)
+  _compose_python_package_version(
+    _actual_version
+    "${PROJECT_VERSION_CORE}"
+    "${PRERELEASE}"
+    "${PROJECT_VERSION_METADATA}")
+  if(NOT _actual_version STREQUAL EXPECTED_VERSION)
+    message(FATAL_ERROR
+      "Unexpected package version for '${PRERELEASE}': "
+      "${_actual_version}; expected ${EXPECTED_VERSION}")
+  endif()
+endfunction()
+
+_assert_python_package_version("alpha.1" "1.0.0a1+5.gabc1234")
+_assert_python_package_version("beta.2" "1.0.0b2+5.gabc1234")
+_assert_python_package_version("rc.3" "1.0.0rc3+5.gabc1234")
+_assert_python_package_version("dev.4" "1.0.0.dev4+5.gabc1234")
+
+_compose_python_package_version(
+  PYTHON_PACKAGE_VERSION
+  "${PROJECT_VERSION_CORE}"
+  "${PROJECT_VERSION_PRERELEASE}"
+  "${PROJECT_VERSION_METADATA}")
+if(NOT PYTHON_PACKAGE_VERSION STREQUAL
+   "@_expected_wheel_version@")
+  message(FATAL_ERROR
+    "Unexpected PEP 440 package version: ${PYTHON_PACKAGE_VERSION}")
+endif()
 configure_file(
   "@TEST_TEMPLATE_SOURCE_DIR@/python/pyproject.toml.in"
-  "${_package_source}/pyproject.toml"
+  "${_package_build_root}/pyproject.toml"
   @ONLY)
 configure_file(
   "@TEST_TEMPLATE_SOURCE_DIR@/python/setup.py.in"
-  "${_package_source}/setup.py"
+  "${_package_build_root}/setup.py"
   @ONLY)
 
 install(
@@ -324,11 +369,15 @@ install(
   LIBRARY DESTINATION "${_package_install_destination}"
   RUNTIME DESTINATION "${_package_install_destination}")
 install(
-  DIRECTORY "${_package_dir}/"
+  DIRECTORY "${_package_build_dir}/"
   DESTINATION "${_package_install_destination}"
   PATTERN "_wrapper_build.py" EXCLUDE
   PATTERN "__pycache__" EXCLUDE
-  PATTERN "*.pyc" EXCLUDE)
+  PATTERN "*.pyc" EXCLUDE
+  PATTERN "*.so*" EXCLUDE
+  PATTERN "*.dylib" EXCLUDE
+  PATTERN "*.dll" EXCLUDE
+  PATTERN "*.pyd" EXCLUDE)
 
 file(WRITE
   "${CMAKE_CURRENT_BINARY_DIR}/python_install_root.txt"
@@ -449,7 +498,8 @@ _run_step(
 # Verify exact wheel contents using target-derived names emitted by the fixture
 # configure, not platform-specific names duplicated in this verifier.
 file(WRITE "${TEST_BINARY_ROOT}/verify_wheel.py"
-"from pathlib import Path
+"from email.parser import Parser
+from pathlib import Path
 import sys
 from zipfile import ZipFile
 
@@ -457,6 +507,7 @@ wheel_path_ = Path(sys.argv[1])
 expected_names_path_ = Path(sys.argv[2])
 wrapper_name_path_ = Path(sys.argv[3])
 unrelated_name_path_ = Path(sys.argv[4])
+expected_version_ = sys.argv[5]
 
 expected_runtime_names_ = {
     name_.strip()
@@ -469,6 +520,15 @@ expected_native_names_ = expected_runtime_names_ | {wrapper_name_}
 
 with ZipFile(wheel_path_) as wheel_file_:
     archive_names_ = set(wheel_file_.namelist())
+    metadata_names_ = [
+        name_
+        for name_ in archive_names_
+        if name_.endswith(\".dist-info/METADATA\")
+    ]
+    assert len(metadata_names_) == 1, metadata_names_
+    metadata_ = Parser().parsestr(
+        wheel_file_.read(metadata_names_[0]).decode(\"utf-8\")
+    )
 
 packaged_native_names_ = {
     Path(name_).name
@@ -486,6 +546,7 @@ assert packaged_native_names_ == expected_native_names_, (
 )
 assert unrelated_name_ not in packaged_native_names_
 assert not any(name_.endswith(\"_wrapper_build.py\") for name_ in archive_names_)
+assert metadata_[\"Version\"] == expected_version_, metadata_[\"Version\"]
 print(\"wheel_contents=ok\")
 ")
 file(WRITE "${TEST_BINARY_ROOT}/verify_install.py"
@@ -535,11 +596,48 @@ _run_step(
         -S "${_fixture_source}"
         -B "${_fixture_build}"
         -DCMAKE_BUILD_TYPE=RelWithDebInfo)
+if(EXISTS
+   "${_fixture_build}/python/fixture_package/stale_checkout_runtime.so.99")
+  message(FATAL_ERROR
+      "Configure staged a stale checkout-native package artifact.")
+endif()
 _run_step(
     "Build self-contained Python packaging fixture"
     "${CMAKE_COMMAND}"
         --build "${_fixture_build}"
         --parallel 4)
+
+# A configured package directory is a disposable build product. Reconfigure
+# after injecting an undeclared file and require the package to be reconstructed
+# exclusively from its source inputs.
+set(_stale_package_marker
+    "${_fixture_build}/python/fixture_package/stale_review_marker.py")
+file(WRITE "${_stale_package_marker}" "raise RuntimeError('stale package file')\n")
+_run_step(
+    "Reconfigure fixture with a stale build-package file"
+    "${CMAKE_COMMAND}"
+        -S "${_fixture_source}"
+        -B "${_fixture_build}"
+        -DCMAKE_BUILD_TYPE=RelWithDebInfo)
+if(EXISTS "${_stale_package_marker}")
+  message(FATAL_ERROR
+      "Reconfigure retained undeclared Python package file: "
+      "${_stale_package_marker}")
+endif()
+
+# Configuration and build must not add packaging outputs beside the source
+# package used to seed the disposable fixture.
+file(GLOB_RECURSE
+    _source_python_files
+    LIST_DIRECTORIES FALSE
+    RELATIVE "${_fixture_source}/python"
+    "${_fixture_source}/python/*")
+set(_expected_source_python_files
+    "fixture_package/__init__.py;fixture_package/stale_checkout_runtime.so.99")
+if(NOT "${_source_python_files}" STREQUAL "${_expected_source_python_files}")
+  message(FATAL_ERROR
+      "Python packaging mutated fixture sources: ${_source_python_files}")
+endif()
 
 # Rebuild an unlinked declared runtime through the wrapper target. Its staged
 # file must refresh even though the extension itself does not need to relink.
@@ -569,7 +667,7 @@ _run_step(
     "Build isolated fixture wheel"
     "${_python_executable}"
         -m pip wheel
-        "${_fixture_source}/python"
+        "${_fixture_build}/python"
         --no-build-isolation
         --no-deps
         --wheel-dir "${_wheel_output}")
@@ -588,7 +686,8 @@ _run_step(
         "${_wheel_path}"
         "${_fixture_build}/expected_runtime_names.txt"
         "${_fixture_build}/expected_wrapper_name.txt"
-        "${_fixture_build}/unrelated_name.txt")
+        "${_fixture_build}/unrelated_name.txt"
+        "${_expected_wheel_version}")
 _run_step(
     "Install fixture wheel into isolated target"
     "${_python_executable}"

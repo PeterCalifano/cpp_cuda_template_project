@@ -18,6 +18,13 @@ function(configure_matlab_gtwrapper)
   endif()
 
   message(STATUS "Including MATLAB directories...")
+  # Let container launchers expose a host MATLAB installation without
+  # overriding an explicit CMake cache or command-line selection.
+  if((NOT DEFINED Matlab_ROOT_DIR OR "${Matlab_ROOT_DIR}" STREQUAL "")
+      AND DEFINED ENV{MATLAB_ROOT_DIR}
+      AND NOT "$ENV{MATLAB_ROOT_DIR}" STREQUAL "")
+    set(Matlab_ROOT_DIR "$ENV{MATLAB_ROOT_DIR}")
+  endif()
   find_package(Matlab REQUIRED)
   set(MATLAB_MEX_INCLUDE "${Matlab_ROOT_DIR}/extern/include")
 

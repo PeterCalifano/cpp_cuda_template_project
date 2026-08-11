@@ -193,6 +193,45 @@ if(EXISTS "${_metadata_probe}/src")
   message(FATAL_ERROR "Metadata-only configure unexpectedly entered src/.")
 endif()
 
+# Configure the overlay shim without compilers to verify that its stable facade
+# forwards directly to the canonical root options used by nested consumers.
+set(_ros2_facade_probe "${TEST_BINARY_ROOT}/ros2_facade_probe")
+_run_success(
+    "Enable ROS 2 shim GPU facades in metadata-only mode"
+    "${CMAKE_COMMAND}"
+    -S "${_root}/ros2/template_project"
+    -B "${_ros2_facade_probe}"
+    -Dtemplate_project_METADATA_ONLY=ON
+    -DTEMPLATE_PROJECT_ENABLE_CUDA=ON
+    -DTEMPLATE_PROJECT_ENABLE_OPTIX=ON)
+set(_ros2_facade_cache_path "${_ros2_facade_probe}/CMakeCache.txt")
+foreach(_feature IN ITEMS CUDA OPTIX)
+  _read_cache_value(
+      "${_ros2_facade_cache_path}" "template_project_ENABLE_${_feature}"
+      _ros2_core_feature)
+  if(NOT _ros2_core_feature STREQUAL "ON")
+    message(FATAL_ERROR
+        "ROS 2 ${_feature} facade did not enable its canonical core option.")
+  endif()
+endforeach()
+
+_run_success(
+    "Disable ROS 2 shim GPU facades in the same build"
+    "${CMAKE_COMMAND}"
+    -S "${_root}/ros2/template_project"
+    -B "${_ros2_facade_probe}"
+    -DTEMPLATE_PROJECT_ENABLE_CUDA=OFF
+    -DTEMPLATE_PROJECT_ENABLE_OPTIX=OFF)
+foreach(_feature IN ITEMS CUDA OPTIX)
+  _read_cache_value(
+      "${_ros2_facade_cache_path}" "template_project_ENABLE_${_feature}"
+      _ros2_core_feature)
+  if(NOT _ros2_core_feature STREQUAL "OFF")
+    message(FATAL_ERROR
+        "ROS 2 ${_feature} facade did not disable its canonical core option.")
+  endif()
+endforeach()
+
 _run_success(
     "Parse and validate source ROS manifests"
     "${_python_executable}"

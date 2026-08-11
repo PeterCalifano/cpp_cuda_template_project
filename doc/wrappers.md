@@ -27,30 +27,35 @@ The wrapper resolver checks, in order:
 3. An installed `gtwrap` CMake package.
 4. A declared `wrap` or `lib/wrap` submodule when submodule initialization is enabled.
 
-Disable automatic update with:
+Wrapper checkout maintenance is disabled by default. Explicitly update a
+resolved local checkout with:
 
 ```bash
-./build_lib.sh -p --no-wrap-update
+./build_lib.sh -p --wrap-update
 ```
 
-Disable submodule initialization fallback with:
+Explicitly initialize a declared submodule fallback with:
 
 ```bash
-./build_lib.sh -p --no-wrap-submodule-init
+./build_lib.sh -p --wrap-submodule-init
 ```
+
+Direct CMake callers must set both `GTWRAP_MAINTENANCE_UPDATE=ON` and
+`GTWRAP_SYNC_TO_MASTER=ON` to update a checkout. Initialization is limited to a
+`wrap` or `lib/wrap` entry already declared in `.gitmodules`; use Git directly
+when intentionally adding a new submodule.
 
 ## Python Package
 
-The source package under `python/<project>/` is the supported import and
-install entrypoint. CMake configures `python/pyproject.toml` and
-`python/setup.py` when Python wrapping is enabled. Building the wrapper target
-validates and stages its native runtime set, then writes
-`python/<project>/_wrapper_build.py` for direct checkout imports and wheel
-construction.
+The source package under `python/<project>/` is immutable wrapper input. CMake
+copies it into `<build>/python/<project>` and configures `pyproject.toml` plus
+`setup.py` beside that staged package. Building the wrapper target validates and
+stages its native runtime set, then writes build-only `_wrapper_build.py`
+metadata for build-tree imports and wheel construction.
 
 ```bash
 ./build_lib.sh -p
-cd python
+cd build/python
 python -m pip install .
 python -c "import template_project; assert template_project.HAS_WRAPPER"
 ```
@@ -68,10 +73,9 @@ The wrapper build fails before copying anything when different owners resolve
 to the same destination. CMake alias target names are not accepted. System
 libraries remain the responsibility of the target platform.
 
-The checkout package directory is shared by all build configurations. Build
-one configuration at a time when producing a wheel or importing directly from
-the source checkout; the most recently staged configuration owns
-`_wrapper_build.py`.
+Each build tree owns its staged package and `_wrapper_build.py`. Separate build
+directories can therefore package different configurations without competing
+for generated files in the checkout.
 
 Wrapper install destinations remain relative to `CMAKE_INSTALL_PREFIX`.
 In particular, keep `CMAKE_INSTALL_LIBDIR` relative when Python wrapping is
