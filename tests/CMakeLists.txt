@@ -124,6 +124,58 @@ set_tests_properties(
 )
 
 add_test(
+    NAME template_project_wrapper_maintenance
+    COMMAND bash
+        ${CMAKE_CURRENT_SOURCE_DIR}/scripts/test_wrapper_maintenance.sh
+)
+set_tests_properties(
+    template_project_wrapper_maintenance
+    PROPERTIES
+    LABELS "wrapper;maintenance;safety;template"
+    TIMEOUT 60
+)
+
+add_test(
+    NAME template_project_container_launcher
+    COMMAND bash
+        ${CMAKE_CURRENT_SOURCE_DIR}/scripts/test_run_in_container.sh
+)
+set_tests_properties(
+    template_project_container_launcher
+    PROPERTIES
+    LABELS "container;safety;template"
+    TIMEOUT 60
+)
+
+add_test(
+    NAME template_project_nested_option_isolation
+    COMMAND ${CMAKE_COMMAND}
+        -DTEST_TEMPLATE_SOURCE_DIR=${PROJECT_SOURCE_DIR}
+        -DTEST_BINARY_ROOT=${PROJECT_BINARY_DIR}/nested_option_isolation
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyTemplateProjectNestedOptionIsolation.cmake
+)
+set_tests_properties(
+    template_project_nested_option_isolation
+    PROPERTIES
+    LABELS "nested;options;template"
+    TIMEOUT 180
+)
+
+add_test(
+    NAME template_project_tensorrt_module
+    COMMAND ${CMAKE_COMMAND}
+        -DTEST_TEMPLATE_SOURCE_DIR=${PROJECT_SOURCE_DIR}
+        -DTEST_BINARY_ROOT=${PROJECT_BINARY_DIR}/tensorrt_module
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/VerifyTemplateProjectTensorRTModule.cmake
+)
+set_tests_properties(
+    template_project_tensorrt_module
+    PROPERTIES
+    LABELS "package;tensorrt;template"
+    TIMEOUT 300
+)
+
+add_test(
     NAME template_project_python_packaging
     COMMAND ${CMAKE_COMMAND}
         -DTEST_TEMPLATE_SOURCE_DIR=${PROJECT_SOURCE_DIR}

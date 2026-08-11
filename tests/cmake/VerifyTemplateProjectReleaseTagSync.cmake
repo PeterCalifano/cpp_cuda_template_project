@@ -297,6 +297,28 @@ _run_success(
     -DENABLE_FETCH_CATCH2=OFF
     -Dtemplate_project_BUILD_PROGRAMS=OFF
     -Dtemplate_project_BUILD_EXAMPLES=OFF)
+
+# Create another checkout-owned build after the release tree was configured.
+# CPack must refresh ownership at package time rather than preserving a stale
+# configure-time inventory.
+set(_late_owned_build "${_scratch_root}/build_late_sentinel")
+file(MAKE_DIRECTORY "${_late_owned_build}")
+file(WRITE
+    "${_late_owned_build}/CMakeCache.txt"
+    "CMAKE_HOME_DIRECTORY:INTERNAL=${_scratch_root}\n")
+file(WRITE
+    "${_late_owned_build}/must_not_ship.txt"
+    "late generated build output\n")
+
+# A source-tree VERSION is only a fallback input. Make it stale after configure
+# so the archive must retain the exact metadata generated in the build tree.
+file(WRITE
+    "${_scratch_root}/VERSION"
+    "Project version: 1.2.3\n"
+    "Project version core: 1.2.3\n"
+    "Project version prerelease: stale\n"
+    "Project version metadata: source\n"
+    "Full version: 1.2.3-stale+source\n")
 _run_success(
     "Create canonical CPack source TGZ"
     "${CMAKE_COMMAND}" -E chdir "${_archive_output}"
@@ -337,6 +359,10 @@ endif()
 if(EXISTS "${_extracted_root}/generated/current_output")
   message(FATAL_ERROR
       "Canonical source archive contains the active nested binary tree")
+endif()
+if(EXISTS "${_extracted_root}/build_late_sentinel")
+  message(FATAL_ERROR
+      "Canonical source archive contains a build created after configure")
 endif()
 if(NOT EXISTS "${_extracted_root}/build_assets/must_ship.txt")
   message(FATAL_ERROR
@@ -380,6 +406,7 @@ _run_failure(
 
 file(REMOVE_RECURSE
     "${_scratch_root}/build_assets"
+    "${_scratch_root}/build_late_sentinel"
     "${_scratch_root}/build_release_sentinel"
     "${_scratch_root}/build_transient"
     "${_scratch_root}/examples/build_release_sentinel"

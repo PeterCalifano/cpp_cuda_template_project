@@ -40,6 +40,11 @@ the synchronization explicitly.
 
 Keeping source writes opt-in prevents CI and testfield configure runs from dirtying the checkout.
 
+CPack stages the generated build-tree `VERSION` into binary and source
+packages. The ignored source-tree file remains a fallback for configuring a
+checkout without usable Git metadata, but it is excluded from CPack input so a
+stale fallback cannot overwrite the version resolved for the package build.
+
 ## C++ Access
 
 Include the configured header:
@@ -55,7 +60,12 @@ The header also exposes numeric macros such as `PROJECT_VERSION_MAJOR`.
 
 ## Python and Packages
 
-`python/pyproject.toml.in` receives `@PROJECT_VERSION@`, while CPack package filenames use `FULL_VERSION` when available. Keep public release tags, package uploads, and generated docs aligned by building release artifacts from an exact `vMAJOR.MINOR.PATCH` tag.
+`python/pyproject.toml.in` receives `@FULL_VERSION@`, and CPack package
+filenames use the same value. Python build backends normalize the semantic
+version to its equivalent PEP 440 representation when required; for example,
+`1.2.3-rc.1+4.gabc1234` becomes `1.2.3rc1+4.gabc1234` in wheel metadata. Keep
+public release tags, package uploads, and generated docs aligned by building
+release artifacts from an exact `vMAJOR.MINOR.PATCH[-PRERELEASE]` tag.
 
 <!-- ros2-overlay-begin -->
 ## Release tagging with the ROS 2 overlay
@@ -116,12 +126,20 @@ without Git tag context or that metadata is not a valid release input.
 
 The TGZ produced from `CPackSourceConfig.cmake` is the canonical source release.
 It is validated outside Git against the same strict core and full version as the
-tagged checkout, and it excludes build trees plus ROS-generated `build`,
+tagged checkout. CPack injects the generated build-tree `VERSION` and excludes
+the ignored source-tree fallback, build trees, plus ROS-generated `build`,
 `install`, and `log` outputs. GitHub's automatic source links are non-canonical:
-they are repository snapshots and do not include the ignored, exact-tag
-`VERSION` file required by this release contract. Uploading the CPack TGZ to a
-GitHub release remains a deliberate manual step; CI upload automation is not yet
-part of the release workflow.
+they are repository snapshots and do not include the generated `VERSION` file
+required by this release contract. Uploading the CPack TGZ to a GitHub release
+remains a deliberate manual step; CI upload automation is not yet part of the
+release workflow.
+
+Build-tree ownership is refreshed when CPack starts, not only when CMake first
+configures the release tree. The active binary directory and any nested cache
+whose `CMAKE_HOME_DIRECTORY` resolves to this exact checkout are excluded even
+when they appeared after configuration. Build-prefixed source directories and
+foreign child-project caches remain package input because their names alone do
+not prove that this checkout generated them.
 
 Pushes of `v*.*.*` tags run the native CPU, CUDA, and ROS workflows. The ROS
 workflow regenerates metadata, derives the expected strict core version from

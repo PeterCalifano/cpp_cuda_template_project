@@ -19,14 +19,63 @@ set(PROJECT_MAINTAINER_NAME "Pietro Califano" CACHE STRING "Project maintainer n
 set(PROJECT_MAINTAINER_EMAIL "petercalifano.gs@gmail.com" CACHE STRING "Project maintainer email")
 set(PROJECT_LICENSE "MIT" CACHE STRING "Project SPDX license identifier")
 
+# Determine ownership before project() so pre-language feature selection cannot
+# consume unrelated generic cache options from an add_subdirectory() parent.
+set(BUILD_AS_MAIN_PROJECT OFF)
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+  set(BUILD_AS_MAIN_PROJECT ON)
+endif()
+
 # Set install default directory if not specified
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
   set(CMAKE_INSTALL_PREFIX ${CMAKE_SOURCE_DIR}/install CACHE PATH "Install path" FORCE)
 endif()
 
-option(PROJECT_METADATA_ONLY "Configure only project identity and version metadata" OFF)
-option(ENABLE_OPTIX "Enable OptiX" OFF)
-option(ENABLE_CUDA "Enable CUDA" OFF)
+# Project-qualified options are canonical in nested builds. Preserve the
+# historical generic spellings only as one-config top-level input aliases.
+set(METADATA_ONLY_OPTION_NAME "${project_name}_METADATA_ONLY")
+set(ENABLE_OPTIX_OPTION_NAME "${project_name}_ENABLE_OPTIX")
+set(ENABLE_CUDA_OPTION_NAME "${project_name}_ENABLE_CUDA")
+
+function(_template_project_migrate_top_level_bool_option_alias legacy_option
+         canonical_option option_help)
+  if(NOT BUILD_AS_MAIN_PROJECT)
+    return()
+  endif()
+
+  get_property(_legacy_alias_is_cached
+      CACHE "${legacy_option}" PROPERTY TYPE SET)
+  if(NOT _legacy_alias_is_cached)
+    return()
+  endif()
+
+  # Consume legacy command-line/cache input on every configure so an ON-to-OFF
+  # transition updates the canonical value instead of remaining stuck.
+  set(_legacy_alias_value "${${legacy_option}}")
+  set("${canonical_option}" "${_legacy_alias_value}"
+      CACHE BOOL "${option_help}" FORCE)
+  unset("${legacy_option}" CACHE)
+endfunction()
+
+_template_project_migrate_top_level_bool_option_alias(
+    PROJECT_METADATA_ONLY "${METADATA_ONLY_OPTION_NAME}"
+    "Configure only project identity and version metadata")
+_template_project_migrate_top_level_bool_option_alias(
+    ENABLE_OPTIX "${ENABLE_OPTIX_OPTION_NAME}" "Enable OptiX")
+_template_project_migrate_top_level_bool_option_alias(
+    ENABLE_CUDA "${ENABLE_CUDA_OPTION_NAME}" "Enable CUDA")
+
+option(${METADATA_ONLY_OPTION_NAME}
+       "Configure only project identity and version metadata"
+       OFF)
+option(${ENABLE_OPTIX_OPTION_NAME} "Enable OptiX" OFF)
+option(${ENABLE_CUDA_OPTION_NAME} "Enable CUDA" OFF)
+
+# Retained modules consume the historical local variable names. Normal
+# directory-scope assignments isolate them from a parent's cache entries.
+set(PROJECT_METADATA_ONLY "${${METADATA_ONLY_OPTION_NAME}}")
+set(ENABLE_OPTIX "${${ENABLE_OPTIX_OPTION_NAME}}")
+set(ENABLE_CUDA "${${ENABLE_CUDA_OPTION_NAME}}")
 
 if(PROJECT_METADATA_ONLY)
   set(languages NONE)
@@ -84,12 +133,6 @@ endif()
 
 write_build_VERSION_file()
 install(FILES "${PROJECT_BINARY_DIR}/VERSION" DESTINATION ".")
-
-# Define variable for build as subproject (compare source dir)
-set(BUILD_AS_MAIN_PROJECT ON)
-if(NOT CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
-  set(BUILD_AS_MAIN_PROJECT OFF)
-endif()
 
 # Define variable for namespacing (required to prevent global target clashes!)
 set(LIB_NAMESPACE "${PROJECT_NAME}")
@@ -545,8 +588,25 @@ if(DEFINED FULL_VERSION AND NOT "${FULL_VERSION}" STREQUAL "")
 endif()
 set(CPACK_GENERATOR "TGZ")
 set(CPACK_SOURCE_GENERATOR "TGZ")
+
+# VERSION is generated in the build tree so configured package metadata remains
+# authoritative even when the ignored source-tree fallback is stale. Stage that
+# exact file through CPack's private install prefix for binary and source TGZs.
+set(_cpack_stage_version_script
+    "${PROJECT_BINARY_DIR}/StagePackageVersion.cmake")
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/StagePackageVersion.cmake.in"
+  "${_cpack_stage_version_script}"
+  @ONLY)
+if(CMAKE_VERSION VERSION_LESS "3.16")
+  set(CPACK_INSTALL_SCRIPT "${_cpack_stage_version_script}")
+else()
+  list(APPEND CPACK_INSTALL_SCRIPTS "${_cpack_stage_version_script}")
+endif()
+
 # Preserve source-ignore regexes verbatim and anchor known generated outputs
-# beneath this checkout rather than matching adjacent directories.
+# beneath this checkout rather than matching adjacent directories. The ignored
+# source VERSION must not overwrite the generated file staged above.
 set(CPACK_VERBATIM_VARIABLES YES)
 set(_cpack_source_root_regex "${CMAKE_CURRENT_SOURCE_DIR}")
 string(
@@ -554,113 +614,21 @@ string(
   _cpack_source_root_regex "${_cpack_source_root_regex}")
 set(CPACK_SOURCE_IGNORE_FILES
     "^${_cpack_source_root_regex}/(.*/)?\\.git(/|$)"
+    "^${_cpack_source_root_regex}/VERSION$"
     "^${_cpack_source_root_regex}/install/"
     "^${_cpack_source_root_regex}/ros2/(build|install|log)/"
     "^${_cpack_source_root_regex}/(.*/)?\\.pytest_cache/"
     "^${_cpack_source_root_regex}/(.*/)?__pycache__/"
     "^${_cpack_source_root_regex}/.*\\.py[cod]$")
 
-# Exclude the active nested binary tree and other nested CMake builds whose
-# caches prove that this exact checkout owns them. Directory names alone are
-# insufficient because paths such as tools/build_helpers may be real sources.
-get_filename_component(
-  _cpack_source_root_real
-  "${CMAKE_CURRENT_SOURCE_DIR}"
-  REALPATH)
-get_filename_component(
-  _cpack_binary_root_real
-  "${CMAKE_BINARY_DIR}"
-  REALPATH)
-file(
-  RELATIVE_PATH
-  _cpack_binary_relative_to_source
-  "${_cpack_source_root_real}"
-  "${_cpack_binary_root_real}")
-set(_cpack_owned_build_directories)
-if(NOT IS_ABSOLUTE "${_cpack_binary_relative_to_source}"
-    AND NOT "${_cpack_binary_relative_to_source}" MATCHES "^\\.\\.(/|$)"
-    AND NOT "${_cpack_binary_relative_to_source}" STREQUAL "")
-  list(APPEND
-    _cpack_owned_build_directories
-    "${CMAKE_BINARY_DIR}")
-endif()
-
-file(
-  GLOB_RECURSE
-  _cpack_cache_candidates
-  LIST_DIRECTORIES FALSE
-  "${CMAKE_CURRENT_SOURCE_DIR}/*/CMakeCache.txt")
-foreach(_cpack_cache_candidate IN LISTS _cpack_cache_candidates)
-  file(
-    RELATIVE_PATH
-    _cpack_cache_relative_to_source
-    "${CMAKE_CURRENT_SOURCE_DIR}"
-    "${_cpack_cache_candidate}")
-  if("${_cpack_cache_relative_to_source}" MATCHES "^install/"
-      OR "${_cpack_cache_relative_to_source}"
-         MATCHES "^ros2/(build|install|log)/")
-    continue()
-  endif()
-
-  set(_cpack_cache_is_within_owned_build FALSE)
-  foreach(_cpack_known_build IN LISTS _cpack_owned_build_directories)
-    file(
-      RELATIVE_PATH
-      _cpack_cache_relative_to_build
-      "${_cpack_known_build}"
-      "${_cpack_cache_candidate}")
-    if(NOT IS_ABSOLUTE "${_cpack_cache_relative_to_build}"
-        AND NOT "${_cpack_cache_relative_to_build}" MATCHES "^\\.\\.(/|$)")
-      set(_cpack_cache_is_within_owned_build TRUE)
-      break()
-    endif()
-  endforeach()
-  if(_cpack_cache_is_within_owned_build
-      OR NOT EXISTS "${_cpack_cache_candidate}")
-    continue()
-  endif()
-
-  file(
-    STRINGS
-    "${_cpack_cache_candidate}"
-    _cpack_cache_home_entries
-    REGEX "^CMAKE_HOME_DIRECTORY:INTERNAL="
-    LIMIT_COUNT 1)
-  if(NOT _cpack_cache_home_entries)
-    continue()
-  endif()
-
-  list(GET _cpack_cache_home_entries 0 _cpack_cache_home_entry)
-  string(REGEX MATCH
-    "^CMAKE_HOME_DIRECTORY:INTERNAL=(.*)$"
-    _cpack_cache_home_match
-    "${_cpack_cache_home_entry}")
-  set(_cpack_cache_home "${CMAKE_MATCH_1}")
-  get_filename_component(
-    _cpack_cache_home_real
-    "${_cpack_cache_home}"
-    REALPATH)
-  if(NOT "${_cpack_cache_home_real}" STREQUAL "${_cpack_source_root_real}")
-    continue()
-  endif()
-
-  get_filename_component(
-    _cpack_owned_build_directory
-    "${_cpack_cache_candidate}"
-    DIRECTORY)
-  list(APPEND
-    _cpack_owned_build_directories
-    "${_cpack_owned_build_directory}")
-endforeach()
-
-list(REMOVE_DUPLICATES _cpack_owned_build_directories)
-foreach(_cpack_owned_build_directory IN LISTS _cpack_owned_build_directories)
-  string(
-    REGEX REPLACE "([][+.*^$()|?\\\\])" "\\\\\\1"
-    _cpack_owned_build_regex "${_cpack_owned_build_directory}")
-  list(
-    APPEND
-    CPACK_SOURCE_IGNORE_FILES
-    "^${_cpack_owned_build_regex}(/|$)")
-endforeach()
+# Refresh checkout-owned build exclusions when CPack runs. A generated build
+# can appear after this configure, while path names alone remain insufficient
+# evidence because build-prefixed directories may be legitimate sources.
+set(_cpack_refresh_source_ignores_script
+    "${PROJECT_BINARY_DIR}/RefreshCPackSourceIgnores.cmake")
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/RefreshCPackSourceIgnores.cmake.in"
+  "${_cpack_refresh_source_ignores_script}"
+  @ONLY)
+set(CPACK_PROJECT_CONFIG_FILE "${_cpack_refresh_source_ignores_script}")
 include(CPack)

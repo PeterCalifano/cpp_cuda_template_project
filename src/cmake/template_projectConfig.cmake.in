@@ -2,12 +2,20 @@
 
 include(CMakeFindDependencyMacro)
 
+# Make optional package-owned find modules available to derived ML libraries
+# without enabling any additional dependency in the base template.
+set(_template_project_saved_module_path "${CMAKE_MODULE_PATH}")
+list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/modules")
+
 # Automatically call find_dependency for each dependency
 set(_DEPENDENCIES @EXPORT_TARGET_DEPS@)
 
 foreach(dep ${_DEPENDENCIES})
   find_dependency(${dep} REQUIRED)
 endforeach()
+
+set(CMAKE_MODULE_PATH "${_template_project_saved_module_path}")
+unset(_template_project_saved_module_path)
 
 if(@ENABLE_OPTIX@)
   set(_template_project_optix_root_hints "")
