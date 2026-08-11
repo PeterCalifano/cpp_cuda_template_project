@@ -63,7 +63,7 @@ set(_generator_output_build "${TEST_BINARY_ROOT}/generator_output_build")
 set(_wheel_output "${TEST_BINARY_ROOT}/wheel_output")
 set(_wheel_install "${TEST_BINARY_ROOT}/wheel_install")
 set(_cmake_install "${TEST_BINARY_ROOT}/cmake_install")
-set(_expected_wheel_version "1.0.0rc1+5.gabc1234")
+set(_expected_wheel_version "1.0.0.dev0+feature.x.5.gabc1234")
 file(MAKE_DIRECTORY
     "${_fixture_source}/python/fixture_package"
     "${_wheel_output}")
@@ -320,7 +320,41 @@ configure_python_runtime_artifacts(
 
 set(PROJECT_NAME fixture_package)
 set(PROJECT_VERSION 1.0.0)
-set(FULL_VERSION "1.0.0-rc.1+5.gabc1234")
+set(PROJECT_VERSION_CORE "1.0.0")
+set(PROJECT_VERSION_PRERELEASE "feature.x")
+set(PROJECT_VERSION_METADATA "5.gabc1234")
+set(FULL_VERSION "1.0.0-feature.x+5.gabc1234")
+
+# Keep recognized SemVer labels canonical while mapping arbitrary labels to a
+# PEP 440 development release that retains the source label as local metadata.
+function(_assert_python_package_version PRERELEASE EXPECTED_VERSION)
+  _compose_python_package_version(
+    _actual_version
+    "${PROJECT_VERSION_CORE}"
+    "${PRERELEASE}"
+    "${PROJECT_VERSION_METADATA}")
+  if(NOT _actual_version STREQUAL EXPECTED_VERSION)
+    message(FATAL_ERROR
+      "Unexpected package version for '${PRERELEASE}': "
+      "${_actual_version}; expected ${EXPECTED_VERSION}")
+  endif()
+endfunction()
+
+_assert_python_package_version("alpha.1" "1.0.0a1+5.gabc1234")
+_assert_python_package_version("beta.2" "1.0.0b2+5.gabc1234")
+_assert_python_package_version("rc.3" "1.0.0rc3+5.gabc1234")
+_assert_python_package_version("dev.4" "1.0.0.dev4+5.gabc1234")
+
+_compose_python_package_version(
+  PYTHON_PACKAGE_VERSION
+  "${PROJECT_VERSION_CORE}"
+  "${PROJECT_VERSION_PRERELEASE}"
+  "${PROJECT_VERSION_METADATA}")
+if(NOT PYTHON_PACKAGE_VERSION STREQUAL
+   "@_expected_wheel_version@")
+  message(FATAL_ERROR
+    "Unexpected PEP 440 package version: ${PYTHON_PACKAGE_VERSION}")
+endif()
 configure_file(
   "@TEST_TEMPLATE_SOURCE_DIR@/python/pyproject.toml.in"
   "${_package_build_root}/pyproject.toml"

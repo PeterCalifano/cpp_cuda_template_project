@@ -73,6 +73,81 @@ function(_resolve_python_install_root OUT_VAR)
     PARENT_SCOPE)
 endfunction()
 
+# Normalize one SemVer identifier sequence for a PEP 440 local-version label.
+function(_normalize_python_local_version_label OUT_VAR INPUT_VALUE)
+  string(TOLOWER "${INPUT_VALUE}" _python_local_label)
+  string(REGEX REPLACE "[^0-9a-z]+" "."
+    _python_local_label "${_python_local_label}")
+  string(REGEX REPLACE "^\\.+" ""
+    _python_local_label "${_python_local_label}")
+  string(REGEX REPLACE "\\.+$" ""
+    _python_local_label "${_python_local_label}")
+  if("${_python_local_label}" STREQUAL "")
+    message(FATAL_ERROR
+      "Cannot convert '${INPUT_VALUE}' to a PEP 440 local-version label.")
+  endif()
+  set("${OUT_VAR}" "${_python_local_label}" PARENT_SCOPE)
+endfunction()
+
+# Project structured SemVer fields into PEP 440 without changing FULL_VERSION.
+function(_compose_python_package_version
+         OUT_VAR VERSION_CORE VERSION_PRERELEASE VERSION_METADATA)
+  if(NOT "${VERSION_CORE}" MATCHES "^[0-9]+\\.[0-9]+\\.[0-9]+$")
+    message(FATAL_ERROR
+      "Python package version requires a numeric SemVer core, got "
+      "'${VERSION_CORE}'.")
+  endif()
+
+  set(_python_public_version "${VERSION_CORE}")
+  set(_python_local_parts)
+  if(NOT "${VERSION_PRERELEASE}" STREQUAL "")
+    string(TOLOWER "${VERSION_PRERELEASE}" _python_prerelease)
+    if(_python_prerelease MATCHES
+       "^(alpha|a|beta|b|preview|pre|rc|c|dev)([.-]?([0-9]+))?$")
+      set(_python_prerelease_label "${CMAKE_MATCH_1}")
+      set(_python_prerelease_number "${CMAKE_MATCH_3}")
+      if("${_python_prerelease_number}" STREQUAL "")
+        set(_python_prerelease_number "0")
+      endif()
+
+      if(_python_prerelease_label MATCHES "^(alpha|a)$")
+        set(_python_prerelease_label "a")
+      elseif(_python_prerelease_label MATCHES "^(beta|b)$")
+        set(_python_prerelease_label "b")
+      elseif(NOT _python_prerelease_label STREQUAL "dev")
+        set(_python_prerelease_label "rc")
+      endif()
+
+      if(_python_prerelease_label STREQUAL "dev")
+        string(APPEND _python_public_version
+          ".dev${_python_prerelease_number}")
+      else()
+        string(APPEND _python_public_version
+          "${_python_prerelease_label}${_python_prerelease_number}")
+      endif()
+    else()
+      # PEP 440 has no arbitrary prerelease label. Preserve its pre-release
+      # ordering as dev0 and retain the SemVer identifier as local metadata.
+      string(APPEND _python_public_version ".dev0")
+      _normalize_python_local_version_label(
+        _python_prerelease_local "${_python_prerelease}")
+      list(APPEND _python_local_parts "${_python_prerelease_local}")
+    endif()
+  endif()
+
+  if(NOT "${VERSION_METADATA}" STREQUAL "")
+    _normalize_python_local_version_label(
+      _python_metadata_local "${VERSION_METADATA}")
+    list(APPEND _python_local_parts "${_python_metadata_local}")
+  endif()
+  if(_python_local_parts)
+    string(JOIN "." _python_local_version ${_python_local_parts})
+    string(APPEND _python_public_version "+${_python_local_version}")
+  endif()
+
+  set("${OUT_VAR}" "${_python_public_version}" PARENT_SCOPE)
+endfunction()
+
 # Reconstruct a build-owned Python package from stable checkout inputs.
 function(_stage_python_package_sources SOURCE_DIRECTORY STAGING_DIRECTORY)
   file(REMOVE_RECURSE "${STAGING_DIRECTORY}")
@@ -394,6 +469,11 @@ else:
 
   # Materialize build metadata beside the staged package so pip and CMake use
   # one complete, disposable packaging root.
+  _compose_python_package_version(
+    PYTHON_PACKAGE_VERSION
+    "${PROJECT_VERSION_CORE}"
+    "${PROJECT_VERSION_PRERELEASE}"
+    "${PROJECT_VERSION_METADATA}")
   set(_pyproject_template "${PROJECT_PYTHON_SOURCE_DIR}/pyproject.toml.in")
 
   if(NOT EXISTS "${_pyproject_template}")
@@ -409,7 +489,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "@PROJECT_NAME@"
-version = "@FULL_VERSION@"
+version = "@PYTHON_PACKAGE_VERSION@"
 description = "Python bindings for @PROJECT_NAME@"
 requires-python = ">=@PROJECT_PYTHON_VERSION@"
 

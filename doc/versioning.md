@@ -60,12 +60,14 @@ The header also exposes numeric macros such as `PROJECT_VERSION_MAJOR`.
 
 ## Python and Packages
 
-`python/pyproject.toml.in` receives `@FULL_VERSION@`, and CPack package
-filenames use the same value. Python build backends normalize the semantic
-version to its equivalent PEP 440 representation when required; for example,
-`1.2.3-rc.1+4.gabc1234` becomes `1.2.3rc1+4.gabc1234` in wheel metadata. Keep
-public release tags, package uploads, and generated docs aligned by building
-release artifacts from an exact `vMAJOR.MINOR.PATCH[-PRERELEASE]` tag.
+CPack package filenames retain `FULL_VERSION` as SemVer. Python metadata uses a
+separate PEP 440 projection: recognized alpha, beta, release-candidate, and
+development labels become their canonical PEP 440 forms. An arbitrary SemVer
+prerelease such as `1.2.3-feature.x+4.gabc1234` becomes
+`1.2.3.dev0+feature.x.4.gabc1234`, preserving prerelease ordering and its label.
+Keep public release tags, package uploads, and generated docs aligned by
+building release artifacts from an exact
+`vMAJOR.MINOR.PATCH[-PRERELEASE]` tag.
 
 <!-- ros2-overlay-begin -->
 ## Release tagging with the ROS 2 overlay
