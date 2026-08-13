@@ -143,7 +143,71 @@ For MATLAB: Use classes a lot also in MATLAB, with a python style, but do it onl
 
 %% Function code
 
-## Staged-Code Review Quality Gate
+## Commit and staged-review workflow
+
+### Commit-message style
+
+- Do not use Conventional Commits prefixes such as `feat:`, `fix:`, or
+  `docs:`.
+- Write the subject in the imperative mood and sentence case, with no trailing
+  period. Aim for approximately 50-70 characters when the change can be
+  described clearly within that range.
+- Optionally end the subject with a short parenthetical scope when it adds
+  useful context, for example `Constrain cleanup to owned build trees
+  (build_lib.sh)`.
+- Use an optional leading tag only when its meaning applies:
+  - `[MAJOR]` for a significant capability, architectural change, or broad
+    contract or workflow change;
+  - `[BUGFIX]` for a correctness defect or regression;
+  - `[HOTFIX]` for an urgent, narrowly targeted correction;
+  - no tag for routine enhancements, tests, documentation, or maintenance.
+- Use an optional body for changes that need rationale or a behavioral summary.
+  Format it as imperative `-` bullets, put one blank line between bullets, omit
+  terminal periods, and indent wrapped continuation lines beneath the bullet
+  text.
+- Describe intent, important design decisions, and behavioral consequences in
+  the body instead of merely listing changed files.
+- Never add `Co-Authored-By` or other AI-attribution trailers.
+
+### Authorization and batch sequence
+
+1. Never create or amend a commit unless the user explicitly instructs the
+   agent to commit. Requests to implement, finish, stage, or continue, including
+   the keyword `next`, do not grant commit permission.
+2. Treat commit, tag, and push authorization independently. Permission to
+   commit does not imply permission to tag or push.
+3. Inspect the worktree and current index before preparing a batch. Preserve and
+   report unrelated user-owned staged or unstaged work; never reset, overwrite,
+   or absorb it merely to simplify the batch.
+4. Partition completed work into coherent functional batches. Include directly
+   dependent tests and necessary documentation with their implementation unless
+   a concrete review or ownership boundary requires separation. Do not create
+   micro-batches that are too small to review meaningfully.
+5. A mixed batch is allowed when a few small changes do not justify independent
+   review units. Label it clearly as mixed, explain why the items belong
+   together, and never use it to hide a substantial independent feature or fix.
+6. Before staging, review the complete candidate diff for correctness, scope,
+   formatting, comments, and documentation. Run proportionate tests and static
+   checks, and apply the staged-code quality gate below to every new or
+   substantially modified source file.
+7. Stage only the reviewed batch with an explicit path or hunk allowlist. Then
+   inspect the complete index with `git diff --cached` and run
+   `git diff --cached --check`. Repeat relevant validation against the staged
+   result when index contents or generated inputs can affect the outcome.
+8. Report the staged paths, functional purpose, verification evidence, caveats,
+   exclusions, and exact proposed commit subject and body. Stop for user review
+   without preparing or staging another batch.
+9. Advance only after the user responds with the exact keyword `next`. Interpret
+   `next` as permission to prepare the following batch, never as permission to
+   commit the current batch.
+10. Before advancing, confirm that the previous batch is no longer staged. If
+    the index is still populated, stop and ask the user to commit or clear it,
+    or to give a separate explicit instruction for the agent to commit.
+11. When the user explicitly requests both actions, such as `commit and next`,
+    commit the approved batch with the reviewed message, verify that the index
+    is clear, and only then prepare the following batch.
+
+## Staged-code review quality gate
 
 Before handing staged changes to the user for commit review, inspect the complete
 Git index with `git diff --cached`. Apply this gate to files staged by either the
