@@ -24,6 +24,15 @@ Keep ROS-related changes confined to `ros2/` plus the documented root helpers, d
   Do not silently fall back to behavior that changes the advertised contract.
 - Test observable behavior, invariants, and failure modes rather than internal
   implementation details or tunable defaults.
+- During review and optimization, actively seek behavior-preserving ways to
+  reduce complexity and improve performance, maintainability, readability, and
+  implementation clarity. Simplify unnecessary nested loops, helper functions,
+  conditional branches, indirection, and abstractions that do not enforce a
+  useful contract.
+- Keep refactoring within the reviewed scope and preserve public behavior unless
+  a contract change is explicitly requested. Make performance optimization
+  evidence-driven through profiling, measurement, or algorithmic analysis, and
+  document any tradeoff that increases complexity.
 - Use 100 columns as a soft limit. Keep assignments and function calls on one
   line when they remain readable; otherwise wrap at semantic boundaries and
   align continuation lines with the expression they continue.
