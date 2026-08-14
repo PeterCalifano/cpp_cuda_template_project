@@ -13,7 +13,9 @@ Ask only for values that cannot be inferred from the user request or repository 
 2. Source layout:
    - Main C++ module directory replacing `src/template_src/`.
    - Whether CUDA is needed. If yes, CUDA module directory replacing `src/template_src_kernels/`; if no, remove the CUDA skeleton and matching `src/CMakeLists.txt` entry.
-   - Whether OptiX, oneTBB, OpenGL, examples, and standalone programs should stay enabled as project options.
+   - Whether OptiX, TensorRT, oneTBB, OpenGL, examples, and standalone programs
+     should remain supported as project options. Retaining a disabled optional
+     feature does not add its SDK as a dependency.
 3. Wrappers and Python:
    - Whether to keep Python wrappers, MATLAB wrappers, both, or neither.
    - Python package name and minimum Python version if different from the template default.
@@ -46,6 +48,8 @@ Ask only for values that cannot be inferred from the user request or repository 
    - `.github/workflows/*.yml`: workflow names, artifact names, Pages text checks, and renamed CMake option prefixes.
    - `README.md`, `doc/main_page.md`, and public docs pages.
 5. Remove skeletons that are not part of the requested project. When removing a directory, remove the matching CMake registration in the same change.
+   Keep `FindTensorRT.cmake` and `HandleTensorRT.cmake` when TensorRT remains a
+   supported opt-in feature; leave its canonical option `OFF` unless selected.
 6. Search for stale template identifiers:
 
    ```bash

@@ -24,7 +24,15 @@ Tailoring helper:
 ./tailor_template_cleanup.sh --apply --yes --project-namespace my_project
 ```
 
-The required namespace option replaces `template_project::logging` in the reusable logger sources and examples. Run the cleanup before a broad `template_project` replacement, because the script contains template-specific cleanup paths. After cleanup succeeds, delete `tailor_template_cleanup.sh` or exclude it from the rename pass. `profiling/` is removed by default. Add `--keep-profiling` when the new project should keep the Valgrind/perf helper scripts.
+The required namespace option replaces `template_project::logging` in the
+reusable logger sources and examples. Run the cleanup before a broad
+`template_project` replacement, because the script contains template-specific
+cleanup paths. After cleanup succeeds, delete `tailor_template_cleanup.sh` or
+exclude it from the rename pass. `profiling/` is removed by default. Add
+`--keep-profiling` when the new project should keep the Valgrind/perf helper
+scripts. TensorRT discovery and integration remain available to tailored
+projects but stay dependency-neutral while `template_project_ENABLE_TENSORRT`
+is `OFF`.
 
 <!-- ros2-overlay-begin -->
 ## Optional ROS 2 Overlay

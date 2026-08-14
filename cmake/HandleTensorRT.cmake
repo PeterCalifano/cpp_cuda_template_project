@@ -31,8 +31,8 @@ function(handle_tensorrt)
         "ENABLE_TENSORRT requires CUDA::cudart from the configured CUDA toolkit.")
   endif()
 
-  # Find the TensorRT SDK and verify that the required targets are defined.
-  # Requires: FindTensorRT.cmake from the TensorRT SDK, which is installed in the CMAKE_MODULE_PATH.
+  # Keep SDK discovery in the reusable find module while this handler owns
+  # project integration policy and validates its required imported targets.
   find_package(TensorRT REQUIRED MODULE)
 
   foreach(_tensorrt_target IN ITEMS TensorRT::nvinfer TensorRT::nvinfer_plugin)

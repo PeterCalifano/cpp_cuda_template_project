@@ -5,6 +5,12 @@ set -Eeuo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 readonly REPO_ROOT
+EXPECTED_PROJECT_SLUG="$(
+  basename "${REPO_ROOT}" \
+    | tr '[:upper:]' '[:lower:]' \
+    | sed -E 's/[^a-z0-9_.-]+/-/g; s/^[._-]+//; s/[._-]+$//'
+)"
+readonly EXPECTED_PROJECT_SLUG
 SCRIPT_PATH="${REPO_ROOT}/run_in_container.sh"
 readonly SCRIPT_PATH
 TEST_ROOT="$(mktemp -d)"
@@ -121,7 +127,8 @@ test_vscode_attachment_contract() {
   assert_log_contains --detach
   assert_log_contains fixture-vscode
   assert_log_contains vscode
-  assert_log_contains "type=bind,source=${REPO_ROOT},target=/workspaces/cpp_cuda_template_project"
+  assert_log_contains \
+    "type=bind,source=${REPO_ROOT},target=/workspaces/${EXPECTED_PROJECT_SLUG}"
   assert_log_contains /usr/bin/sleep
   assert_log_contains infinity
   pass 'VS Code mode starts a stable host-owned attachment container'

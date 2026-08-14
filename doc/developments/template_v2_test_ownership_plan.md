@@ -26,8 +26,9 @@ optional CUDA/TensorRT, CTest, Bash, and Python 3.12+.
 - Authoritative execution tracker for the v1.12.1 prerequisite and the
   subsequent v2.0.0 test-ownership migration.
 - Tracking started: 2026-07-28.
-- Current stage: continuation Stage 2 TensorRT integration awaiting staged
-  user review.
+- Current stage: continuation Stage 3 primary consolidation. Exact signed HEAD
+  validation is complete; the tailoring follow-up and merge authorization are
+  pending.
 - Template release baseline: signed `v1.12.0` tag at
   `b277e4b84e2f1e501d6c2e73370efe0ecd101f23`.
 - TestField working baseline:
@@ -281,8 +282,11 @@ Stage 1 evidence before staging, recorded 2026-08-14:
 - Create `cmake/HandleTensorRT.cmake`.
 - Modify `tests/cmake/VerifyTemplateProjectTensorRTModule.cmake`,
   `tests/cmake/VerifyTemplateProjectNestedOptionIsolation.cmake`, `README.md`,
-  `doc/Doxyfile.in`, `doc/build_script_doc.md`, `doc/template_usage.md`,
-  `doc/cpp_cuda_build.md`, and this tracker.
+  `tailor_template_cleanup.sh`, `doc/Doxyfile.in`,
+  `doc/bootstrap_prompts.md`, `doc/build_script_doc.md`,
+  `doc/template_usage.md`, `doc/cpp_cuda_build.md`,
+  `doc/developments/derived_project_upgrade_agent_guidelines.md`, and this
+  tracker.
 
 **Consumes:** `FindTensorRT.cmake`, `TensorRT::nvinfer`,
 `TensorRT::nvinfer_plugin`, and the existing CUDA option normalization.
@@ -309,6 +313,9 @@ alias, and a target-oriented integration path owned by
   package config only when TensorRT was enabled at build time.
 - [x] Preserve the existing portable root, environment, version, imported
   target, x86_64, and aarch64 behavior in `FindTensorRT.cmake`.
+- [x] Retain TensorRT as an explicit tailoring choice without adding a risky
+  automatic removal flag; document that the disabled production modules remain
+  dependency-neutral.
 - [x] Run the focused TensorRT verifier, CPU configuration/build/tests, package
   install/consumer acceptance, documentation, and static gates.
 - [x] Review and stage only the Stage 2 allowlist, inspect the complete index,
@@ -356,6 +363,10 @@ Stage 2 evidence before staging, recorded 2026-08-14:
   prerequisite. The root project description remains unchanged, avoiding an
   unrelated ROS manifest metadata expansion; the two affected ROS tests and
   the full CPU suite passed after that scope correction.
+- Tailoring: the interactive checklist now treats TensorRT as a supported
+  feature decision. The cleanup helper retains its production discovery and
+  integration modules by default and deliberately provides no automatic
+  cross-file removal flag.
 
 ### Continuation Stage 3 - Consolidate and version the template repositories
 
@@ -381,6 +392,139 @@ Stage 2 evidence before staging, recorded 2026-08-14:
   intended local `v2.0.0` tag present, and verify the no-Git CPack archive.
 - [ ] Stop for separate user authorization before creating, pushing, or
   publishing the `v2.0.0` tag.
+
+Stage 3 primary evidence, recorded 2026-08-14:
+
+- The user-created source-package and TensorRT commits are signed commits
+  `73ab4fe0af7216abe4c97af17880e20d646ebea7` and
+  `8d073197ddfbc9d0e7a25b3d63384721da9f68ff`. The latter is the exact primary
+  HEAD validated here.
+- GREEN: a detached worktree whose checkout basename remained
+  `cpp_cuda_template_project` ran `./build_lib.sh --clean -j 4`; configuration,
+  compilation, and all `32/32` CTest cases passed. This includes focused source
+  release, TensorRT, wrapper-maintenance, Python packaging, tailoring, version,
+  ROS-static, cross-compile, and consumer checks.
+- GREEN: Doxygen 1.9.8 built `template_project_doc`; scoped Bash syntax and
+  ShellCheck, tracked-Python byte compilation, workflow YAML, devcontainer and
+  preset JSON, ROS XML, whitespace, conflict-marker, and CMake-floor API gates
+  exited `0` against exact HEAD.
+- DISCREPANCY: the same exact commit built successfully in a detached worktree
+  with a noncanonical basename, where `31/32` tests passed. The container
+  launcher test alone hard-coded `/workspaces/cpp_cuda_template_project` while
+  production correctly derived the workspace slug from the checkout basename.
+  The staged test-only correction derives the expected slug independently and
+  passed both the registered case and all four direct launcher fixtures in the
+  renamed checkout.
+- FOLLOW-UP: the current staged batch makes TensorRT an explicit tailoring
+  decision, corrects the post-review handler comment about finder ownership,
+  and includes the container-test portability repair. It must become part of
+  the finalized primary history before propagation so v2 and derived projects
+  receive one reconciled source of truth.
+
+Stage 3 read-only reconciliation ledger, recorded 2026-08-14:
+
+- The protected v2 merge remains unchanged at HEAD `2ed71c4786b102b3a420846cc78bb628576b9c35`
+  with `MERGE_HEAD=403c223f4b5abb39779bf2dd858bb4110405f9bf`, staged tree
+  `3ced15a64dff580011af01f8c1036c62a5c34956`, and cached binary-diff hash
+  `3713ba1dcd5c5d7fb5af9f7ddc9d0dd165cf619a59efdcd26ed58514b14556cc`.
+  It has no unstaged or unresolved entries.
+- Source-package reconciliation will delete the staged
+  `StagePackageVersion.cmake.in` and `RefreshCPackSourceIgnores.cmake.in`,
+  remove their `CPACK_INSTALL_SCRIPT(S)` and `CPACK_PROJECT_CONFIG_FILE`
+  wiring, and retain the prepared-checkout policy from the primary candidate.
+  `VERSION` keeps its existing five-line schema; `generate_version.sh` must
+  synchronize those fields before the final release configure.
+- Python `PYTHON_PACKAGE_VERSION` projection remains independent of CPack
+  simplification and will be preserved because wheel metadata still requires
+  the PEP 440 representation of prerelease and local-version fields.
+- TensorRT reconciliation will update `FindTensorRT.cmake`, add
+  `HandleTensorRT.cmake`, add the canonical and top-level compatibility
+  options, make TensorRT imply CUDA before language selection, export the
+  handled interface target, and resolve installed dependencies without
+  mutating a consumer's `CMAKE_MODULE_PATH`.
+- v2 tailoring will present TensorRT as an explicit supported-feature decision.
+  Disabled retained modules remain dependency-neutral; complete removal stays
+  a reviewed cross-file operation rather than an automatic cleanup flag.
+- The protected TestField index remains unchanged at
+  `bc0604f65da01be0a5ba141aadabd5dd08cf260e`, staged tree
+  `44e189c21b3d0a92d590fd026e54967727381a54`, and cached binary-diff hash
+  `9255ddcda418a1df080fc1555456e7263822dfd76fbcfe4ecb77a68b7147728a`.
+  It has no unstaged entries.
+- TestField release reconciliation will synchronize `VERSION` before
+  configuration, add an observable caller-owned CPack hook, and remove
+  expectations for late cache scanning and post-configure source-version
+  repair. The exact active binary tree, fixed generated paths, legitimate
+  build-prefixed sources, foreign child caches, and no-Git validation remain
+  covered.
+- TestField TensorRT reconciliation will replace module-delivery-only coverage
+  with the primary handled-feature contract and extend nested-option isolation
+  to the TensorRT aliases. TestField's dynamic container-slug fixture already
+  matches the primary follow-up and needs no semantic change.
+- Generic `VerifyTemplateProject*` implementations remain absent from the v2
+  template's ordinary tests. Their reconciled forms stay owned and registered
+  by the standalone TestField harness.
+
+Stage 3 disposable reconciliation rehearsal, recorded 2026-08-14:
+
+- Reconstructed the exact protected v2 staged tree
+  `3ced15a64dff580011af01f8c1036c62a5c34956` and exact protected TestField
+  staged tree `44e189c21b3d0a92d590fd026e54967727381a54` in detached temporary
+  worktrees.
+- RED: the old v2 tree ignored a caller-owned CPack project hook, lacked
+  `HandleTensorRT.cmake`, and failed to migrate the canonical TensorRT option.
+  The corrected caller fixture repeated the CPack failure against a second
+  exact-baseline worktree before production changes were accepted.
+- GREEN: the focused prepared-source fixture, handled TensorRT verifier, and
+  nested-option verifier all exited `0` after reconciliation. The production
+  CMake, finder, handler, source export, and package config matched the primary
+  candidate byte-for-byte.
+- GREEN: rehearsed v2 runtime passed CPU `7/7` and CUDA 12.9/OptiX `9/9` on
+  `sm_120`; Doxygen and scoped Bash/ShellCheck/static checks passed.
+- GREEN: rehearsed TestField runtime passed `5/5`; the CPU harness passed all
+  `23/23` runnable tests with four explicit missing-gtwrap disables; docs passed
+  `2/2`, CUDA/OptiX passed `13/13`, and ROS-static passed `2/2`.
+- The reconciled v2 target tree was
+  `543c61a22309ff01f5b56ed96236ce6e7c7b0b4b`; its 18-path semantic delta from
+  the protected staged tree had binary hash
+  `d415df996459ee9e5f72df19a3f37314f35b322f5460414040c02540beec7e22`.
+- The reconciled TestField target tree was
+  `ff2797369b8c2934baaaa7fe98b69f1464943b8b`; its three-verifier semantic delta
+  from the protected staged tree had binary hash
+  `f2bbb550c12a5ed312ce70fbd75c8526508a360745a0b46bdc2b2fe08d678850`.
+- The Git-cloning release verifier was not run against the dirty rehearsal
+  source because cloning would select the committed base instead of the
+  rehearsed index. Exact no-Git archive validation remains mandatory after the
+  real v2 commit and intended local release tag exist.
+- After rehearsal, the protected v2 and TestField staged-tree and cached-diff
+  hashes remained byte-for-byte unchanged from the Stage 0 snapshot.
+- The sibling Python template is already aligned and requires no propagation
+  edit. `/home/peterc/devDir/dev-tools/python_template_project` is clean on
+  `main` at `6642f3d61ec698c3590ab2a944990003be355531`; its `AGENTS.md` preserves
+  Python 3.10, configured Ruff/mypy policy, Google-style documentation, strong
+  typing, logical-block formatting, complexity reduction, and the same
+  operation-specific commit/staged-review authorization rules without
+  importing C++/CUDA, CMake, MATLAB, or ROS guidance.
+
+Stage 3 primary-history readiness audit, recorded 2026-08-14:
+
+- Immediately before appending this readiness record, the reviewed batch was
+  tree `02386ee44b3aff2cd0aaf2cb861b1b1f2607d21a` with cached binary-diff hash
+  `3fed5353f142ed8e8bf365bd0c750e10d250110a1e7eb8aa9616af937428180f`.
+  It had eight staged paths and no unstaged or untracked primary changes.
+- The feature branch and `origin/main` merge at
+  `41d341ab949703dfdd63e5a6c243a117a2221666`. That merge-base tree and
+  `origin/main@403c223f4b5abb39779bf2dd858bb4110405f9bf` are byte-identical at
+  `f1eb7054810879b622386b3faeb3c252145b6287`, so the divergence is the PR merge
+  topology rather than competing file content.
+- Every feature-only commit from `fedb4c2bf242e1bab33a1f250950586b976b0774`
+  through `8d073197ddfbc9d0e7a25b3d63384721da9f68ff` reports a valid Git signature.
+  Their messages contain no `Co-Authored-By`, AI-attribution, or sign-off
+  trailers.
+- The ignored source `VERSION` still records development metadata from
+  `490de59` and the checkout describes as `v1.12.2-7-g8d07319-dirty`. This is
+  intentionally not synchronized before the staged follow-up and primary
+  history are finalized; the prepared-release gate must run against the exact
+  eventual v2 history and intended local `v2.0.0` tag.
 
 ### Continuation Stage 4 - Align TestField with the post-simplification v2
 
