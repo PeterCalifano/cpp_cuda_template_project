@@ -19,6 +19,8 @@ set(_scratch_root "${TEST_BINARY_ROOT}/build_parent/release_clone")
 set(_scratch_verifier "${_scratch_root}/tests/cmake/VerifyTemplateProjectRos2Overlay.cmake")
 set(_source_release_verifier
     "${TEST_TEMPLATE_SOURCE_DIR}/tests/cmake/VerifySourceReleaseArchive.cmake")
+set(_caller_cpack_project_config
+    "${TEST_BINARY_ROOT}/CallerCPackProjectConfig.cmake")
 set(_manifest_paths
     "ros2/template_project/package.xml"
     "ros2/template_project_interfaces/package.xml"
@@ -231,13 +233,11 @@ set(_release_build "${_scratch_root}/generated/current_output")
 set(_archive_output "${TEST_BINARY_ROOT}/archive_output")
 set(_archive_extract "${TEST_BINARY_ROOT}/archive_extract")
 
-# Contrast legitimate build-prefixed sources with cache-owned generated trees
-# so source packaging depends on ownership evidence rather than path names.
+# Preserve legitimate build-prefixed sources and caller-defined exclusions
+# while the template excludes only its deterministic generated paths.
 file(MAKE_DIRECTORY
     "${_scratch_root}/build_assets"
-    "${_scratch_root}/build_release_sentinel"
-    "${_scratch_root}/build_transient"
-    "${_scratch_root}/examples/build_release_sentinel"
+    "${_scratch_root}/caller_hook_excluded"
     "${_scratch_root}/examples/foreign_build"
     "${_scratch_root}/examples/install"
     "${_scratch_root}/tools/build_helpers"
@@ -249,26 +249,9 @@ file(MAKE_DIRECTORY
 file(WRITE
     "${_scratch_root}/build_assets/must_ship.txt"
     "legitimate build-prefixed source\n")
-file(WRITE "${_scratch_root}/build_release_sentinel/must_not_ship.txt" "generated build output\n")
 file(WRITE
-    "${_scratch_root}/build_release_sentinel/CMakeCache.txt"
-    "CMAKE_HOME_DIRECTORY:INTERNAL=${_scratch_root}\n")
-file(CREATE_LINK
-    "${_scratch_root}/missing-transient-cache"
-    "${_scratch_root}/build_transient/CMakeCache.txt"
-    SYMBOLIC
-    RESULT _transient_cache_link_result)
-if(NOT _transient_cache_link_result STREQUAL "0")
-  message(FATAL_ERROR
-      "Could not create transient-cache regression fixture: "
-      "${_transient_cache_link_result}")
-endif()
-file(WRITE
-    "${_scratch_root}/examples/build_release_sentinel/must_not_ship.txt"
-    "generated nested build output\n")
-file(WRITE
-    "${_scratch_root}/examples/build_release_sentinel/CMakeCache.txt"
-    "CMAKE_HOME_DIRECTORY:INTERNAL=${_scratch_root}\n")
+    "${_scratch_root}/caller_hook_excluded/must_not_ship.txt"
+    "caller-owned source exclusion\n")
 file(WRITE
     "${_scratch_root}/examples/foreign_build/CMakeCache.txt"
     "CMAKE_HOME_DIRECTORY:INTERNAL=${TEST_BINARY_ROOT}/foreign_source\n")
@@ -285,6 +268,18 @@ file(WRITE "${_scratch_root}/ros2/build/generated/must_not_ship.txt" "generated 
 file(WRITE "${_scratch_root}/ros2/install/generated/must_not_ship.txt" "generated ROS install output\n")
 file(WRITE "${_scratch_root}/ros2/log/generated/must_not_ship.txt" "generated ROS log output\n")
 
+# Give the caller one observable CPack policy so the generated archive proves
+# that the template preserves, rather than replaces, the public hook.
+set(_caller_hook_source_regex "${_scratch_root}/caller_hook_excluded")
+string(
+  REGEX REPLACE "([][+.*^$()|?\\\\])" "\\\\\\1"
+  _caller_hook_source_regex "${_caller_hook_source_regex}")
+set(_caller_hook_ignore "^${_caller_hook_source_regex}(/|$)")
+file(WRITE
+    "${_caller_cpack_project_config}"
+    "list(APPEND CPACK_SOURCE_IGNORE_FILES [==[${_caller_hook_ignore}]==])\n"
+    "list(APPEND CPACK_IGNORE_FILES [==[${_caller_hook_ignore}]==])\n")
+
 _run_success(
     "Configure full exact-tag source release"
     "${CMAKE_COMMAND}"
@@ -296,29 +291,9 @@ _run_success(
     -DENABLE_OPTIX=OFF
     -DENABLE_FETCH_CATCH2=OFF
     -Dtemplate_project_BUILD_PROGRAMS=OFF
-    -Dtemplate_project_BUILD_EXAMPLES=OFF)
+    -Dtemplate_project_BUILD_EXAMPLES=OFF
+    -DCPACK_PROJECT_CONFIG_FILE:FILEPATH=${_caller_cpack_project_config})
 
-# Create another checkout-owned build after the release tree was configured.
-# CPack must refresh ownership at package time rather than preserving a stale
-# configure-time inventory.
-set(_late_owned_build "${_scratch_root}/build_late_sentinel")
-file(MAKE_DIRECTORY "${_late_owned_build}")
-file(WRITE
-    "${_late_owned_build}/CMakeCache.txt"
-    "CMAKE_HOME_DIRECTORY:INTERNAL=${_scratch_root}\n")
-file(WRITE
-    "${_late_owned_build}/must_not_ship.txt"
-    "late generated build output\n")
-
-# A source-tree VERSION is only a fallback input. Make it stale after configure
-# so the archive must retain the exact metadata generated in the build tree.
-file(WRITE
-    "${_scratch_root}/VERSION"
-    "Project version: 1.2.3\n"
-    "Project version core: 1.2.3\n"
-    "Project version prerelease: stale\n"
-    "Project version metadata: source\n"
-    "Full version: 1.2.3-stale+source\n")
 _run_success(
     "Create canonical CPack source TGZ"
     "${CMAKE_COMMAND}" -E chdir "${_archive_output}"
@@ -350,19 +325,15 @@ if(NOT _extracted_root_count EQUAL 1)
 endif()
 list(GET _extracted_roots 0 _extracted_root)
 
-# Generated trees are identified by ownership evidence, not by broad directory
-# names that can also describe legitimate project sources.
-if(EXISTS "${_extracted_root}/examples/build_release_sentinel")
-  message(FATAL_ERROR
-      "Canonical source archive contains a nested generated build tree")
-endif()
+# The prepared checkout owns fixed generated exclusions and the exact active
+# build. Additional source policy remains under the caller's CPack hook.
 if(EXISTS "${_extracted_root}/generated/current_output")
   message(FATAL_ERROR
       "Canonical source archive contains the active nested binary tree")
 endif()
-if(EXISTS "${_extracted_root}/build_late_sentinel")
+if(EXISTS "${_extracted_root}/caller_hook_excluded")
   message(FATAL_ERROR
-      "Canonical source archive contains a build created after configure")
+      "Canonical source archive ignored the caller's CPack project hook")
 endif()
 if(NOT EXISTS "${_extracted_root}/build_assets/must_ship.txt")
   message(FATAL_ERROR
@@ -406,10 +377,7 @@ _run_failure(
 
 file(REMOVE_RECURSE
     "${_scratch_root}/build_assets"
-    "${_scratch_root}/build_late_sentinel"
-    "${_scratch_root}/build_release_sentinel"
-    "${_scratch_root}/build_transient"
-    "${_scratch_root}/examples/build_release_sentinel"
+    "${_scratch_root}/caller_hook_excluded"
     "${_scratch_root}/examples/foreign_build"
     "${_scratch_root}/examples/install"
     "${_scratch_root}/generated"

@@ -589,46 +589,24 @@ endif()
 set(CPACK_GENERATOR "TGZ")
 set(CPACK_SOURCE_GENERATOR "TGZ")
 
-# VERSION is generated in the build tree so configured package metadata remains
-# authoritative even when the ignored source-tree fallback is stale. Stage that
-# exact file through CPack's private install prefix for binary and source TGZs.
-set(_cpack_stage_version_script
-    "${PROJECT_BINARY_DIR}/StagePackageVersion.cmake")
-configure_file(
-  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/StagePackageVersion.cmake.in"
-  "${_cpack_stage_version_script}"
-  @ONLY)
-if(CMAKE_VERSION VERSION_LESS "3.16")
-  set(CPACK_INSTALL_SCRIPT "${_cpack_stage_version_script}")
-else()
-  list(APPEND CPACK_INSTALL_SCRIPTS "${_cpack_stage_version_script}")
-endif()
-
-# Preserve source-ignore regexes verbatim and anchor known generated outputs
-# beneath this checkout rather than matching adjacent directories. The ignored
-# source VERSION must not overwrite the generated file staged above.
+# Package the prepared source tree without claiming caller-owned CPack hooks.
+# Anchor deterministic generated outputs and the exact active build below their
+# physical paths so similarly named source directories remain package input.
 set(CPACK_VERBATIM_VARIABLES YES)
 set(_cpack_source_root_regex "${CMAKE_CURRENT_SOURCE_DIR}")
 string(
   REGEX REPLACE "([][+.*^$()|?\\\\])" "\\\\\\1"
   _cpack_source_root_regex "${_cpack_source_root_regex}")
-set(CPACK_SOURCE_IGNORE_FILES
+set(_cpack_binary_root_regex "${CMAKE_BINARY_DIR}")
+string(
+  REGEX REPLACE "([][+.*^$()|?\\\\])" "\\\\\\1"
+  _cpack_binary_root_regex "${_cpack_binary_root_regex}")
+list(APPEND CPACK_SOURCE_IGNORE_FILES
     "^${_cpack_source_root_regex}/(.*/)?\\.git(/|$)"
-    "^${_cpack_source_root_regex}/VERSION$"
     "^${_cpack_source_root_regex}/install/"
     "^${_cpack_source_root_regex}/ros2/(build|install|log)/"
     "^${_cpack_source_root_regex}/(.*/)?\\.pytest_cache/"
     "^${_cpack_source_root_regex}/(.*/)?__pycache__/"
-    "^${_cpack_source_root_regex}/.*\\.py[cod]$")
-
-# Refresh checkout-owned build exclusions when CPack runs. A generated build
-# can appear after this configure, while path names alone remain insufficient
-# evidence because build-prefixed directories may be legitimate sources.
-set(_cpack_refresh_source_ignores_script
-    "${PROJECT_BINARY_DIR}/RefreshCPackSourceIgnores.cmake")
-configure_file(
-  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/RefreshCPackSourceIgnores.cmake.in"
-  "${_cpack_refresh_source_ignores_script}"
-  @ONLY)
-set(CPACK_PROJECT_CONFIG_FILE "${_cpack_refresh_source_ignores_script}")
+    "^${_cpack_source_root_regex}/.*\\.py[cod]$"
+    "^${_cpack_binary_root_regex}(/|$)")
 include(CPack)
