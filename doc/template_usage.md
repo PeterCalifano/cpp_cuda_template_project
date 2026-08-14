@@ -129,17 +129,19 @@ set(LIB_TARGET_NAME_OVERRIDE nested_my_project_library CACHE STRING "" FORCE)
 set(my_project_METADATA_ONLY OFF CACHE BOOL "" FORCE)
 set(my_project_ENABLE_CUDA OFF CACHE BOOL "" FORCE)
 set(my_project_ENABLE_OPTIX OFF CACHE BOOL "" FORCE)
+set(my_project_ENABLE_TENSORRT OFF CACHE BOOL "" FORCE)
 add_subdirectory(path/to/my_project)
 target_link_libraries(parent_target PRIVATE nested_my_project::my_project)
 ```
 
-The project-qualified metadata, CUDA, and OptiX options are canonical for
-`add_subdirectory()` consumers and cannot collide with an application's generic
-cache entries. The historical `PROJECT_METADATA_ONLY`, `ENABLE_CUDA`, and
-`ENABLE_OPTIX` spellings remain one-config, top-level compatibility aliases
-only. When supplied, a legacy alias wins for that configure, migrates its value
-to the canonical project-qualified option, and is removed from the cache.
-Replace `my_project` with the renamed root `project_name`.
+The project-qualified metadata, CUDA, OptiX, and TensorRT options are canonical
+for `add_subdirectory()` consumers and cannot collide with an application's
+generic cache entries. The historical `PROJECT_METADATA_ONLY`, `ENABLE_CUDA`,
+`ENABLE_OPTIX`, and `ENABLE_TENSORRT` spellings remain one-config, top-level
+compatibility aliases only. When supplied, a legacy alias wins for that
+configure, migrates its value to the canonical project-qualified option, and is
+removed from the cache. Replace `my_project` with the renamed root
+`project_name`.
 
 Only the main project configures documentation, tests, examples, wrappers, and generic `doc` targets. Nested projects keep their library target available without publishing documentation for the parent build.
 

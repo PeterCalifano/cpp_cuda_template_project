@@ -61,6 +61,24 @@ GPU architecture is detected from `nvidia-smi` on x86_64. On Jetson/Tegra aarch6
 
 Set `OPTIX_HOME` or use the system OptiX SDK layout expected by `cmake/HandleOptiX.cmake`.
 
+## TensorRT
+
+`ENABLE_TENSORRT=ON` enables CUDA and links the project through the
+`HandleTensorRT.cmake` interface target. Provide `TensorRT_ROOT` or
+`TENSORRT_ROOT`; both conventional `include`/`lib` roots and NVIDIA
+`targets/<triplet>` archive layouts are supported.
+
+```bash
+./build_lib.sh -D ENABLE_TENSORRT=ON \
+  -D TensorRT_ROOT=/opt/TensorRT \
+  -D CUDA_ARCHITECTURES=87
+```
+
+The build and installed package expose `TensorRT::nvinfer`,
+`TensorRT::nvinfer_plugin`, and `CUDA::cudart` through the project target.
+Consumers of a TensorRT-enabled install must provide a compatible SDK root;
+consumers of the default disabled build do not acquire a TensorRT dependency.
+
 ## Optional Runtime Libraries
 
 Enable oneTBB when parallel CPU code needs it:

@@ -2,11 +2,6 @@
 
 include(CMakeFindDependencyMacro)
 
-# Make optional package-owned find modules available to derived ML libraries
-# without enabling any additional dependency in the base template.
-set(_template_project_saved_module_path "${CMAKE_MODULE_PATH}")
-list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/modules")
-
 # Automatically call find_dependency for each dependency
 set(_DEPENDENCIES @EXPORT_TARGET_DEPS@)
 
@@ -14,8 +9,39 @@ foreach(dep ${_DEPENDENCIES})
   find_dependency(${dep} REQUIRED)
 endforeach()
 
-set(CMAKE_MODULE_PATH "${_template_project_saved_module_path}")
-unset(_template_project_saved_module_path)
+# Resolve the optional installed TensorRT dependency without changing the
+# consumer's module search policy. A QUIET outer lookup reports the package as
+# unavailable; REQUIRED escalation remains the caller's responsibility.
+if(@ENABLE_TENSORRT@)
+  set(_template_project_tensorrt_quietly_was_defined FALSE)
+  if(DEFINED TensorRT_FIND_QUIETLY)
+    set(_template_project_tensorrt_quietly_was_defined TRUE)
+    set(_template_project_saved_tensorrt_quietly "${TensorRT_FIND_QUIETLY}")
+  endif()
+
+  set(TensorRT_FIND_QUIETLY TRUE)
+  set(_template_project_saved_package_name "${CMAKE_FIND_PACKAGE_NAME}")
+  set(CMAKE_FIND_PACKAGE_NAME TensorRT)
+  include("${CMAKE_CURRENT_LIST_DIR}/modules/FindTensorRT.cmake")
+  set(CMAKE_FIND_PACKAGE_NAME "${_template_project_saved_package_name}")
+  unset(_template_project_saved_package_name)
+
+  if(_template_project_tensorrt_quietly_was_defined)
+    set(TensorRT_FIND_QUIETLY "${_template_project_saved_tensorrt_quietly}")
+  else()
+    unset(TensorRT_FIND_QUIETLY)
+  endif()
+  unset(_template_project_saved_tensorrt_quietly)
+  unset(_template_project_tensorrt_quietly_was_defined)
+
+  if(NOT TARGET TensorRT::nvinfer OR NOT TARGET TensorRT::nvinfer_plugin)
+    set(${CMAKE_FIND_PACKAGE_NAME}_FOUND FALSE)
+    set(${CMAKE_FIND_PACKAGE_NAME}_NOT_FOUND_MESSAGE
+        "The installed @PROJECT_NAME@ package was built with TensorRT, but "
+        "the TensorRT SDK was not found. Set TensorRT_ROOT or TENSORRT_ROOT.")
+    return()
+  endif()
+endif()
 
 if(@ENABLE_OPTIX@)
   set(_template_project_optix_root_hints "")

@@ -133,13 +133,14 @@ CPU optimization is controlled through CMake definitions:
 ./build_lib.sh -D CPU_ENABLE_SIMD=ON -D CPU_SIMD_LEVEL=avx2 -D CPU_ENABLE_FMA=ON
 ```
 
-## CUDA And OptiX
+## CUDA, OptiX, And TensorRT
 
-CUDA and OptiX are opt-in:
+CUDA, OptiX, and TensorRT are opt-in:
 
 ```bash
 ./build_lib.sh -D ENABLE_CUDA=ON
 ./build_lib.sh -D ENABLE_CUDA=ON -D ENABLE_OPTIX=ON
+./build_lib.sh -D ENABLE_TENSORRT=ON -D TensorRT_ROOT=/opt/TensorRT
 ```
 
 CUDA architecture selection order:
@@ -162,6 +163,11 @@ CUDA optimization options:
 | `CUDA_NVCC_EXTRA_FLAGS` | Extra NVCC flags for CUDA and PTX compilation. |
 
 OptiX builds require at least one compiled library source and at least one `*.ptx.cu` source under `src/`. Header-only OptiX configurations fail during configure because there is no compiled library artifact to own the generated PTX integration.
+
+TensorRT enables CUDA automatically. `TensorRT_ROOT` and `TENSORRT_ROOT` accept
+conventional SDK roots and NVIDIA `targets/<triplet>` archive layouts. The
+installed package retains this external SDK dependency without changing a
+consumer's `CMAKE_MODULE_PATH`.
 
 ## Python And MATLAB Wrappers
 

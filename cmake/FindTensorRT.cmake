@@ -2,8 +2,8 @@
 FindTensorRT
 ------------
 
-Find NVIDIA TensorRT headers and runtime libraries without enabling them in
-the base template.
+Find NVIDIA TensorRT headers and runtime libraries for optional project
+integration and downstream consumers.
 
 Input hints
 ^^^^^^^^^^^
@@ -30,10 +30,14 @@ Imported targets
 
 include(FindPackageHandleStandardArgs)
 
-set(TensorRT_ROOT "" CACHE PATH
-    "TensorRT root directory containing include/ and lib directories.")
-set(TENSORRT_ROOT "" CACHE PATH
-    "Compatibility TensorRT root directory hint.")
+if(NOT DEFINED TensorRT_ROOT)
+  set(TensorRT_ROOT "" CACHE PATH
+      "TensorRT root directory containing include/ and lib directories.")
+endif()
+if(NOT DEFINED TENSORRT_ROOT)
+  set(TENSORRT_ROOT "" CACHE PATH
+      "Compatibility TensorRT root directory hint.")
+endif()
 
 # Accept package-style and established compatibility hints before conventional
 # system locations. Environment variables follow the same precedence.

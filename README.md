@@ -1,12 +1,16 @@
 # cpp_cuda_template_project
 
-A CMake template for building GPU-accelerated C++ libraries with optional CUDA/OptiX, Python/MATLAB bindings, and profiling support. Shared builds are the default, and static builds are selectable through standard CMake `BUILD_SHARED_LIBS`. Designed to be cloned and renamed into a real project.
+A CMake template for building GPU-accelerated C++ libraries with optional CUDA,
+OptiX, TensorRT, Python/MATLAB bindings, and profiling support. Shared builds
+are the default, and static builds are selectable through standard CMake
+`BUILD_SHARED_LIBS`. Designed to be cloned and renamed into a real project.
 
 ## Documentation Map
 
 - [`doc/template_usage.md`](doc/template_usage.md): cloning, renaming, source layout, nested consumers, and test placement.
 - [`doc/bootstrap_prompts.md`](doc/bootstrap_prompts.md): interactive agent prompt for tailoring the template into a fresh library.
-- [`doc/cpp_cuda_build.md`](doc/cpp_cuda_build.md): C++ build modes, CUDA, OptiX, toolchains, CPU tuning, and profiling toggles.
+- [`doc/cpp_cuda_build.md`](doc/cpp_cuda_build.md): C++ build modes, CUDA,
+  OptiX, TensorRT, toolchains, CPU tuning, and profiling toggles.
 - [`doc/wrappers.md`](doc/wrappers.md): gtwrap setup, Python package workflow, MATLAB wrappers, and wrapper docstrings.
 - [`doc/versioning.md`](doc/versioning.md): git tags, source/build/install `VERSION` files, C++ config macros, Python metadata, and packages.
 - [`doc/logging.md`](doc/logging.md): dependency-free component logging, level configuration, stream routing, and capture.
@@ -42,6 +46,7 @@ Use `./tailor_template_cleanup.sh --apply --yes --project-namespace my_project -
 | Eigen3 | ≥ 3.4 | Required |
 | CUDA Toolkit | ≥ 12.0 | Optional (`-DENABLE_CUDA=ON`) |
 | OptiX SDK | any | Optional (`-DENABLE_OPTIX=ON`), requires CUDA |
+| TensorRT SDK | any | Optional (`-DENABLE_TENSORRT=ON`), requires CUDA |
 | oneTBB | any | Optional (`-DENABLE_TBB=ON`) |
 | Catch2 | 3.x | Auto-fetched from GitHub if not found |
 | pytest | any | Required when `ENABLE_PYTHON_TESTS=ON` and `test*.py` files are present |
@@ -200,6 +205,7 @@ ignored with `--rebuild-only`.
 |---|---|---|
 | `template_project_ENABLE_CUDA` | OFF | CUDA GPU acceleration |
 | `template_project_ENABLE_OPTIX` | OFF | NVIDIA OptiX (enables CUDA automatically) |
+| `template_project_ENABLE_TENSORRT` | OFF | NVIDIA TensorRT (enables CUDA automatically) |
 | `template_project_METADATA_ONLY` | OFF | Configure project identity/version without compiler languages |
 | `ENABLE_TBB` | OFF | Intel oneTBB support (`find_package(TBB)`) |
 | `ENABLE_OPENGL` | OFF | OpenGL support |
@@ -232,12 +238,12 @@ ignored with `--rebuild-only`.
 | `WARNINGS_ARE_ERRORS` | OFF | Treat all warnings as errors (`-Werror`) |
 
 Replace the `template_project` prefix during tailoring. The historical
-`ENABLE_CUDA`, `ENABLE_OPTIX`, and `PROJECT_METADATA_ONLY` options remain
-top-level compatibility aliases; nested consumers must use the project-qualified
-forms so parent cache options cannot change the library configuration. A legacy
-alias supplied to a top-level configure wins for that invocation, is copied to
-the canonical option, and is then removed from the cache so later reconfigures
-cannot retain two conflicting sources of truth.
+`ENABLE_CUDA`, `ENABLE_OPTIX`, `ENABLE_TENSORRT`, and `PROJECT_METADATA_ONLY`
+remain top-level compatibility aliases; nested consumers must use the
+project-qualified forms so parent cache options cannot change the library
+configuration. A legacy alias supplied to a top-level configure wins for that
+invocation, is copied to the canonical option, and is then removed from the
+cache so later reconfigures cannot retain two conflicting sources of truth.
 
 ### Build type compiler flags
 
@@ -287,6 +293,26 @@ When `ENABLE_OPTIX=ON`, configuration also fails fast unless the project contain
 - at least one PTX kernel source (`*.ptx.cu`)
 
 This template treats OptiX on a header-only library as a configuration error.
+
+### TensorRT
+
+TensorRT is opt-in and enables the CUDA feature automatically. Point either
+`TensorRT_ROOT` or the compatibility spelling `TENSORRT_ROOT` at an SDK root
+containing `include/` and `lib/`, or at an NVIDIA archive layout containing
+`targets/<triplet>/include` and `targets/<triplet>/lib`:
+
+```bash
+./build_lib.sh -D ENABLE_TENSORRT=ON \
+  -D TensorRT_ROOT=/opt/TensorRT \
+  -D CUDA_ARCHITECTURES=87
+```
+
+The project target propagates `TensorRT::nvinfer`,
+`TensorRT::nvinfer_plugin`, `CUDA::cudart`, and
+`__TENSORRT_ENABLED__=1`. Installed consumers of a TensorRT-enabled build must
+make a compatible SDK discoverable through the same root hints. The installed
+package resolves its own finder directly and does not modify the consumer's
+`CMAKE_MODULE_PATH`.
 
 ### TBB
 

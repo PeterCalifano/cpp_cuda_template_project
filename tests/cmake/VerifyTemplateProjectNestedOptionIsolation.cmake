@@ -59,7 +59,7 @@ set(_parent_build "${TEST_BINARY_ROOT}/build")
 file(MAKE_DIRECTORY "${_parent_source}")
 
 # The parent deliberately owns conflicting generic values. Canonical template
-# selectors keep the nested library active while disabling its CUDA/OptiX path.
+# selectors keep the nested library active while disabling its GPU paths.
 file(WRITE "${_parent_source}/CMakeLists.txt"
 "cmake_minimum_required(VERSION 3.15)
 project(template_project_option_isolation_parent LANGUAGES CXX)
@@ -67,10 +67,12 @@ project(template_project_option_isolation_parent LANGUAGES CXX)
 set(PROJECT_METADATA_ONLY ON CACHE BOOL \"Parent metadata selector\" FORCE)
 set(ENABLE_CUDA ON CACHE BOOL \"Parent CUDA selector\" FORCE)
 set(ENABLE_OPTIX ON CACHE BOOL \"Parent OptiX selector\" FORCE)
+set(ENABLE_TENSORRT ON CACHE BOOL \"Parent TensorRT selector\" FORCE)
 
 set(template_project_METADATA_ONLY OFF CACHE BOOL \"\" FORCE)
 set(template_project_ENABLE_CUDA OFF CACHE BOOL \"\" FORCE)
 set(template_project_ENABLE_OPTIX OFF CACHE BOOL \"\" FORCE)
+set(template_project_ENABLE_TENSORRT OFF CACHE BOOL \"\" FORCE)
 set(ENABLE_TESTS OFF CACHE BOOL \"\" FORCE)
 set(ENABLE_FETCH_CATCH2 OFF CACHE BOOL \"\" FORCE)
 set(template_project_BUILD_PROGRAMS OFF CACHE BOOL \"\" FORCE)
@@ -88,7 +90,7 @@ if(DEFINED CMAKE_CUDA_COMPILER)
   message(FATAL_ERROR
       \"Nested template consumed the parent's generic ENABLE_CUDA option.\")
 endif()
-if(NOT PROJECT_METADATA_ONLY OR NOT ENABLE_CUDA OR NOT ENABLE_OPTIX)
+if(NOT PROJECT_METADATA_ONLY OR NOT ENABLE_CUDA OR NOT ENABLE_OPTIX OR NOT ENABLE_TENSORRT)
   message(FATAL_ERROR \"Nested template changed parent-owned generic options.\")
 endif()
 ")
@@ -149,21 +151,23 @@ _require_cache_entry_absent(
 _read_cache_value(
     "${_metadata_alias_cache}" "CMAKE_CXX_COMPILER" _metadata_cxx_compiler)
 
-# Keep language selection disabled while exercising the CUDA and OptiX aliases;
-# this validates cache migration without requiring either SDK on a CPU runner.
+# Keep language selection disabled while exercising GPU feature aliases; this
+# validates cache migration without requiring their SDKs on a CPU runner.
 set(_feature_alias_build "${TEST_BINARY_ROOT}/feature_alias_build")
 _run_success(
-    "Enable CUDA and OptiX through legacy aliases"
+    "Enable GPU features through legacy aliases"
     "${CMAKE_COMMAND}"
     -S "${TEST_TEMPLATE_SOURCE_DIR}"
     -B "${_feature_alias_build}"
     -Dtemplate_project_METADATA_ONLY=ON
     -Dtemplate_project_ENABLE_CUDA=OFF
     -Dtemplate_project_ENABLE_OPTIX=OFF
+    -Dtemplate_project_ENABLE_TENSORRT=OFF
     -DENABLE_CUDA=ON
-    -DENABLE_OPTIX=ON)
+    -DENABLE_OPTIX=ON
+    -DENABLE_TENSORRT=ON)
 set(_feature_alias_cache "${_feature_alias_build}/CMakeCache.txt")
-foreach(_feature IN ITEMS CUDA OPTIX)
+foreach(_feature IN ITEMS CUDA OPTIX TENSORRT)
   _require_cache_value(
       "${_feature_alias_cache}" "template_project_ENABLE_${_feature}" "ON")
   _require_cache_entry_absent(
@@ -171,15 +175,17 @@ foreach(_feature IN ITEMS CUDA OPTIX)
 endforeach()
 
 _run_success(
-    "Disable CUDA and OptiX through legacy aliases"
+    "Disable GPU features through legacy aliases"
     "${CMAKE_COMMAND}"
     -S "${TEST_TEMPLATE_SOURCE_DIR}"
     -B "${_feature_alias_build}"
     -Dtemplate_project_ENABLE_CUDA=ON
     -Dtemplate_project_ENABLE_OPTIX=ON
+    -Dtemplate_project_ENABLE_TENSORRT=ON
     -DENABLE_CUDA=OFF
-    -DENABLE_OPTIX=OFF)
-foreach(_feature IN ITEMS CUDA OPTIX)
+    -DENABLE_OPTIX=OFF
+    -DENABLE_TENSORRT=OFF)
+foreach(_feature IN ITEMS CUDA OPTIX TENSORRT)
   _require_cache_value(
       "${_feature_alias_cache}" "template_project_ENABLE_${_feature}" "OFF")
   _require_cache_entry_absent(

@@ -26,8 +26,8 @@ optional CUDA/TensorRT, CTest, Bash, and Python 3.12+.
 - Authoritative execution tracker for the v1.12.1 prerequisite and the
   subsequent v2.0.0 test-ownership migration.
 - Tracking started: 2026-07-28.
-- Current stage: continuation Stage 0 baseline snapshot and Stage 1
-  source-package simplification.
+- Current stage: continuation Stage 2 TensorRT integration awaiting staged
+  user review.
 - Template release baseline: signed `v1.12.0` tag at
   `b277e4b84e2f1e501d6c2e73370efe0ecd101f23`.
 - TestField working baseline:
@@ -280,7 +280,9 @@ Stage 1 evidence before staging, recorded 2026-08-14:
   `src/cmake/template_projectConfig.cmake.in`.
 - Create `cmake/HandleTensorRT.cmake`.
 - Modify `tests/cmake/VerifyTemplateProjectTensorRTModule.cmake`,
-  `doc/template_usage.md`, `doc/cpp_cuda_build.md`, and this tracker.
+  `tests/cmake/VerifyTemplateProjectNestedOptionIsolation.cmake`, `README.md`,
+  `doc/Doxyfile.in`, `doc/build_script_doc.md`, `doc/template_usage.md`,
+  `doc/cpp_cuda_build.md`, and this tracker.
 
 **Consumes:** `FindTensorRT.cmake`, `TensorRT::nvinfer`,
 `TensorRT::nvinfer_plugin`, and the existing CUDA option normalization.
@@ -289,27 +291,27 @@ Stage 1 evidence before staging, recorded 2026-08-14:
 alias, and a target-oriented integration path owned by
 `HandleTensorRT.cmake`.
 
-- [ ] Confirm that the Stage 1 index is empty because the user committed or
+- [x] Confirm that the Stage 1 index is empty because the user committed or
   cleared it; otherwise stop without preparing this batch.
-- [ ] Extend the TensorRT verifier first with disabled, enabled, fake aarch64,
+- [x] Extend the TensorRT verifier first with disabled, enabled, fake aarch64,
   source/build/install consumer, missing-package quiet/required, and unchanged
   caller `CMAKE_MODULE_PATH` cases.
-- [ ] Run the focused verifier and record the expected failure for the absent
+- [x] Run the focused verifier and record the expected failure for the absent
   handled feature.
-- [ ] Add `template_project_ENABLE_TENSORRT=OFF` and a top-level legacy alias;
+- [x] Add `template_project_ENABLE_TENSORRT=OFF` and a top-level legacy alias;
   normalize the option before language selection so enabling TensorRT implies
   CUDA.
-- [ ] Add `HandleTensorRT.cmake` to call `find_package(TensorRT REQUIRED)` and
+- [x] Add `HandleTensorRT.cmake` to call `find_package(TensorRT REQUIRED)` and
   expose TensorRT and `CUDA::cudart` through the owning project target without
   adding global module-path state.
-- [ ] Define `__TENSORRT_ENABLED__=1` only for enabled consumers.
-- [ ] Install `FindTensorRT.cmake` and include it directly from the generated
+- [x] Define `__TENSORRT_ENABLED__=1` only for enabled consumers.
+- [x] Install `FindTensorRT.cmake` and include it directly from the generated
   package config only when TensorRT was enabled at build time.
-- [ ] Preserve the existing portable root, environment, version, imported
+- [x] Preserve the existing portable root, environment, version, imported
   target, x86_64, and aarch64 behavior in `FindTensorRT.cmake`.
-- [ ] Run the focused TensorRT verifier, CPU configuration/build/tests, package
+- [x] Run the focused TensorRT verifier, CPU configuration/build/tests, package
   install/consumer acceptance, documentation, and static gates.
-- [ ] Review and stage only the Stage 2 allowlist, inspect the complete index,
+- [x] Review and stage only the Stage 2 allowlist, inspect the complete index,
   run `git diff --cached --check`, and stop for user review without committing.
 
 Proposed commit:
@@ -323,6 +325,37 @@ Proposed commit:
 
 - Preserve caller module paths in build-tree and installed consumers
 ```
+
+Stage 2 evidence before staging, recorded 2026-08-14:
+
+- RED: the direct TensorRT verifier first failed because
+  `cmake/HandleTensorRT.cmake` and `handle_tensorrt()` did not exist. After the
+  handler was introduced, the nested-option verifier failed because the root
+  did not yet expose `template_project_ENABLE_TENSORRT`.
+- RED: the enabled package consumer then failed because the generated package
+  config did not rediscover `TensorRT::nvinfer`. The first direct-include
+  attempt exposed two CMake integration defects: the finder erased a normal
+  `TensorRT_ROOT` hint under the CMake 3.15 policy baseline, and
+  `FindPackageHandleStandardArgs` observed the outer package name.
+- RED: the real CUDA root acceptance finally failed because the exported
+  project omitted its TensorRT interface target. This proved that standalone
+  discovery alone was insufficient for build/install consumers.
+- GREEN: the direct TensorRT verifier and nested-option verifier both exited
+  `0`. The registered tests passed `2/2`; the TensorRT verifier covered
+  canonical and compatibility roots, x86_64 and aarch64 archive layouts,
+  disabled and enabled handlers, build/install package consumers, missing SDK
+  QUIET/REQUIRED behavior, and a real CUDA configure/build/install/consumer
+  chain using local stub TensorRT libraries.
+- GREEN: `./build_lib.sh --clean -j 4` configured and built the default CPU
+  project with TensorRT disabled and passed `32/32` tests. Doxygen 1.9.8 built
+  `template_project_doc`, and whitespace, conflict-marker, CMake-floor API, and
+  removed-helper scans exited `0`.
+- Simplification: the final handler removed an unused parent-scope configured
+  flag and owns one stable interface target. TensorRT and OptiX join the export
+  set through independent conditions, while the root owns their shared CUDA
+  prerequisite. The root project description remains unchanged, avoiding an
+  unrelated ROS manifest metadata expansion; the two affected ROS tests and
+  the full CPU suite passed after that scope correction.
 
 ### Continuation Stage 3 - Consolidate and version the template repositories
 

@@ -36,6 +36,7 @@ endif()
 set(METADATA_ONLY_OPTION_NAME "${project_name}_METADATA_ONLY")
 set(ENABLE_OPTIX_OPTION_NAME "${project_name}_ENABLE_OPTIX")
 set(ENABLE_CUDA_OPTION_NAME "${project_name}_ENABLE_CUDA")
+set(ENABLE_TENSORRT_OPTION_NAME "${project_name}_ENABLE_TENSORRT")
 
 function(_template_project_migrate_top_level_bool_option_alias legacy_option
          canonical_option option_help)
@@ -64,27 +65,33 @@ _template_project_migrate_top_level_bool_option_alias(
     ENABLE_OPTIX "${ENABLE_OPTIX_OPTION_NAME}" "Enable OptiX")
 _template_project_migrate_top_level_bool_option_alias(
     ENABLE_CUDA "${ENABLE_CUDA_OPTION_NAME}" "Enable CUDA")
+_template_project_migrate_top_level_bool_option_alias(
+    ENABLE_TENSORRT "${ENABLE_TENSORRT_OPTION_NAME}" "Enable TensorRT")
 
 option(${METADATA_ONLY_OPTION_NAME}
        "Configure only project identity and version metadata"
        OFF)
 option(${ENABLE_OPTIX_OPTION_NAME} "Enable OptiX" OFF)
 option(${ENABLE_CUDA_OPTION_NAME} "Enable CUDA" OFF)
+option(${ENABLE_TENSORRT_OPTION_NAME} "Enable TensorRT" OFF)
 
 # Retained modules consume the historical local variable names. Normal
 # directory-scope assignments isolate them from a parent's cache entries.
 set(PROJECT_METADATA_ONLY "${${METADATA_ONLY_OPTION_NAME}}")
 set(ENABLE_OPTIX "${${ENABLE_OPTIX_OPTION_NAME}}")
 set(ENABLE_CUDA "${${ENABLE_CUDA_OPTION_NAME}}")
+set(ENABLE_TENSORRT "${${ENABLE_TENSORRT_OPTION_NAME}}")
+
+# OptiX and TensorRT both require the project CUDA feature when languages and
+# dependency targets are configured.
+if(ENABLE_OPTIX OR ENABLE_TENSORRT)
+  set(ENABLE_CUDA ON)
+endif()
 
 if(PROJECT_METADATA_ONLY)
   set(languages NONE)
 else()
   set(languages CXX) # ACHTUNG: PTX code requires C language!
-
-  if(ENABLE_OPTIX)
-    set(ENABLE_CUDA ON)
-  endif()
 
   if(ENABLE_CUDA)
     list(APPEND languages CUDA)
@@ -141,6 +148,7 @@ if (DEFINED LIB_NAMESPACE_OVERRIDE)
 endif()
 set(CUDA_COMPILE_TARGET "${LIB_NAMESPACE}_cuda_compile_interface")
 set(OPTIX_COMPILE_TARGET "${LIB_NAMESPACE}_optix_compile_interface")
+set(TENSORRT_COMPILE_TARGET "${LIB_NAMESPACE}_tensorrt_compile_interface")
 set(OPENGL_COMPILE_TARGET "${LIB_NAMESPACE}_opengl_compile_interface")
 set(LIB_COMPILE_TARGET "${LIB_NAMESPACE}_lib_compile_interface")
 set(SANITIZER_TARGET "${LIB_NAMESPACE}_sanitizer_target_interface")
@@ -177,9 +185,10 @@ include(GNUInstallDirs)
 # Add cmake modules
 include(ExternalProject)
 
-# Add CUDA/OptiX tools
+# Add GPU dependency handlers
 include(cmake/HandleCUDA.cmake)
 include(cmake/HandleOptiX.cmake)
+include(cmake/HandleTensorRT.cmake)
 include(cmake/HandleTBB.cmake)
 
 # Add handle of python
@@ -354,11 +363,13 @@ if(BUILD_AS_MAIN_PROJECT)
   endif()
 endif()
 
-# Configure CUDA/OptiX (creates interface targets even when disabled)
+# Configure GPU dependency targets in dependency order. Each handler creates a
+# stable interface target even when its feature is disabled.
 handle_cuda(TARGET ${CUDA_COMPILE_TARGET} 
             MIN_VERSION 12.0)
+handle_tensorrt(TARGET ${TENSORRT_COMPILE_TARGET})
 handle_optix(TARGET ${OPTIX_COMPILE_TARGET} 
-            CUDA_TARGET ${CUDA_COMPILE_TARGET})
+             CUDA_TARGET ${CUDA_COMPILE_TARGET})
 
 if (ENABLE_CUDA)
   # Add tools to manage cuda and ptx
@@ -521,6 +532,7 @@ if (ENABLE_CUDA)
   message(STATUS "CUDA fast math (PTX compile)             : ${CUDA_PTX_USE_FAST_MATH}")
   message(STATUS "CUDA extra NVCC flags                    : ${CUDA_NVCC_EXTRA_FLAGS}")
 endif()
+message(STATUS "TensorRT enabled                         : ${ENABLE_TENSORRT}")
 message(STATUS "TBB enabled                              : ${ENABLE_TBB}")
 message(STATUS "CPU native tuning                        : ${CPU_ENABLE_NATIVE_TUNING}")
 message(STATUS "CPU SIMD enabled                         : ${CPU_ENABLE_SIMD}")
