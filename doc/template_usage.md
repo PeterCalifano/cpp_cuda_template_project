@@ -18,9 +18,19 @@ Use this order for a new library checkout:
 
    Replace `my_project` with the chosen C++ project namespace. Add `--keep-profiling` only when the new project should keep the optional Valgrind/perf helper scripts.
 3. Rename the template identifiers in tracked source files only. Exclude build trees, install trees, virtual environments, generated Python build metadata, and other generated artifacts. After cleanup succeeds, either delete `tailor_template_cleanup.sh` or exclude it from the rename pass; it is a one-shot template helper.
-4. Remove optional skeletons that the project will not use. For example, if the CUDA module directory is deleted, also remove the matching `add_subdirectory()` entry from `src/CMakeLists.txt`.
-5. Configure, build, and run CTest from a clean build directory.
-6. Inspect remaining template names with `rg "template_project|template_src|template_src_kernels|cpp_playground"` and keep only intentional references in examples or documentation.
+4. Decide which optional features the project will continue to support,
+   including CUDA, OptiX, TensorRT, TBB, and OpenGL. Retained features remain
+   dependency-neutral while their options are `OFF`. Keep `FindTensorRT.cmake`
+   and `HandleTensorRT.cmake` when TensorRT should remain available; removing
+   TensorRT entirely requires a deliberate review of root, source, package,
+   test, and documentation references rather than a cleanup-script flag.
+5. Remove optional skeletons that the project will not use. For example, if the
+   CUDA module directory is deleted, also remove the matching
+   `add_subdirectory()` entry from `src/CMakeLists.txt`.
+6. Configure, build, and run CTest from a clean build directory.
+7. Inspect remaining template names with
+   `rg "template_project|template_src|template_src_kernels|cpp_playground"` and
+   keep only intentional references in examples or documentation.
 
 The cleanup script contains template-specific filenames and test names, so running it before a global `template_project` replacement avoids stale cleanup paths.
 
@@ -129,17 +139,19 @@ set(LIB_TARGET_NAME_OVERRIDE nested_my_project_library CACHE STRING "" FORCE)
 set(my_project_METADATA_ONLY OFF CACHE BOOL "" FORCE)
 set(my_project_ENABLE_CUDA OFF CACHE BOOL "" FORCE)
 set(my_project_ENABLE_OPTIX OFF CACHE BOOL "" FORCE)
+set(my_project_ENABLE_TENSORRT OFF CACHE BOOL "" FORCE)
 add_subdirectory(path/to/my_project)
 target_link_libraries(parent_target PRIVATE nested_my_project::my_project)
 ```
 
-The project-qualified metadata, CUDA, and OptiX options are canonical for
-`add_subdirectory()` consumers and cannot collide with an application's generic
-cache entries. The historical `PROJECT_METADATA_ONLY`, `ENABLE_CUDA`, and
-`ENABLE_OPTIX` spellings remain one-config, top-level compatibility aliases
-only. When supplied, a legacy alias wins for that configure, migrates its value
-to the canonical project-qualified option, and is removed from the cache.
-Replace `my_project` with the renamed root `project_name`.
+The project-qualified metadata, CUDA, OptiX, and TensorRT options are canonical
+for `add_subdirectory()` consumers and cannot collide with an application's
+generic cache entries. The historical `PROJECT_METADATA_ONLY`, `ENABLE_CUDA`,
+`ENABLE_OPTIX`, and `ENABLE_TENSORRT` spellings remain one-config, top-level
+compatibility aliases only. When supplied, a legacy alias wins for that
+configure, migrates its value to the canonical project-qualified option, and is
+removed from the cache. Replace `my_project` with the renamed root
+`project_name`.
 
 Only the main project configures documentation, tests, examples, wrappers, and generic `doc` targets. Nested projects keep their library target available without publishing documentation for the parent build.
 
@@ -149,10 +161,12 @@ Use Catch2 for compiled tests, pytest for Python tests, and CTest as the common
 runner. Put compiled tests in `test*.cpp` or `test*.cu` files and Python tests in
 `test*.py` files.
 
-The template repository uses `tests/cmake/` for template-owned conformance,
-tailoring, and generation checks. Do not copy those verifiers into a tailored
-project. A derived project should prove configuration, feature matrices,
-installation, packaging, and external consumption with explicit fresh
+The template checkout contains only runtime tests and fixtures that a derived
+project should inherit. Generic tailoring, workflow, packaging, installation,
+and platform conformance is owned by the standalone harness in
+`cpp_cuda_template_testfield`; those verifier implementations are not part of
+this source tree. A derived project should prove its own configuration, feature
+matrices, installation, packaging, and external consumption with explicit fresh
 out-of-tree commands in its acceptance/CI matrix. Do not make ordinary CTest
 recursively configure and rebuild the same project when CI already owns that
 behavioral gate.
@@ -224,44 +238,26 @@ By default this also removes `profiling/`. Keep those scripts only when the new 
 ```
 
 The script replaces `template_project::logging` with the required project
-namespace, then removes agent/context notes, internal development notes,
-workflow snapshot files, template-specific validation CTest scripts, optional
-profiling scripts, and the workspace file tied to this template checkout. It
-keeps reusable project infrastructure such as `cmake/` (including the
-Python/MATLAB wrapper and runtime-staging modules), `build_lib.sh`, docs
-workflow files, issue forms, examples, toolchains, starter unit tests,
-`.devcontainer/`, and `.vscode/`.
+namespace, then removes agent/context notes, internal development and review
+records, optional profiling scripts, and the workspace file tied to this
+template checkout. It keeps reusable project infrastructure such as `cmake/`
+(including the Python/MATLAB wrapper and runtime-staging modules),
+`build_lib.sh`, issue forms, examples, toolchains, starter runtime tests,
+MATLAB wrapper checks, `.devcontainer/`, and `.vscode/`.
 
-It also removes the root CMake hook for the template MATLAB regression helper and rewrites `tests/CMakeLists.txt` so only starter project unit tests remain registered.
+Root `CMakeLists.txt`, `tests/CMakeLists.txt`, custom downstream tests, and the
+non-ROS workflows are stable inputs: cleanup does not parse or rewrite them.
+This boundary is intentional. Template-system conformance remains external in
+TestField, while project-owned runtime checks remain with the project.
 
-This cleanup boundary is intentional: template CMake conformance tests remain
-owned by the donor/testfield validation harness, not by the tailored product.
+### Project workflows
 
-### Workflow materialization
+The four runnable `.github/workflows/*.yml` files are directly reusable by a
+derived project. There are no dormant workflow copies and no materialization
+step. Normal cleanup preserves all four files byte-for-byte.
 
-The runnable `.github/workflows/*.yml` files in this repository validate the
-template itself. Generic workflows for a tailored project are stored beside
-them as dormant `.tpl` files so GitHub does not execute both definitions:
-
-| Dormant project workflow | Materialized tailored workflow |
-|---|---|
-| `build_linux.yml.tpl` | `build_linux.yml` |
-| `build_linux_cuda.yml.tpl` | `build_linux_cuda.yml` |
-| `docs_pages.yml.tpl` | `docs_pages.yml` |
-| `build_ros2_overlay.yml.tpl` | `build_ros2_overlay.yml` |
-
-Normal cleanup validates that each active/dormant pair exists, atomically
-replaces each active template-validation workflow with its generic project
-workflow, and removes every `.tpl` file. The resulting checkout therefore has
-only runnable project CI and no dormant workflow templates.
-
-Each generic workflow carries the `# project-ci-template: generic` ownership
-marker. Cleanup preserves that marker and the source file mode, allowing the
-same cleanup mode to be reapplied safely while still rejecting an active
-template-validation workflow whose matching `.tpl` was lost before
-materialization.
-
-With `--remove-ros2`, cleanup materializes the three non-ROS workflows and
-removes both forms of the ROS workflow. Without that flag, all four project
-workflows are materialized. Make project-specific runner, dependency, and
-deployment changes in the resulting `.yml` files after cleanup.
+With `--remove-ros2`, cleanup removes only
+`.github/workflows/build_ros2_overlay.yml` along with the optional overlay.
+Without that flag, the workflow remains available. Make project-specific
+runner, dependency, and deployment changes directly in the `.yml` files after
+cleanup.

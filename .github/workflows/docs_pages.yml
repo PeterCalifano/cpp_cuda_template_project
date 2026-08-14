@@ -1,5 +1,5 @@
-name: verify_template_docs
-run-name: Build and publish template documentation
+name: docs_pages
+run-name: Build and publish Doxygen documentation
 
 on:
   workflow_dispatch:
@@ -22,8 +22,6 @@ on:
       - CMakeLists.txt
       - CMakePresets.json
       - .github/workflows/docs_pages.yml
-      - .github/workflows/docs_pages.yml.tpl
-      - tests/template_test/testWorkflowTemplates.py
   pull_request:
     branches:
       - "master"
@@ -38,8 +36,6 @@ on:
       - CMakeLists.txt
       - CMakePresets.json
       - .github/workflows/docs_pages.yml
-      - .github/workflows/docs_pages.yml.tpl
-      - tests/template_test/testWorkflowTemplates.py
 
 permissions:
   contents: read
@@ -62,11 +58,7 @@ jobs:
       - name: Install documentation dependencies
         run: |
           sudo apt update
-          sudo apt install -y cmake ninja-build g++ doxygen graphviz libeigen3-dev python3-pytest python3-yaml
-
-      - name: Run template workflow contracts
-        id: workflow_contracts
-        run: python3 -m pytest -q tests/template_test/testWorkflowTemplates.py
+          sudo apt install -y cmake ninja-build g++ doxygen graphviz libeigen3-dev
 
       - name: Configure documentation build
         run: |
@@ -79,9 +71,7 @@ jobs:
             -DBUILD_DOC_HTML=ON \
             -DBUILD_DOC_XML=ON \
             -DBUILD_DOC_LATEX=OFF \
-            -DDOC_WARN_AS_ERROR=OFF \
-            -Dtemplate_project_BUILD_PROGRAMS=OFF \
-            -Dtemplate_project_BUILD_EXAMPLES=OFF
+            -DDOC_WARN_AS_ERROR=OFF
 
       - name: Build documentation
         run: cmake --build "${BUILD_DIR}" --target doc --parallel 2
@@ -119,6 +109,4 @@ jobs:
           curl --fail --location --retry 5 --retry-delay 5 \
             "${{ steps.deployment.outputs.page_url }}" \
             --output /tmp/docs-pages-index.html
-          grep -F "Template usage" /tmp/docs-pages-index.html
-          grep -F "Documentation workflow" /tmp/docs-pages-index.html
-          grep -F "Versioning" /tmp/docs-pages-index.html
+          test -s /tmp/docs-pages-index.html

@@ -122,6 +122,12 @@ if (ENABLE_CUDA)
   target_link_libraries(${lib_name} ${lib_link_scope} ${CUDA_COMPILE_TARGET})
 endif()
 
+# Link TensorRT through its project-owned interface so build-tree and installed
+# consumers receive the same SDK targets and feature definition.
+if(ENABLE_TENSORRT)
+  target_link_libraries(${lib_name} ${lib_link_scope} ${TENSORRT_COMPILE_TARGET})
+endif()
+
 # Link OptiX interface target
 if(ENABLE_OPTIX)
   target_link_libraries(${lib_name} ${lib_link_scope} ${OPTIX_COMPILE_TARGET})
@@ -164,9 +170,12 @@ endif()
                       
 if (ENABLE_CUDA)
   list(APPEND installable_targets ${CUDA_COMPILE_TARGET})
-  if(ENABLE_OPTIX)
-    list(APPEND installable_targets ${OPTIX_COMPILE_TARGET})
-  endif()
+endif()
+if(ENABLE_TENSORRT)
+  list(APPEND installable_targets ${TENSORRT_COMPILE_TARGET})
+endif()
+if(ENABLE_OPTIX)
+  list(APPEND installable_targets ${OPTIX_COMPILE_TARGET})
 endif()
 
 if (ENABLE_OPENGL)

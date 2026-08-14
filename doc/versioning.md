@@ -40,10 +40,11 @@ the synchronization explicitly.
 
 Keeping source writes opt-in prevents CI and testfield configure runs from dirtying the checkout.
 
-CPack stages the generated build-tree `VERSION` into binary and source
-packages. The ignored source-tree file remains a fallback for configuring a
-checkout without usable Git metadata, but it is excluded from CPack input so a
-stale fallback cannot overwrite the version resolved for the package build.
+Binary packages install the generated build-tree `VERSION`. Canonical source
+packages instead include the source-tree `VERSION` prepared by
+`generate_version.sh`. Do not configure a release package from a stale source
+file or mutate release metadata between CMake configuration and CPack; prepare
+the checkout again and reconfigure when metadata changes.
 
 ## C++ Access
 
@@ -128,20 +129,25 @@ without Git tag context or that metadata is not a valid release input.
 
 The TGZ produced from `CPackSourceConfig.cmake` is the canonical source release.
 It is validated outside Git against the same strict core and full version as the
-tagged checkout. CPack injects the generated build-tree `VERSION` and excludes
-the ignored source-tree fallback, build trees, plus ROS-generated `build`,
-`install`, and `log` outputs. GitHub's automatic source links are non-canonical:
-they are repository snapshots and do not include the generated `VERSION` file
-required by this release contract. Uploading the CPack TGZ to a GitHub release
-remains a deliberate manual step; CI upload automation is not yet part of the
-release workflow.
+tagged checkout. CPack includes the prepared source-tree `VERSION` and excludes
+the exact active binary directory plus deterministic generated paths such as
+the root install prefix and ROS `build`, `install`, and `log` outputs. Prepare a
+release from a checkout without additional generated build trees: CPack does not
+scan arbitrary `CMakeCache.txt` files or infer ownership from path names.
+Build-prefixed source directories and foreign child-project caches therefore
+remain package input.
 
-Build-tree ownership is refreshed when CPack starts, not only when CMake first
-configures the release tree. The active binary directory and any nested cache
-whose `CMAKE_HOME_DIRECTORY` resolves to this exact checkout are excluded even
-when they appeared after configuration. Build-prefixed source directories and
-foreign child-project caches remain package input because their names alone do
-not prove that this checkout generated them.
+The template appends its deterministic exclusions to
+`CPACK_SOURCE_IGNORE_FILES` and leaves caller-owned extension hooks, including
+`CPACK_PROJECT_CONFIG_FILE` and CPack install scripts, unchanged. Projects may
+add local package policy through those public variables without the template
+replacing it.
+
+GitHub's automatic source links are non-canonical: they are repository
+snapshots and do not include the generated `VERSION` file required by this
+release contract. Uploading the CPack TGZ to a GitHub release remains a
+deliberate manual step; CI upload automation is not yet part of the release
+workflow.
 
 Pushes of `v*.*.*` tags run the native CPU, CUDA, and ROS workflows. The ROS
 workflow regenerates metadata, derives the expected strict core version from
