@@ -596,7 +596,7 @@ set(CPACK_PACKAGE_VERSION_MINOR "${PROJECT_VERSION_MINOR}")
 set(CPACK_PACKAGE_VERSION_PATCH "${PROJECT_VERSION_PATCH}")
 if(DEFINED FULL_VERSION AND NOT "${FULL_VERSION}" STREQUAL "")
   set(CPACK_PACKAGE_FILE_NAME "${project_name}-${FULL_VERSION}")
-  set(CPACK_SOURCE_PACKAGE_FILE_NAME "${project_name}-${FULL_VERSION}")
+  set(CPACK_SOURCE_PACKAGE_FILE_NAME "${project_name}-${FULL_VERSION}-source")
 endif()
 set(CPACK_GENERATOR "TGZ")
 set(CPACK_SOURCE_GENERATOR "TGZ")
@@ -615,10 +615,25 @@ string(
   _cpack_binary_root_regex "${_cpack_binary_root_regex}")
 list(APPEND CPACK_SOURCE_IGNORE_FILES
     "^${_cpack_source_root_regex}/(.*/)?\\.git(/|$)"
-    "^${_cpack_source_root_regex}/install/"
-    "^${_cpack_source_root_regex}/ros2/(build|install|log)/"
+    "^${_cpack_source_root_regex}/(.*/)?\\.codex(/|$)"
+    "^${_cpack_source_root_regex}/CONTEXT\\.md$"
+    "^${_cpack_source_root_regex}/(.*/)?\\.mypy_cache/"
     "^${_cpack_source_root_regex}/(.*/)?\\.pytest_cache/"
     "^${_cpack_source_root_regex}/(.*/)?__pycache__/"
+    "^${_cpack_source_root_regex}/build[^/]*/"
+    "^${_cpack_source_root_regex}/(.*/)?build(/|$)"
+    "^${_cpack_source_root_regex}/(.*/)?install[^/]*/"
+    "^${_cpack_source_root_regex}/ros2/(build|install|log)/"
+    "^${_cpack_source_root_regex}/(.*/)?codegen/"
+    "^${_cpack_source_root_regex}/(.*/)?slprj/"
+    "^${_cpack_source_root_regex}/(.*/)?[^/]+_ert_rtw(/|$)"
+    "^${_cpack_source_root_regex}/matlab/mex/"
+    "^${_cpack_source_root_regex}/.*\\.(mexa64|mexw64|mexmaci64)$"
     "^${_cpack_source_root_regex}/.*\\.py[cod]$"
+    "^${_cpack_source_root_regex}/python/(build|dist)/"
+    "^${_cpack_source_root_regex}/python/[^/]+\\.egg-info/"
+    "^${_cpack_source_root_regex}/python/(setup\\.py|pyproject\\.toml)$"
+    "^${_cpack_source_root_regex}/python/[^/]+/_wrapper_build\\.py$"
+    "^${_cpack_source_root_regex}/python/.*\\.(so(\\..*)?|pyd|dylib|dll)$"
     "^${_cpack_binary_root_regex}(/|$)")
 include(CPack)

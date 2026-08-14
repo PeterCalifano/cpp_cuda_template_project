@@ -38,12 +38,8 @@ function(configure_matlab_gtwrapper)
     include_directories(${GTWRAP_INCLUDE_DIR})
   endif()
 
-  if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/matlab")
-    file(MAKE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/matlab")
-  endif()
-
   set(WRAP_MEX_BUILD_STATIC_MODULE OFF)
-  set(WRAP_TOOLBOX_INSTALL_PATH "${CMAKE_CURRENT_SOURCE_DIR}/matlab")
+  set(WRAP_TOOLBOX_INSTALL_PATH "matlab")
   set(WRAP_BUILD_TYPE_POSTFIXES OFF)
 
   if(NOT DEFINED LIBNAME_WRAP_TARGET)

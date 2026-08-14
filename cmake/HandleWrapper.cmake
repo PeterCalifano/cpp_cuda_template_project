@@ -472,7 +472,18 @@ function(configure_gtwrappers_common)
         get_filename_component(_installed_matlab_h_dir "${_installed_matlab_h}" DIRECTORY)
         get_filename_component(_installed_matlab_h_parent "${_installed_matlab_h_dir}" DIRECTORY)
 
-        if(_installed_matlab_h_dir MATCHES "/(wrap|gtwrap)$")
+        if(_installed_matlab_h_dir MATCHES "/gtwrap$")
+          # Older generators emit <wrap/matlab.h> even when the installed
+          # package uses include/gtwrap. Bridge that spelling in the build tree
+          # without mutating the external installation.
+          set(_installed_wrap_include_root
+              "${PROJECT_BINARY_DIR}/gtwrap_include_bridge")
+          file(MAKE_DIRECTORY "${_installed_wrap_include_root}/wrap")
+          configure_file(
+            "${_installed_matlab_h}"
+            "${_installed_wrap_include_root}/wrap/matlab.h"
+            COPYONLY)
+        elseif(_installed_matlab_h_dir MATCHES "/wrap$")
           set(_installed_wrap_include_root "${_installed_matlab_h_parent}")
         else()
           set(_installed_wrap_include_root "${_installed_matlab_h_dir}")
