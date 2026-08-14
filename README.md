@@ -1,12 +1,16 @@
 # cpp_cuda_template_project
 
-A CMake template for building GPU-accelerated C++ libraries with optional CUDA/OptiX, Python/MATLAB bindings, and profiling support. Shared builds are the default, and static builds are selectable through standard CMake `BUILD_SHARED_LIBS`. Designed to be cloned and renamed into a real project.
+A CMake template for building GPU-accelerated C++ libraries with optional CUDA,
+OptiX, TensorRT, Python/MATLAB bindings, and profiling support. Shared builds
+are the default, and static builds are selectable through standard CMake
+`BUILD_SHARED_LIBS`. Designed to be cloned and renamed into a real project.
 
 ## Documentation Map
 
 - [`doc/template_usage.md`](doc/template_usage.md): cloning, renaming, source layout, nested consumers, and test placement.
 - [`doc/bootstrap_prompts.md`](doc/bootstrap_prompts.md): interactive agent prompt for tailoring the template into a fresh library.
-- [`doc/cpp_cuda_build.md`](doc/cpp_cuda_build.md): C++ build modes, CUDA, OptiX, toolchains, CPU tuning, and profiling toggles.
+- [`doc/cpp_cuda_build.md`](doc/cpp_cuda_build.md): C++ build modes, CUDA,
+  OptiX, TensorRT, toolchains, CPU tuning, and profiling toggles.
 - [`doc/wrappers.md`](doc/wrappers.md): gtwrap setup, Python package workflow, MATLAB wrappers, and wrapper docstrings.
 - [`doc/versioning.md`](doc/versioning.md): git tags, source/build/install `VERSION` files, C++ config macros, Python metadata, and packages.
 - [`doc/logging.md`](doc/logging.md): dependency-free component logging, level configuration, stream routing, and capture.
@@ -20,7 +24,16 @@ Tailoring helper:
 ./tailor_template_cleanup.sh --apply --yes --project-namespace my_project
 ```
 
-The required namespace option replaces `template_project::logging` in the reusable logger sources and examples. Run the cleanup before a broad `template_project` replacement, because the script contains template-specific cleanup paths. Root/test CMake files, starter tests, and project workflows remain unchanged. After cleanup succeeds, delete `tailor_template_cleanup.sh` or exclude it from the rename pass. `profiling/` is removed by default. Add `--keep-profiling` when the new project should keep the Valgrind/perf helper scripts.
+The required namespace option replaces `template_project::logging` in the
+reusable logger sources and examples. Run the cleanup before a broad
+`template_project` replacement, because the script contains template-specific
+cleanup paths. Root/test CMake files, starter tests, and project workflows
+remain unchanged. After cleanup succeeds, delete `tailor_template_cleanup.sh`
+or exclude it from the rename pass. `profiling/` is removed by default. Add
+`--keep-profiling` when the new project should keep the Valgrind/perf helper
+scripts. TensorRT discovery and integration remain available to tailored
+projects but stay dependency-neutral while `template_project_ENABLE_TENSORRT`
+is `OFF`.
 
 <!-- ros2-overlay-begin -->
 ## Optional ROS 2 Overlay
@@ -42,6 +55,7 @@ Use `./tailor_template_cleanup.sh --apply --yes --project-namespace my_project -
 | Eigen3 | ≥ 3.4 | Required |
 | CUDA Toolkit | ≥ 12.0 | Optional (`-DENABLE_CUDA=ON`) |
 | OptiX SDK | any | Optional (`-DENABLE_OPTIX=ON`), requires CUDA |
+| TensorRT SDK | any | Optional (`-DENABLE_TENSORRT=ON`), requires CUDA |
 | oneTBB | any | Optional (`-DENABLE_TBB=ON`) |
 | Catch2 | 3.x | Auto-fetched from GitHub if not found |
 | pytest | any | Required when `ENABLE_PYTHON_TESTS=ON` and `test*.py` files are present |
@@ -155,7 +169,7 @@ All options are passed via `build_lib.sh` flags or directly as `-D<VAR>=<VAL>` t
 ### `build_lib.sh` reference
 
 ```
--B, --buildpath <dir>     Build directory (default: ./build)
+-B, --buildpath <dir>     Build directory (default: <checkout>/build)
 -t, --type <type>         debug | release | relwithdebinfo | minsizerel
 -j, --jobs <N>            Parallel jobs (default: nproc or 4)
 -r, --rebuild-only        Skip CMake configure; rebuild sources only
@@ -177,9 +191,11 @@ All options are passed via `build_lib.sh` flags or directly as `-D<VAR>=<VAL>` t
     --ctest-extra-args <args>
                           Simple whitespace-split arguments appended to CTest
     --gtwrap-root <dir>   Path to local wrap checkout root
-    --no-wrap-update      Disable auto-update of local wrap checkout to latest master
+    --wrap-update         Explicitly update a local wrap checkout to latest master
+    --no-wrap-update      Keep the local wrap checkout unchanged (default)
+    --wrap-submodule-init Explicitly initialize a declared wrap submodule fallback
     --no-wrap-submodule-init
-                          Disable wrap submodule initialization fallback
+                          Do not initialize a wrap submodule (default)
     --toolchain <file>    CMake toolchain file
 -h, --help                Show full help
 ```
@@ -188,14 +204,18 @@ See [`doc/build_script_doc.md`](doc/build_script_doc.md) for a detailed option r
 
 `--clean` accepts only conventional in-repository `build`, `build*`, or
 `out/*` paths. An existing directory must contain a CMake cache owned by this
-checkout. The option is ignored with `--rebuild-only`.
+checkout. Relative paths remain anchored to the checkout containing the script,
+including when it is invoked from another working directory. The option is
+ignored with `--rebuild-only`.
 
 ### CMake feature flags
 
 | Option | Default | Description |
 |---|---|---|
-| `ENABLE_CUDA` | OFF | CUDA GPU acceleration |
-| `ENABLE_OPTIX` | OFF | NVIDIA OptiX (enables CUDA automatically) |
+| `template_project_ENABLE_CUDA` | OFF | CUDA GPU acceleration |
+| `template_project_ENABLE_OPTIX` | OFF | NVIDIA OptiX (enables CUDA automatically) |
+| `template_project_ENABLE_TENSORRT` | OFF | NVIDIA TensorRT (enables CUDA automatically) |
+| `template_project_METADATA_ONLY` | OFF | Configure project identity/version without compiler languages |
 | `ENABLE_TBB` | OFF | Intel oneTBB support (`find_package(TBB)`) |
 | `ENABLE_OPENGL` | OFF | OpenGL support |
 | `ENABLE_TESTS` | ON | Register and run CTest tests |
@@ -225,6 +245,14 @@ checkout. The option is ignored with `--rebuild-only`.
 | `CUDA_NVCC_EXTRA_FLAGS` | `""` | Extra NVCC flags for CUDA and PTX compilation |
 | `NO_OPTIMIZATION` | OFF | Force profiler-friendly `-O0 -g3`, frame pointers, and assertions regardless of build type |
 | `WARNINGS_ARE_ERRORS` | OFF | Treat all warnings as errors (`-Werror`) |
+
+Replace the `template_project` prefix during tailoring. The historical
+`ENABLE_CUDA`, `ENABLE_OPTIX`, `ENABLE_TENSORRT`, and `PROJECT_METADATA_ONLY`
+remain top-level compatibility aliases; nested consumers must use the
+project-qualified forms so parent cache options cannot change the library
+configuration. A legacy alias supplied to a top-level configure wins for that
+invocation, is copied to the canonical option, and is then removed from the
+cache so later reconfigures cannot retain two conflicting sources of truth.
 
 ### Build type compiler flags
 
@@ -275,6 +303,26 @@ When `ENABLE_OPTIX=ON`, configuration also fails fast unless the project contain
 
 This template treats OptiX on a header-only library as a configuration error.
 
+### TensorRT
+
+TensorRT is opt-in and enables the CUDA feature automatically. Point either
+`TensorRT_ROOT` or the compatibility spelling `TENSORRT_ROOT` at an SDK root
+containing `include/` and `lib/`, or at an NVIDIA archive layout containing
+`targets/<triplet>/include` and `targets/<triplet>/lib`:
+
+```bash
+./build_lib.sh -D ENABLE_TENSORRT=ON \
+  -D TensorRT_ROOT=/opt/TensorRT \
+  -D CUDA_ARCHITECTURES=87
+```
+
+The project target propagates `TensorRT::nvinfer`,
+`TensorRT::nvinfer_plugin`, `CUDA::cudart`, and
+`__TENSORRT_ENABLED__=1`. Installed consumers of a TensorRT-enabled build must
+make a compatible SDK discoverable through the same root hints. The installed
+package resolves its own finder directly and does not modify the consumer's
+`CMAKE_MODULE_PATH`.
+
 ### TBB
 
 ```bash
@@ -322,10 +370,14 @@ When `-p` and/or `-m` is used, wrapper resolution now follows this order:
 3. If still unresolved and `GTWRAP_INIT_SUBMODULE_IF_MISSING=ON`, initialize a
    declared `wrap` or `lib/wrap` git submodule and use that checkout.
 
-Existing local wrap roots are updated to latest `origin/master` by default. This
-includes detached/tag states by switching/creating local `master` from
-`origin/master`. Pass `--no-wrap-update` to disable that update step, or
-`--no-wrap-submodule-init` to disable the submodule fallback entirely.
+Wrapper checkout maintenance is disabled by default. Pass `--wrap-update` to
+explicitly advance a resolved local checkout to `origin/master`, or
+`--wrap-submodule-init` to initialize a declared submodule after local and
+installed discovery fail. Direct CMake callers must grant checkout maintenance
+with `GTWRAP_MAINTENANCE_UPDATE=ON` as well as requesting
+`GTWRAP_SYNC_TO_MASTER=ON`. Submodule initialization applies only to a `wrap`
+or `lib/wrap` entry already declared in `.gitmodules`; adding a new submodule is
+a separate Git maintenance operation.
 
 ### Prerequisites
 
@@ -371,7 +423,7 @@ Wrapper generators produce different C++ files by design:
 ### Python package install workflow
 
 Python package metadata is owned by `python/pyproject.toml.in` and configured
-into `python/pyproject.toml` when Python wrapping is requested.
+into `<build>/python/pyproject.toml` when Python wrapping is requested.
 The optional `setup.py.in` augments installation behavior without duplicating
 package name/version metadata.
 
@@ -388,18 +440,18 @@ The checked-in `python/<project>/__init__.py` is the public package entrypoint:
 - `HAS_WRAPPER` is `False` when the pure-Python package imports without the wrapper.
 - `WRAPPER_IMPORT_ERROR` stores the wrapper import exception when fallback is active.
 
-When Python wrapping is requested, the source package becomes the public install
-entrypoint. CMake updates it with:
+When Python wrapping is requested, CMake assembles a disposable package root
+without updating the source checkout:
 
-- generated `python/pyproject.toml`
-- generated `python/setup.py`
-- build-time `python/<project>/_wrapper_build.py` linking the latest
+- generated `<build>/python/pyproject.toml`
+- generated `<build>/python/setup.py`
+- build-time `<build>/python/<project>/_wrapper_build.py` linking the latest
   successfully staged wrapper configuration
 
-Install from the source Python package directory:
+Install from the configured build package directory:
 
 ```bash
-cd python
+cd build/python
 python -m pip install .
 ```
 
@@ -558,6 +610,41 @@ The image in `.devcontainer/Dockerfile` can be built and used outside the DevCon
 # Manual build
 docker build --build-arg INSTALL_CUDA=on --build-arg CUDA_VERSION=12.9 -t my-dev .devcontainer
 ```
+
+Command mode runs with the host numeric UID and GID and uses `/tmp` as its
+writable home. Files created through the `/workspace` bind mount therefore
+remain owned by the host user instead of root. Rootless Podman additionally
+uses its `keep-id` user namespace.
+
+### Attach VS Code to a launcher-managed container
+
+Use `--vscode` to start a stable container before selecting
+`Dev Containers: Attach to Running Container...`:
+
+```bash
+./run_in_container.sh --vscode --engine podman
+```
+
+Attachment mode mounts the repository under `/workspaces/<repository>`,
+preserves bind-mount ownership, and forwards a live SSH-agent socket when one
+is available. The launcher prints the `workspaceFolder` and `remoteUser`
+values for the first attachment. This mode builds the Dockerfile directly, so
+features declared only in `devcontainer.json` are not applied; use the normal
+Dev Containers create/reopen workflow when those features are required.
+Docker attachment mode also requires the image's `vscode` UID and GID to match
+the host user; the launcher rejects a mismatch rather than creating files with
+ambiguous ownership.
+
+Expose a host MATLAB installation to wrapper configuration with:
+
+```bash
+./run_in_container.sh --vscode --engine podman \
+    --matlab-root /usr/local/MATLAB/R2024b
+```
+
+The installation is mounted read-only at the same absolute path and exported
+as `MATLAB_ROOT_DIR`. Because mounts are fixed at container creation, stop and
+recreate an existing attachment container before changing the MATLAB root.
 
 ---
 

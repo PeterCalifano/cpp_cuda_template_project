@@ -18,9 +18,19 @@ Use this order for a new library checkout:
 
    Replace `my_project` with the chosen C++ project namespace. Add `--keep-profiling` only when the new project should keep the optional Valgrind/perf helper scripts.
 3. Rename the template identifiers in tracked source files only. Exclude build trees, install trees, virtual environments, generated Python build metadata, and other generated artifacts. After cleanup succeeds, either delete `tailor_template_cleanup.sh` or exclude it from the rename pass; it is a one-shot template helper.
-4. Remove optional skeletons that the project will not use. For example, if the CUDA module directory is deleted, also remove the matching `add_subdirectory()` entry from `src/CMakeLists.txt`.
-5. Configure, build, and run CTest from a clean build directory.
-6. Inspect remaining template names with `rg "template_project|template_src|template_src_kernels|cpp_playground"` and keep only intentional references in examples or documentation.
+4. Decide which optional features the project will continue to support,
+   including CUDA, OptiX, TensorRT, TBB, and OpenGL. Retained features remain
+   dependency-neutral while their options are `OFF`. Keep `FindTensorRT.cmake`
+   and `HandleTensorRT.cmake` when TensorRT should remain available; removing
+   TensorRT entirely requires a deliberate review of root, source, package,
+   test, and documentation references rather than a cleanup-script flag.
+5. Remove optional skeletons that the project will not use. For example, if the
+   CUDA module directory is deleted, also remove the matching
+   `add_subdirectory()` entry from `src/CMakeLists.txt`.
+6. Configure, build, and run CTest from a clean build directory.
+7. Inspect remaining template names with
+   `rg "template_project|template_src|template_src_kernels|cpp_playground"` and
+   keep only intentional references in examples or documentation.
 
 The cleanup script contains template-specific filenames and test names, so running it before a global `template_project` replacement avoids stale cleanup paths.
 
@@ -126,9 +136,22 @@ Nested consumers should override the internal target namespace if they include m
 ```cmake
 set(LIB_NAMESPACE_OVERRIDE nested_my_project CACHE STRING "" FORCE)
 set(LIB_TARGET_NAME_OVERRIDE nested_my_project_library CACHE STRING "" FORCE)
+set(my_project_METADATA_ONLY OFF CACHE BOOL "" FORCE)
+set(my_project_ENABLE_CUDA OFF CACHE BOOL "" FORCE)
+set(my_project_ENABLE_OPTIX OFF CACHE BOOL "" FORCE)
+set(my_project_ENABLE_TENSORRT OFF CACHE BOOL "" FORCE)
 add_subdirectory(path/to/my_project)
 target_link_libraries(parent_target PRIVATE nested_my_project::my_project)
 ```
+
+The project-qualified metadata, CUDA, OptiX, and TensorRT options are canonical
+for `add_subdirectory()` consumers and cannot collide with an application's
+generic cache entries. The historical `PROJECT_METADATA_ONLY`, `ENABLE_CUDA`,
+`ENABLE_OPTIX`, and `ENABLE_TENSORRT` spellings remain one-config, top-level
+compatibility aliases only. When supplied, a legacy alias wins for that
+configure, migrates its value to the canonical project-qualified option, and is
+removed from the cache. Replace `my_project` with the renamed root
+`project_name`.
 
 Only the main project configures documentation, tests, examples, wrappers, and generic `doc` targets. Nested projects keep their library target available without publishing documentation for the parent build.
 

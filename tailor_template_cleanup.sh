@@ -130,7 +130,8 @@ Logger namespace edit made by --apply:
   - --project-namespace replaces template_project::logging in the reusable logger files.
 
 Not removed:
-  - cmake/ production modules, including Python/MATLAB wrapper staging support.
+  - cmake/ production modules, including TensorRT discovery/integration and
+    Python/MATLAB wrapper staging support.
   - build_lib.sh, generate_version.sh, docs workflow files, issue forms, and docs guides.
   - src/utils/logging/ and doc/logging.md, because the logger is reusable project infrastructure.
   - Root and test CMake files; tailoring never reconstructs build-system files.

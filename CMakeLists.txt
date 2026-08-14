@@ -19,23 +19,79 @@ set(PROJECT_MAINTAINER_NAME "Pietro Califano" CACHE STRING "Project maintainer n
 set(PROJECT_MAINTAINER_EMAIL "petercalifano.gs@gmail.com" CACHE STRING "Project maintainer email")
 set(PROJECT_LICENSE "MIT" CACHE STRING "Project SPDX license identifier")
 
+# Determine ownership before project() so pre-language feature selection cannot
+# consume unrelated generic cache options from an add_subdirectory() parent.
+set(BUILD_AS_MAIN_PROJECT OFF)
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+  set(BUILD_AS_MAIN_PROJECT ON)
+endif()
+
 # Set install default directory if not specified
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
   set(CMAKE_INSTALL_PREFIX ${CMAKE_SOURCE_DIR}/install CACHE PATH "Install path" FORCE)
 endif()
 
-option(PROJECT_METADATA_ONLY "Configure only project identity and version metadata" OFF)
-option(ENABLE_OPTIX "Enable OptiX" OFF)
-option(ENABLE_CUDA "Enable CUDA" OFF)
+# Project-qualified options are canonical in nested builds. Preserve the
+# historical generic spellings only as one-config top-level input aliases.
+set(METADATA_ONLY_OPTION_NAME "${project_name}_METADATA_ONLY")
+set(ENABLE_OPTIX_OPTION_NAME "${project_name}_ENABLE_OPTIX")
+set(ENABLE_CUDA_OPTION_NAME "${project_name}_ENABLE_CUDA")
+set(ENABLE_TENSORRT_OPTION_NAME "${project_name}_ENABLE_TENSORRT")
+
+function(_template_project_migrate_top_level_bool_option_alias legacy_option
+         canonical_option option_help)
+  if(NOT BUILD_AS_MAIN_PROJECT)
+    return()
+  endif()
+
+  get_property(_legacy_alias_is_cached
+      CACHE "${legacy_option}" PROPERTY TYPE SET)
+  if(NOT _legacy_alias_is_cached)
+    return()
+  endif()
+
+  # Consume legacy command-line/cache input on every configure so an ON-to-OFF
+  # transition updates the canonical value instead of remaining stuck.
+  set(_legacy_alias_value "${${legacy_option}}")
+  set("${canonical_option}" "${_legacy_alias_value}"
+      CACHE BOOL "${option_help}" FORCE)
+  unset("${legacy_option}" CACHE)
+endfunction()
+
+_template_project_migrate_top_level_bool_option_alias(
+    PROJECT_METADATA_ONLY "${METADATA_ONLY_OPTION_NAME}"
+    "Configure only project identity and version metadata")
+_template_project_migrate_top_level_bool_option_alias(
+    ENABLE_OPTIX "${ENABLE_OPTIX_OPTION_NAME}" "Enable OptiX")
+_template_project_migrate_top_level_bool_option_alias(
+    ENABLE_CUDA "${ENABLE_CUDA_OPTION_NAME}" "Enable CUDA")
+_template_project_migrate_top_level_bool_option_alias(
+    ENABLE_TENSORRT "${ENABLE_TENSORRT_OPTION_NAME}" "Enable TensorRT")
+
+option(${METADATA_ONLY_OPTION_NAME}
+       "Configure only project identity and version metadata"
+       OFF)
+option(${ENABLE_OPTIX_OPTION_NAME} "Enable OptiX" OFF)
+option(${ENABLE_CUDA_OPTION_NAME} "Enable CUDA" OFF)
+option(${ENABLE_TENSORRT_OPTION_NAME} "Enable TensorRT" OFF)
+
+# Retained modules consume the historical local variable names. Normal
+# directory-scope assignments isolate them from a parent's cache entries.
+set(PROJECT_METADATA_ONLY "${${METADATA_ONLY_OPTION_NAME}}")
+set(ENABLE_OPTIX "${${ENABLE_OPTIX_OPTION_NAME}}")
+set(ENABLE_CUDA "${${ENABLE_CUDA_OPTION_NAME}}")
+set(ENABLE_TENSORRT "${${ENABLE_TENSORRT_OPTION_NAME}}")
+
+# OptiX and TensorRT both require the project CUDA feature when languages and
+# dependency targets are configured.
+if(ENABLE_OPTIX OR ENABLE_TENSORRT)
+  set(ENABLE_CUDA ON)
+endif()
 
 if(PROJECT_METADATA_ONLY)
   set(languages NONE)
 else()
   set(languages CXX) # ACHTUNG: PTX code requires C language!
-
-  if(ENABLE_OPTIX)
-    set(ENABLE_CUDA ON)
-  endif()
 
   if(ENABLE_CUDA)
     list(APPEND languages CUDA)
@@ -85,12 +141,6 @@ endif()
 write_build_VERSION_file()
 install(FILES "${PROJECT_BINARY_DIR}/VERSION" DESTINATION ".")
 
-# Define variable for build as subproject (compare source dir)
-set(BUILD_AS_MAIN_PROJECT ON)
-if(NOT CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
-  set(BUILD_AS_MAIN_PROJECT OFF)
-endif()
-
 # Define variable for namespacing (required to prevent global target clashes!)
 set(LIB_NAMESPACE "${PROJECT_NAME}")
 if (DEFINED LIB_NAMESPACE_OVERRIDE)
@@ -98,6 +148,7 @@ if (DEFINED LIB_NAMESPACE_OVERRIDE)
 endif()
 set(CUDA_COMPILE_TARGET "${LIB_NAMESPACE}_cuda_compile_interface")
 set(OPTIX_COMPILE_TARGET "${LIB_NAMESPACE}_optix_compile_interface")
+set(TENSORRT_COMPILE_TARGET "${LIB_NAMESPACE}_tensorrt_compile_interface")
 set(OPENGL_COMPILE_TARGET "${LIB_NAMESPACE}_opengl_compile_interface")
 set(LIB_COMPILE_TARGET "${LIB_NAMESPACE}_lib_compile_interface")
 set(SANITIZER_TARGET "${LIB_NAMESPACE}_sanitizer_target_interface")
@@ -134,9 +185,10 @@ include(GNUInstallDirs)
 # Add cmake modules
 include(ExternalProject)
 
-# Add CUDA/OptiX tools
+# Add GPU dependency handlers
 include(cmake/HandleCUDA.cmake)
 include(cmake/HandleOptiX.cmake)
+include(cmake/HandleTensorRT.cmake)
 include(cmake/HandleTBB.cmake)
 
 # Add handle of python
@@ -311,11 +363,13 @@ if(BUILD_AS_MAIN_PROJECT)
   endif()
 endif()
 
-# Configure CUDA/OptiX (creates interface targets even when disabled)
+# Configure GPU dependency targets in dependency order. Each handler creates a
+# stable interface target even when its feature is disabled.
 handle_cuda(TARGET ${CUDA_COMPILE_TARGET} 
             MIN_VERSION 12.0)
+handle_tensorrt(TARGET ${TENSORRT_COMPILE_TARGET})
 handle_optix(TARGET ${OPTIX_COMPILE_TARGET} 
-            CUDA_TARGET ${CUDA_COMPILE_TARGET})
+             CUDA_TARGET ${CUDA_COMPILE_TARGET})
 
 if (ENABLE_CUDA)
   # Add tools to manage cuda and ptx
@@ -478,6 +532,7 @@ if (ENABLE_CUDA)
   message(STATUS "CUDA fast math (PTX compile)             : ${CUDA_PTX_USE_FAST_MATH}")
   message(STATUS "CUDA extra NVCC flags                    : ${CUDA_NVCC_EXTRA_FLAGS}")
 endif()
+message(STATUS "TensorRT enabled                         : ${ENABLE_TENSORRT}")
 message(STATUS "TBB enabled                              : ${ENABLE_TBB}")
 message(STATUS "CPU native tuning                        : ${CPU_ENABLE_NATIVE_TUNING}")
 message(STATUS "CPU SIMD enabled                         : ${CPU_ENABLE_SIMD}")
@@ -545,122 +600,25 @@ if(DEFINED FULL_VERSION AND NOT "${FULL_VERSION}" STREQUAL "")
 endif()
 set(CPACK_GENERATOR "TGZ")
 set(CPACK_SOURCE_GENERATOR "TGZ")
-# Preserve source-ignore regexes verbatim and anchor known generated outputs
-# beneath this checkout rather than matching adjacent directories.
+
+# Package the prepared source tree without claiming caller-owned CPack hooks.
+# Anchor deterministic generated outputs and the exact active build below their
+# physical paths so similarly named source directories remain package input.
 set(CPACK_VERBATIM_VARIABLES YES)
 set(_cpack_source_root_regex "${CMAKE_CURRENT_SOURCE_DIR}")
 string(
   REGEX REPLACE "([][+.*^$()|?\\\\])" "\\\\\\1"
   _cpack_source_root_regex "${_cpack_source_root_regex}")
-set(CPACK_SOURCE_IGNORE_FILES
+set(_cpack_binary_root_regex "${CMAKE_BINARY_DIR}")
+string(
+  REGEX REPLACE "([][+.*^$()|?\\\\])" "\\\\\\1"
+  _cpack_binary_root_regex "${_cpack_binary_root_regex}")
+list(APPEND CPACK_SOURCE_IGNORE_FILES
     "^${_cpack_source_root_regex}/(.*/)?\\.git(/|$)"
     "^${_cpack_source_root_regex}/install/"
     "^${_cpack_source_root_regex}/ros2/(build|install|log)/"
     "^${_cpack_source_root_regex}/(.*/)?\\.pytest_cache/"
     "^${_cpack_source_root_regex}/(.*/)?__pycache__/"
-    "^${_cpack_source_root_regex}/.*\\.py[cod]$")
-
-# Exclude the active nested binary tree and other nested CMake builds whose
-# caches prove that this exact checkout owns them. Directory names alone are
-# insufficient because paths such as tools/build_helpers may be real sources.
-get_filename_component(
-  _cpack_source_root_real
-  "${CMAKE_CURRENT_SOURCE_DIR}"
-  REALPATH)
-get_filename_component(
-  _cpack_binary_root_real
-  "${CMAKE_BINARY_DIR}"
-  REALPATH)
-file(
-  RELATIVE_PATH
-  _cpack_binary_relative_to_source
-  "${_cpack_source_root_real}"
-  "${_cpack_binary_root_real}")
-set(_cpack_owned_build_directories)
-if(NOT IS_ABSOLUTE "${_cpack_binary_relative_to_source}"
-    AND NOT "${_cpack_binary_relative_to_source}" MATCHES "^\\.\\.(/|$)"
-    AND NOT "${_cpack_binary_relative_to_source}" STREQUAL "")
-  list(APPEND
-    _cpack_owned_build_directories
-    "${CMAKE_BINARY_DIR}")
-endif()
-
-file(
-  GLOB_RECURSE
-  _cpack_cache_candidates
-  LIST_DIRECTORIES FALSE
-  "${CMAKE_CURRENT_SOURCE_DIR}/*/CMakeCache.txt")
-foreach(_cpack_cache_candidate IN LISTS _cpack_cache_candidates)
-  file(
-    RELATIVE_PATH
-    _cpack_cache_relative_to_source
-    "${CMAKE_CURRENT_SOURCE_DIR}"
-    "${_cpack_cache_candidate}")
-  if("${_cpack_cache_relative_to_source}" MATCHES "^install/"
-      OR "${_cpack_cache_relative_to_source}"
-         MATCHES "^ros2/(build|install|log)/")
-    continue()
-  endif()
-
-  set(_cpack_cache_is_within_owned_build FALSE)
-  foreach(_cpack_known_build IN LISTS _cpack_owned_build_directories)
-    file(
-      RELATIVE_PATH
-      _cpack_cache_relative_to_build
-      "${_cpack_known_build}"
-      "${_cpack_cache_candidate}")
-    if(NOT IS_ABSOLUTE "${_cpack_cache_relative_to_build}"
-        AND NOT "${_cpack_cache_relative_to_build}" MATCHES "^\\.\\.(/|$)")
-      set(_cpack_cache_is_within_owned_build TRUE)
-      break()
-    endif()
-  endforeach()
-  if(_cpack_cache_is_within_owned_build
-      OR NOT EXISTS "${_cpack_cache_candidate}")
-    continue()
-  endif()
-
-  file(
-    STRINGS
-    "${_cpack_cache_candidate}"
-    _cpack_cache_home_entries
-    REGEX "^CMAKE_HOME_DIRECTORY:INTERNAL="
-    LIMIT_COUNT 1)
-  if(NOT _cpack_cache_home_entries)
-    continue()
-  endif()
-
-  list(GET _cpack_cache_home_entries 0 _cpack_cache_home_entry)
-  string(REGEX MATCH
-    "^CMAKE_HOME_DIRECTORY:INTERNAL=(.*)$"
-    _cpack_cache_home_match
-    "${_cpack_cache_home_entry}")
-  set(_cpack_cache_home "${CMAKE_MATCH_1}")
-  get_filename_component(
-    _cpack_cache_home_real
-    "${_cpack_cache_home}"
-    REALPATH)
-  if(NOT "${_cpack_cache_home_real}" STREQUAL "${_cpack_source_root_real}")
-    continue()
-  endif()
-
-  get_filename_component(
-    _cpack_owned_build_directory
-    "${_cpack_cache_candidate}"
-    DIRECTORY)
-  list(APPEND
-    _cpack_owned_build_directories
-    "${_cpack_owned_build_directory}")
-endforeach()
-
-list(REMOVE_DUPLICATES _cpack_owned_build_directories)
-foreach(_cpack_owned_build_directory IN LISTS _cpack_owned_build_directories)
-  string(
-    REGEX REPLACE "([][+.*^$()|?\\\\])" "\\\\\\1"
-    _cpack_owned_build_regex "${_cpack_owned_build_directory}")
-  list(
-    APPEND
-    CPACK_SOURCE_IGNORE_FILES
-    "^${_cpack_owned_build_regex}(/|$)")
-endforeach()
+    "^${_cpack_source_root_regex}/.*\\.py[cod]$"
+    "^${_cpack_binary_root_regex}(/|$)")
 include(CPack)

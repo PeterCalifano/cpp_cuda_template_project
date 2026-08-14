@@ -65,8 +65,8 @@ Tailoring includes, but is not limited to:
 - project, package, namespace, target, artifact, and workflow names;
 - source layout, public APIs, executable structure, and module boundaries;
 - removed template skeletons, helpers, tests, examples, or optional features;
-- enabled or disabled CUDA, OptiX, TBB, OpenGL, profiling, wrapper, docs, and
-  ROS support;
+- enabled or disabled CUDA, OptiX, TensorRT, TBB, OpenGL, profiling, wrapper,
+  docs, and ROS support;
 - dependency providers, minimum versions, fetch policy, and offline policy;
 - CMake option names, defaults, install layout, exports, and package metadata;
 - Python or MATLAB package names, wrapper interfaces, and environment policy;

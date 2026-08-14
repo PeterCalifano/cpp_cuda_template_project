@@ -25,17 +25,10 @@ add_subdirectory(template_src_kernels)
 
 message(STATUS "Adding module: wrapped_impl")
 add_subdirectory(wrapped_impl)
-
-
-
 if (BUILD_AS_MAIN_PROJECT AND ${${BUILD_PROGRAMS_OPTION_NAME}})
   message(STATUS "Adding module: bin")
   add_subdirectory(bin)
 endif()
-
-# Exclude EXCLUDED_LIST from the list of src files
-set(EXCLUDED_LIST "")
-list(REMOVE_ITEM srcLibFiles ${EXCLUDED_LIST})
 
 # Install headers from this directory
 file(GLOB installable_headers "*.h") # Discover and install all header files
@@ -129,6 +122,12 @@ if (ENABLE_CUDA)
   target_link_libraries(${lib_name} ${lib_link_scope} ${CUDA_COMPILE_TARGET})
 endif()
 
+# Link TensorRT through its project-owned interface so build-tree and installed
+# consumers receive the same SDK targets and feature definition.
+if(ENABLE_TENSORRT)
+  target_link_libraries(${lib_name} ${lib_link_scope} ${TENSORRT_COMPILE_TARGET})
+endif()
+
 # Link OptiX interface target
 if(ENABLE_OPTIX)
   target_link_libraries(${lib_name} ${lib_link_scope} ${OPTIX_COMPILE_TARGET})
@@ -171,9 +170,12 @@ endif()
                       
 if (ENABLE_CUDA)
   list(APPEND installable_targets ${CUDA_COMPILE_TARGET})
-  if(ENABLE_OPTIX)
-    list(APPEND installable_targets ${OPTIX_COMPILE_TARGET})
-  endif()
+endif()
+if(ENABLE_TENSORRT)
+  list(APPEND installable_targets ${TENSORRT_COMPILE_TARGET})
+endif()
+if(ENABLE_OPTIX)
+  list(APPEND installable_targets ${OPTIX_COMPILE_TARGET})
 endif()
 
 if (ENABLE_OPENGL)
@@ -221,10 +223,25 @@ configure_package_config_file(
     INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${project_name}
 )
 
+# Stage optional package-owned find modules for build-tree and installed
+# consumers while leaving the base template dependency set unchanged.
+set(_package_module_build_dir "${PROJECT_BINARY_DIR}/modules")
+file(MAKE_DIRECTORY "${_package_module_build_dir}")
+configure_file(
+    "${PROJECT_SOURCE_DIR}/cmake/FindTensorRT.cmake"
+    "${_package_module_build_dir}/FindTensorRT.cmake"
+    COPYONLY
+)
+
 install(FILES
     "${PROJECT_BINARY_DIR}/${project_name}Config.cmake"
     "${PROJECT_BINARY_DIR}/${project_name}ConfigVersion.cmake"
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${project_name}
+)
+
+install(FILES
+    "${PROJECT_SOURCE_DIR}/cmake/FindTensorRT.cmake"
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${project_name}/modules
 )
 
 # Add target export to allow usage of build by other consumer projects

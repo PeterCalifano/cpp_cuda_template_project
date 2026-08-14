@@ -68,7 +68,7 @@ function(resolve_local_wrap_root OUT_VAR)
   set(${OUT_VAR} "" PARENT_SCOPE)
 endfunction()
 
-# Initialize or add the configured gtwrap submodule when policy permits it.
+# Initialize a declared project-local gtwrap submodule when policy permits it.
 function(maybe_init_wrap_submodule OUT_VAR)
   set(${OUT_VAR} "" PARENT_SCOPE)
 
@@ -88,23 +88,7 @@ function(maybe_init_wrap_submodule OUT_VAR)
   endif()
 
   if("${_submodule_path}" STREQUAL "")
-    if(NOT GTWRAP_ADD_SUBMODULE_IF_MISSING)
-      return()
-    endif()
-
-    if(NOT DEFINED GTWRAP_SUBMODULE_PATH OR "${GTWRAP_SUBMODULE_PATH}" STREQUAL "")
-      set(_submodule_path "lib/wrap")
-    else()
-      set(_submodule_path "${GTWRAP_SUBMODULE_PATH}")
-    endif()
-
-    if(NOT DEFINED GTWRAP_SUBMODULE_REPO OR "${GTWRAP_SUBMODULE_REPO}" STREQUAL "")
-      set(_gtwrap_submodule_repo "git@github.com:PeterCalifano/wrap.git")
-    else()
-      set(_gtwrap_submodule_repo "${GTWRAP_SUBMODULE_REPO}")
-    endif()
-  else()
-    set(_gtwrap_submodule_repo "")
+    return()
   endif()
 
   set(_candidate_root "${PROJECT_SOURCE_DIR}/${_submodule_path}")
@@ -124,30 +108,7 @@ function(maybe_init_wrap_submodule OUT_VAR)
     return()
   endif()
 
-  if(NOT "${_gtwrap_submodule_repo}" STREQUAL "")
-    get_filename_component(_submodule_parent "${_candidate_root}" DIRECTORY)
-    file(MAKE_DIRECTORY "${_submodule_parent}")
-
-    message(STATUS "Adding wrap submodule '${_gtwrap_submodule_repo}' at '${_submodule_path}'...")
-    execute_process(
-      COMMAND git submodule add "${_gtwrap_submodule_repo}" "${_submodule_path}"
-      WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
-      RESULT_VARIABLE _add_result
-      OUTPUT_QUIET
-      ERROR_VARIABLE _add_error
-    )
-    if(NOT _add_result EQUAL 0)
-      string(STRIP "${_add_error}" _add_error)
-      if("${_add_error}" STREQUAL "")
-        set(_add_error "unknown error")
-      endif()
-      message(WARNING
-        "Failed to add wrap submodule '${_gtwrap_submodule_repo}' at '${_submodule_path}': ${_add_error}")
-      return()
-    endif()
-  else()
-    message(STATUS "Initializing wrap submodule at '${_submodule_path}'...")
-  endif()
+  message(STATUS "Initializing wrap submodule at '${_submodule_path}'...")
 
   execute_process(
     COMMAND git submodule sync --recursive
@@ -264,27 +225,27 @@ function(configure_gtwrappers_common)
     set(GTWRAP_BRANCH "master" CACHE STRING "wrap branch used when syncing local checkout")
   endif()
   if(NOT DEFINED GTWRAP_SYNC_TO_MASTER)
-    option(GTWRAP_SYNC_TO_MASTER "Sync local wrap checkout to latest origin/<GTWRAP_BRANCH>" ON)
+    option(GTWRAP_SYNC_TO_MASTER
+           "Request synchronization of wrap to origin/<GTWRAP_BRANCH>"
+           OFF)
+  endif()
+  if(NOT DEFINED GTWRAP_MAINTENANCE_UPDATE)
+    option(GTWRAP_MAINTENANCE_UPDATE
+           "Explicitly permit configure-time maintenance of a local wrap checkout"
+           OFF)
   endif()
   if(NOT DEFINED GTWRAP_INIT_SUBMODULE_IF_MISSING)
     option(GTWRAP_INIT_SUBMODULE_IF_MISSING
            "Initialize the wrap git submodule only after local search and find_package(gtwrap) both fail."
-           ON)
+           OFF)
   endif()
-  if(NOT DEFINED GTWRAP_ADD_SUBMODULE_IF_MISSING)
-    option(GTWRAP_ADD_SUBMODULE_IF_MISSING
-           "Add wrap as a git submodule when it is not yet declared in .gitmodules and wrapper resolution fails."
-           ON)
+  # Require an explicit maintenance grant before configure may move a local
+  # checkout. A synchronization request alone must remain non-mutating.
+  if(GTWRAP_SYNC_TO_MASTER AND NOT GTWRAP_MAINTENANCE_UPDATE)
+    message(FATAL_ERROR
+      "GTWRAP_SYNC_TO_MASTER=ON requires GTWRAP_MAINTENANCE_UPDATE=ON. "
+      "Ordinary configuration must not move the wrapper checkout.")
   endif()
-  if(NOT DEFINED GTWRAP_SUBMODULE_REPO)
-    set(GTWRAP_SUBMODULE_REPO "git@github.com:PeterCalifano/wrap.git" CACHE STRING
-        "Git repository used when auto-adding wrap as a submodule.")
-  endif()
-  if(NOT DEFINED GTWRAP_SUBMODULE_PATH)
-    set(GTWRAP_SUBMODULE_PATH "lib/wrap" CACHE STRING
-        "Relative path used when auto-adding wrap as a submodule.")
-  endif()
-
   if(NOT DEFINED ${_gtwrap_root_var_name})
     set(${_gtwrap_root_var_name} "" CACHE PATH
         "Optional path to a local wrap checkout (contains cmake/PybindWrap.cmake)."
@@ -392,21 +353,13 @@ function(configure_gtwrappers_common)
     endif()
   endif()
   if(_local_wrap_root)
-    if(GTWRAP_SYNC_TO_MASTER)
+    if(GTWRAP_SYNC_TO_MASTER AND GTWRAP_MAINTENANCE_UPDATE)
       sync_wrap_checkout("${_local_wrap_root}" "${GTWRAP_BRANCH}")
     endif()
     message(STATUS "Using local wrap checkout: ${_local_wrap_root}")
 
-    if(${${_gtwrap_matlab_option_name}} AND
-       EXISTS "${_local_wrap_root}/templates/matlab_wrapper.tpl.in")
-      get_filename_component(_local_wrap_include_name "${_local_wrap_root}" NAME)
-      file(READ "${_local_wrap_root}/templates/matlab_wrapper.tpl.in"
-           _local_matlab_wrapper_template)
-      string(REPLACE "\${GTWRAP_INCLUDE_NAME}" "${_local_wrap_include_name}"
-             _local_matlab_wrapper_template "${_local_matlab_wrapper_template}")
-      file(WRITE "${_local_wrap_root}/gtwrap/matlab_wrapper/matlab_wrapper.tpl"
-           "${_local_matlab_wrapper_template}")
-    endif()
+    # Current gtwrap configures the MATLAB include template in memory. Keep the
+    # resolved checkout read-only and let the wrapper frontend own that logic.
 
     list(APPEND CMAKE_MODULE_PATH "${_local_wrap_root}/cmake")
     set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" PARENT_SCOPE)
@@ -534,8 +487,7 @@ function(configure_gtwrappers_common)
       message(FATAL_ERROR
         "Could not locate wrap/gtwrap. Provide a local checkout at 'wrap/' or 'lib/wrap/', "
         "or set ${_gtwrap_root_var_name}=<path>, or install gtwrap so find_package(gtwrap) succeeds. "
-        "Set GTWRAP_INIT_SUBMODULE_IF_MISSING=ON to allow submodule initialization when declared in .gitmodules, "
-        "or GTWRAP_ADD_SUBMODULE_IF_MISSING=ON to auto-add '${GTWRAP_SUBMODULE_PATH}' from '${GTWRAP_SUBMODULE_REPO}'.")
+        "Set GTWRAP_INIT_SUBMODULE_IF_MISSING=ON to initialize a wrap submodule already declared in .gitmodules.")
     endif()
   endif()
 
