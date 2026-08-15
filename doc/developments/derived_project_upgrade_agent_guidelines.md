@@ -15,29 +15,32 @@ regressing the derived project's behavior or undoing any intentional tailoring.
 
 ## Core Upgrade Model
 
-Treat every update as a three-way semantic port:
+Treat every update as a three-way import and tailoring reconciliation:
 
 1. Determine the old donor state from which the derived project was created or
    last synchronized.
 2. Determine the improvement delta between that old donor state and the
    reviewed new donor revision.
-3. Apply the intent of that donor delta to the current derived project while
-   preserving the derived project's own tailoring delta.
+3. Import the reviewed donor implementation for every retained
+   template-owned production file, then reapply the derived project's recorded
+   tailoring delta through explicit configuration or narrow local seams.
 
 In shorthand:
 
 ```text
-updated derived project = current derived project + applicable donor intent
+updated derived project = reviewed donor implementation + preserved tailoring
 ```
 
-It is never:
+It is never an unreviewed whole-tree replacement:
 
 ```text
-updated derived project = new donor tree + copied project sources
+updated derived project = new donor tree without the tailoring ledger
 ```
 
-File equality is not the goal. Preserved project semantics, explicit feature
-choices, and verified behavior are the goal.
+Byte equality is required for retained template-owned files that need no local
+adaptation. Product-owned files and explicit tailoring seams may differ, but
+their delta from the donor must be minimal, documented, and behaviorally
+verified. Whole-repository equality is not the goal.
 
 ## Authority Order
 
@@ -84,10 +87,12 @@ Rules:
   because it exists in the donor.
 - A target file that differs from the donor is not stale by default. Determine
   the local reason before editing it.
-- Preserve the behavior represented by tailoring even when the donor change
-  requires a different textual implementation.
-- Never replace an adapted target file wholesale when a semantic port is
-  possible.
+- Preserve the behavior represented by tailoring even when it requires a
+  narrow textual delta from the imported donor implementation.
+- Replace retained template-owned files from the donor before reapplying
+  documented tailoring. Do not independently rewrite shared implementation.
+- Never replace a product-owned composition file wholesale when its source,
+  dependencies, targets, or public behavior are tailored.
 - When the donor improvement conflicts with target architecture, stop and
   present the conflict and options. Do not disguise an architecture change as
   a template update.
@@ -295,11 +300,15 @@ considered.
 - Obtain user approval when the plan changes architecture, dependencies, public
   API, release behavior, or established tailoring.
 
-### Stage 3 - Port generic infrastructure
+### Stage 3 - Import generic infrastructure
 
-- Apply the smallest semantic change that satisfies the donor contract.
-- Reuse target patterns and helpers instead of importing unrelated donor
-  abstractions.
+- Import the reviewed donor implementation for retained template-owned files
+  before applying target deltas.
+- Keep imported files byte-identical where no documented tailoring is needed.
+- Express product choices through existing donor configuration seams or narrow
+  target-owned integration files instead of forking shared helpers.
+- Do not add donor modules, dependencies, or abstractions that the target
+  intentionally removed.
 - Preserve target metadata, names, option defaults, dependency policy, and
   feature removals.
 - Update tests with the behavior, not donor-specific placeholder text, unless

@@ -390,10 +390,10 @@ Stage 2 evidence before staging, recorded 2026-08-14:
 - [x] Reconcile the v2 development tracker and all directly dependent docs.
 - [x] Stage the coherent v2 reconciliation batch and stop for user review
   without committing or tagging.
-- [ ] After the user commits v2, synchronize release metadata with
+- [x] After the user commits v2, synchronize release metadata with
   `./generate_version.sh --sync-ros2`, validate the exact candidate with the
   intended local `v2.0.0` tag present, and verify the no-Git CPack archive.
-- [ ] Stop for separate user authorization before creating, pushing, or
+- [x] Stop for separate user authorization before creating, pushing, or
   publishing the `v2.0.0` tag.
 
 Stage 3 primary evidence, recorded 2026-08-14:
@@ -568,26 +568,52 @@ Stage 3 primary-history readiness audit, recorded 2026-08-14:
   those recursive verifiers into derived projects.
 - [x] Run CPU, source-package, TensorRT, wrapper, tailoring, docs, CUDA/OptiX
   where available, ROS 2 where available, and static validation profiles.
-- [ ] After the v2 commit exists, pin any TestField workflow references to its
+- [x] After the v2 commit exists, pin any TestField workflow references to its
   exact SHA and rerun the affected static and candidate-selection checks.
-- [ ] Stage only the coherent TestField v2 batch and stop for user review
+- [x] Stage only the coherent TestField v2 batch and stop for user review
   without committing or tagging.
-- [ ] After the user commits TestField, validate the exact paired template and
+- [x] After the user commits TestField, validate the exact paired template and
   TestField SHAs and stop for separate authorization before any TestField
   `v2.0.0` tag or push.
 
 ### Continuation Stage 5 - Final reconciliation before propagation
 
-- [ ] Confirm primary template, v2 template, and TestField histories contain
+- [x] Confirm primary template, v2 template, and TestField histories contain
   the reviewed commits and have clear indexes.
-- [ ] Confirm release metadata, package filenames, ROS manifests, and no-Git
+- [x] Confirm release metadata, package filenames, ROS manifests, and no-Git
   archive validation all resolve exactly to `v2.0.0`.
-- [ ] Compare template and TestField conformance inventories and account for
+- [x] Compare template and TestField conformance inventories and account for
   every removed, retained, or transferred assertion.
-- [ ] Record exact commands, exit codes, test counts, skips, toolchain limits,
+- [x] Record exact commands, exit codes, test counts, skips, toolchain limits,
   artifact hashes, and repository SHAs in this tracker.
-- [ ] Obtain the user's explicit confirmation that consolidation, commits, and
+- [x] Obtain the user's explicit confirmation that consolidation, commits, and
   versioning are complete before beginning propagation.
+
+Stage 5 release reconciliation evidence, recorded 2026-08-14:
+
+- The primary repository is clean on `main` at merge
+  `0c61c793388e087dd807c7c10f6c37d7789ff1fc`. Its signed annotated
+  `v2.0.0` tag object is `3903bdd1178e811e3accddebfedc7af67bc990bc`,
+  dereferences to reviewed commit
+  `e42ddca9256b31010f47c6cb8074d9debaa7d5f5`, and identifies tree
+  `01db23ded6858b2bcccb524794e06333898058fb`.
+- TestField PR 2 is merged on `origin/main` at
+  `04cb97021f941d26bac612b9186749631ea2bb50`. Its signed annotated
+  `v2.0.0` tag object is `952bd371db5b614d6ed4e6d7f58acbf5be6931d3`,
+  dereferences to reviewed feature tip
+  `67f26391c13bc6648b0eca281b1bb7b9471f3c4d`, and identifies tree
+  `0514d382ff93f83d43d2b69d19c2b9cfdb243638`.
+- Every tracked ROS 2 `package.xml` in both tagged trees declares `2.0.0`.
+  Prepared no-Git source archives resolved their five version fields and
+  filenames to `v2.0.0`; the disposable archives were removed after semantic
+  comparison, so the signed tag objects and tree hashes above are the retained
+  integrity anchors rather than archive-file hashes.
+- TestField tag workflows completed against exact SHA `67f26391`: CPU run
+  `31811192516` and ROS overlay run `31811192520` succeeded; CUDA run
+  `31811192486` was explicitly skipped by its workflow condition.
+- The v2 and TestField review, commit, merge, and tag gates were advanced only
+  after the separate user authorizations recorded in the session. The user
+  then explicitly authorized derived-repository propagation.
 
 ### Continuation Stage 6 - Audit and realign derived repositories
 
@@ -596,38 +622,44 @@ Stage 3 primary-history readiness audit, recorded 2026-08-14:
 - `/home/peterc/devDir`
 - `/media/peterc/SCRATCH_PRO/devDir/event-based-repos`
 
-- [ ] Discover Git repositories under both roots and identify template-derived
+- [x] Discover Git repositories under both roots and identify template-derived
   candidates from owned CMake, wrapper, packaging, and documentation markers.
-- [ ] Record each candidate repository, branch, HEAD, dirty state, imported
-  template version when identifiable, and matching overcomplex CPack/TensorRT
-  changes before editing any repository.
-- [ ] Exclude the primary template, its worktrees, TestField, unrelated
-  repositories, generated build trees, vendored dependencies, and submodules
-  from propagation targets.
-- [ ] For every affected derived repository, remove imported package-time
-  `VERSION` staging, recursive cache scanning, and template-owned public CPack
-  hook overrides; align its archive contract to a prepared checkout and its
-  exact active binary directory.
-- [ ] Preserve and align TensorRT only where the derived project already owns
-  or requests that optional feature; use its local namespace and targets rather
-  than mechanically copying template names.
-- [ ] Do not import template-only recursive conformance tests into ordinary
-  derived-project CTest suites.
-- [ ] Review each derived diff for local ownership, behavior, formatting,
-  comments, documentation, and unnecessary complexity.
-- [ ] Run the smallest honest local configure/build/test/package acceptance for
-  each affected repository and record environment-dependent skips.
-- [ ] Leave every derived repository unstaged and uncommitted, then report the
-  per-repository changes and verification for user review.
+- [x] Record the initial semantic-port results as historical validation
+  evidence without treating independently rewritten shared files as final
+  provenance.
+- [x] Exclude the primary template, its worktrees, TestField, unrelated
+  repositories, generated build trees, vendored dependencies, submodules, and
+  `spectra-rt` from the active propagation set.
+- [x] Establish committed donor
+  `f8c626d51b2ee93fbdd1c179cb5f67518ab0aed4` as the only source for retained
+  shared production implementation.
+- [x] Reconcile repositories 1-8 through donor import plus explicit tailoring,
+  preserving their existing indexes, product work, nested checkouts, and
+  intentional feature removals.
+- [x] Complete SimulationGears through donor import plus explicit tailoring and
+  consolidate its evidence into `CONTEXT.md`.
+- [x] Confirm TensorRT is imported only by `torchAutoForge-deploy` among the
+  active consumers and remains absent from every non-ML repository.
+- [x] Run the target-owned build, test, install, wrapper, package, and consumer
+  acceptance applicable to each reopened repository.
+- [x] Leave every agent-prepared propagation delta unstaged and uncommitted and report the
+  final repository states and limitations.
+
+The 2026-08-14 semantic-port results remain useful baseline evidence in
+`CONTEXT.md`. A later provenance review reopened repositories 1-8 because
+shared implementation had been reproduced independently instead of imported
+from the reviewed donor. Their donor-import ledgers and fresh acceptance gates
+are now reconciled. `spectra-rt` remained outside the program and was never a
+propagation target.
 
 ### Continuation Stage 7 - Final report
 
-- [ ] Confirm no unauthorized commit, tag, push, or derived-repository staging
+- [x] Confirm no unauthorized commit, tag, push, or derived-repository staging
   occurred.
-- [ ] Summarize the final architecture, exact repository SHAs, staged or
+- [x] Summarize the final architecture, exact repository SHAs, staged or
   unstaged state, validations, caveats, and remaining user actions.
-- [ ] Mark the tracked goal complete only when all authorized work and review
-  gates have genuinely finished.
+- [x] Confirm all authorized work and review gates have genuinely finished;
+  no tracked goal object exists to close.
 
 ## Stage 0 - Baseline and plan rebase
 
@@ -1109,11 +1141,11 @@ Inventory findings:
   release, shell, Python, YAML, XML, and Git-hygiene gates.
 - [x] Verify source releases inside and outside an unrelated parent Git
   repository.
-- [ ] Inspect both complete indexes under the staged-code quality gate.
+- [x] Inspect both complete indexes under the staged-code quality gate.
 - [x] Re-run the highest-risk wrapper, harness, tailoring, and release gates.
-- [ ] Prepare one functional ownership batch per repository and only an
+- [x] Prepare one functional ownership batch per repository and only an
   unavoidable later compatibility-pin batch.
-- [ ] Stop before pushes or final v2.0.0 tags unless explicitly authorized.
+- [x] Stop before pushes or final v2.0.0 tags unless explicitly authorized.
 
 ### Stage 5 local execution evidence
 
