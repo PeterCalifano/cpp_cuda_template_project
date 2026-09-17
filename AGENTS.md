@@ -2,8 +2,10 @@
 
 ## Superpowers usage
 
-Use Superpowers selectively. Prefer the lightest workflow appropriate for the task. Simple,
-unitary, direct tasks can be carried out without any loaded skill.
+Superpowers are off by default. Use them only when the user explicitly requests
+Superpowers, names a Superpowers skill, or selects an `SP:` mode other than `SP:off`.
+When enabled, use Superpowers selectively. Prefer the lightest workflow appropriate
+for the task. Simple, unitary, direct tasks can be carried out without any loaded skill.
 
 - **Simple/local changes:** work directly. Inspect --> edit --> test --> verify. Do not invoke
   Superpowers unnecessarily.
@@ -25,8 +27,8 @@ unitary, direct tasks can be carried out without any loaded skill.
 
 Optional user overrides:
 
-- `SP:off` - no Superpowers.
-- `SP:auto` - choose automatically (default).
+- `SP:off` - no Superpowers (default).
+- `SP:auto` - choose automatically for this task.
 - `SP:focused` - only directly relevant skills.
 - `SP:full` - full relevant workflow.
 - `SP:debug` - systematic debugging.
