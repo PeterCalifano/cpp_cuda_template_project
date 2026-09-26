@@ -2,8 +2,8 @@ set(lib_name ${LIB_TARGET_NAME}) # Override lets nested consumers avoid target n
 
 # Add config.h file to build
 configure_file(config.h.in config.h)
-configure_file("${CMAKE_CURRENT_BINARY_DIR}/config.h"
-               "${_project_build_include_root}/${project_name}/config.h" COPYONLY)
+file(WRITE "${_project_build_include_root}/${project_name}/config.h"
+     "#pragma once\n#include \"${CMAKE_CURRENT_BINARY_DIR}/config.h\"\n")
 
 # Native sources retain the source-relative include convention privately.
 include_directories("${PROJECT_SOURCE_DIR}/src")

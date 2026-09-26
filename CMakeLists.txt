@@ -429,7 +429,8 @@ set(installable_targets)
 # Define include target interface
 add_library(${project_name}_include INTERFACE)
 
-# Mirror source headers under the installed layout for build-tree consumers.
+# Forward prefixed build-tree includes to the original headers so one translation
+# unit cannot see duplicate definitions through source and build paths.
 set(_project_build_include_root "${PROJECT_BINARY_DIR}/public_include")
 file(REMOVE_RECURSE "${_project_build_include_root}/${project_name}")
 file(GLOB_RECURSE _project_public_headers CONFIGURE_DEPENDS
@@ -439,9 +440,13 @@ file(GLOB_RECURSE _project_public_headers CONFIGURE_DEPENDS
 foreach(_project_header IN LISTS _project_public_headers)
   file(RELATIVE_PATH _project_header_relative "${PROJECT_SOURCE_DIR}/src"
        "${_project_header}")
-  configure_file("${_project_header}"
-                 "${_project_build_include_root}/${project_name}/${_project_header_relative}"
-                 COPYONLY)
+  set(_project_forwarder
+      "${_project_build_include_root}/${project_name}/${_project_header_relative}")
+  get_filename_component(_project_forwarder_dir "${_project_forwarder}" DIRECTORY)
+  file(MAKE_DIRECTORY "${_project_forwarder_dir}")
+  file(TO_CMAKE_PATH "${_project_header}" _project_header_include)
+  file(WRITE "${_project_forwarder}"
+       "#pragma once\n#include \"${_project_header_include}\"\n")
 endforeach()
 
 # Consumers see only the namespace parent; source-only includes stay private.
