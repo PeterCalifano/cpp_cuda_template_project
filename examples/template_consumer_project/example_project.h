@@ -3,5 +3,5 @@
 
 #pragma once
 
-#include <template_src/placeholder.h>
-#include <utils/logging/CLogger.h>
+#include <template_project/template_src/placeholder.h>
+#include <template_project/utils/logging/CLogger.h>

@@ -108,7 +108,7 @@ Update these files first:
 
 ## Adding C++ Code
 
-Put public headers and compiled library sources under `src/<module>/`. The default library target exports `${PROJECT_NAME}::${PROJECT_NAME}` after installation and exposes headers from `include/<project_name>/`.
+Put public headers and compiled library sources under `src/<module>/`. The default library target exports `${PROJECT_NAME}::${PROJECT_NAME}` after installation and exposes headers from `include/<project_name>/`. Consumers include them as `<project_name/module/Header.h>` in both build-tree and installed packages. The target does not expose unprefixed `<module/Header.h>` spellings.
 
 The expected pattern is:
 

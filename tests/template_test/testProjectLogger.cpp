@@ -1,5 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
-#include <utils/logging/CLogger.h>
+#include <template_project/utils/logging/CLogger.h>
 
 #include <cstdlib>
 #include <optional>

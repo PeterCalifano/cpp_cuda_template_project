@@ -49,7 +49,7 @@ TEMPLATE_PROJECT_LOG_LEVEL=debug ./build/src/bin/example_program
 ## C++ usage
 
 ```cpp
-#include <utils/logging/CLogger.h>
+#include <template_project/utils/logging/CLogger.h>
 
 int main()
 {

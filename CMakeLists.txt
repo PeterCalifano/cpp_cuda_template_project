@@ -429,16 +429,25 @@ set(installable_targets)
 # Define include target interface
 add_library(${project_name}_include INTERFACE)
 
-# Define include directories for install compatibility
-target_include_directories(${project_name}_include INTERFACE 
-                           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>  # Used during development
-                           #$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/lib/stb_PeterCdev>  
-                           #$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/lib/rapidyaml_PeterCdev>
-                           #$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/lib/gdt>
-                           #$<BUILD_INTERFACE:${CUDA_INCLUDE_DIRS}> 
-                           #$<BUILD_INTERFACE:${OPTIX_INCLUDE_DIR}>   
-                           #$<BUILD_INTERFACE:${OpenCV_INCLUDE_DIRS}>  # Add OpenCV include directories
-                           $<INSTALL_INTERFACE:include/${project_name}>  # Used in installed projects
+# Mirror source headers under the installed layout for build-tree consumers.
+set(_project_build_include_root "${PROJECT_BINARY_DIR}/public_include")
+file(REMOVE_RECURSE "${_project_build_include_root}/${project_name}")
+file(GLOB_RECURSE _project_public_headers CONFIGURE_DEPENDS
+     "${PROJECT_SOURCE_DIR}/src/*.h"
+     "${PROJECT_SOURCE_DIR}/src/*.hpp"
+     "${PROJECT_SOURCE_DIR}/src/*.cuh")
+foreach(_project_header IN LISTS _project_public_headers)
+  file(RELATIVE_PATH _project_header_relative "${PROJECT_SOURCE_DIR}/src"
+       "${_project_header}")
+  configure_file("${_project_header}"
+                 "${_project_build_include_root}/${project_name}/${_project_header_relative}"
+                 COPYONLY)
+endforeach()
+
+# Consumers see only the namespace parent; source-only includes stay private.
+target_include_directories(${project_name}_include INTERFACE
+                           $<BUILD_INTERFACE:${_project_build_include_root}>
+                           $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
 # Build/install tree for runtime programs: $ORIGIN/../lib

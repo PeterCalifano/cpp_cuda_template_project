@@ -1,8 +1,8 @@
 /// @file example_build.cpp
 /// @brief Demonstrates template_project logging and placeholder usage.
 
-#include <template_src/placeholder.h>
-#include <utils/logging/CLogger.h>
+#include <template_project/template_src/placeholder.h>
+#include <template_project/utils/logging/CLogger.h>
 
 int main()
 {
