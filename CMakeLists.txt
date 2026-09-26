@@ -429,28 +429,28 @@ set(installable_targets)
 # Define include target interface
 add_library(${project_name}_include INTERFACE)
 
-# Forward prefixed build-tree includes to the original headers so one translation
-# unit cannot see duplicate definitions through source and build paths.
-set(_project_build_include_root "${PROJECT_BINARY_DIR}/public_include")
-file(REMOVE_RECURSE "${_project_build_include_root}/${project_name}")
-file(GLOB_RECURSE _project_public_headers CONFIGURE_DEPENDS
-     "${PROJECT_SOURCE_DIR}/src/*.h"
-     "${PROJECT_SOURCE_DIR}/src/*.hpp"
-     "${PROJECT_SOURCE_DIR}/src/*.cuh")
-foreach(_project_header IN LISTS _project_public_headers)
-  file(RELATIVE_PATH _project_header_relative "${PROJECT_SOURCE_DIR}/src"
-       "${_project_header}")
-  set(_project_forwarder
-      "${_project_build_include_root}/${project_name}/${_project_header_relative}")
-  get_filename_component(_project_forwarder_dir "${_project_forwarder}" DIRECTORY)
-  file(MAKE_DIRECTORY "${_project_forwarder_dir}")
-  file(TO_CMAKE_PATH "${_project_header}" _project_header_include)
-  file(WRITE "${_project_forwarder}"
-       "#pragma once\n#include \"${_project_header_include}\"\n")
-endforeach()
+# Expose the source header tree under the package prefix in build-tree packages.
+# One directory link follows header additions and removals without generated wrappers.
+set(_project_build_include_root "${PROJECT_BINARY_DIR}/public_src_include")
+set(_project_generated_include_root "${PROJECT_BINARY_DIR}/generated_include")
+set(_project_build_header_link "${_project_build_include_root}/${project_name}")
+file(MAKE_DIRECTORY "${_project_build_include_root}"
+     "${_project_generated_include_root}/${project_name}")
+if(EXISTS "${_project_build_header_link}" AND NOT IS_SYMLINK "${_project_build_header_link}")
+  message(FATAL_ERROR "Build-tree include path is occupied: ${_project_build_header_link}")
+endif()
+if(IS_SYMLINK "${_project_build_header_link}")
+  file(REMOVE "${_project_build_header_link}")
+endif()
+file(CREATE_LINK "${PROJECT_SOURCE_DIR}/src" "${_project_build_header_link}"
+     SYMBOLIC RESULT _project_header_link_result)
+if(NOT _project_header_link_result STREQUAL "0")
+  message(FATAL_ERROR "Cannot link build-tree headers: ${_project_header_link_result}")
+endif()
 
 # Consumers see only the namespace parent; source-only includes stay private.
 target_include_directories(${project_name}_include INTERFACE
+                           $<BUILD_INTERFACE:${_project_generated_include_root}>
                            $<BUILD_INTERFACE:${_project_build_include_root}>
                            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
